@@ -22,6 +22,12 @@ export default function FinancialsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Financials</Text>
       <Text style={styles.subtitle}>Cashflow, runway, and release performance</Text>
+      <View style={styles.card}>
+        <Text style={styles.label}>Update Cadence</Text>
+        <Text style={styles.muted}>
+          Cash and spend move instantly when you act. Weekly delta and most projections settle when you tap End Week.
+        </Text>
+      </View>
 
       <View style={styles.row}>
         <View style={styles.card}>

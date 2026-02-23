@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
@@ -13,8 +14,16 @@ function roleLabel(value: string): string {
 
 export default function TalentScreen() {
   const { manager, startNegotiation, attachTalent, lastMessage } = useGame();
-  const activeProject = manager.activeProjects.find((project) => project.phase === 'development') ?? manager.activeProjects[0];
+  const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
+  const activeProject = selectedProjectId ? developmentProjects.find((project) => project.id === selectedProjectId) ?? null : null;
   const projectLedger = manager.activeProjects.filter((project) => project.phase !== 'released');
+
+  useEffect(() => {
+    const selectionStillValid = !!selectedProjectId && developmentProjects.some((project) => project.id === selectedProjectId);
+    if (selectionStillValid) return;
+    setSelectedProjectId(developmentProjects[0]?.id ?? null);
+  }, [developmentProjects, selectedProjectId]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -27,6 +36,21 @@ export default function TalentScreen() {
         <Text style={styles.body}>
           Star = audience draw and launch heat. Craft = execution quality and critic stability. Big stars open films; high craft sustains reviews.
         </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Development Targets</Text>
+        {developmentProjects.length === 0 ? <Text style={styles.muted}>No development-phase project is available for attachment right now.</Text> : null}
+        {developmentProjects.map((project) => (
+          <Pressable
+            key={project.id}
+            style={[styles.targetButton, selectedProjectId === project.id ? styles.targetButtonActive : null]}
+            onPress={() => setSelectedProjectId(project.id)}>
+            <Text style={styles.targetButtonText}>
+              {project.title} ({project.genre})
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {activeProject ? (
@@ -161,6 +185,19 @@ const styles = StyleSheet.create({
   bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  targetButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  targetButtonActive: {
+    borderColor: tokens.accentGold,
+    backgroundColor: '#3B2E14',
+  },
+  targetButtonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
   button: {
     borderRadius: 10,
     borderWidth: 1,

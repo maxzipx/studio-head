@@ -157,6 +157,47 @@ describe('StudioManager', () => {
     expect(director!.availability).toBe('attached');
   });
 
+  it('blocks negotiations and attachments for non-development projects', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+
+    project!.phase = 'preProduction';
+    const open = manager.startTalentNegotiation(project!.id, director!.id);
+    const quickClose = manager.negotiateAndAttachTalent(project!.id, director!.id);
+
+    expect(open.success).toBe(false);
+    expect(open.message).toContain('development');
+    expect(quickClose.success).toBe(false);
+    expect(quickClose.message).toContain('development');
+  });
+
+  it('does not claim talent accepted if retainer cash is unavailable at resolution', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      negotiationRng: () => 0,
+      rivalRng: () => 1,
+      eventRng: () => 1,
+    });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+
+    const opened = manager.startTalentNegotiation(project!.id, director!.id);
+    expect(opened.success).toBe(true);
+    manager.cash = 0;
+
+    manager.endWeek();
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('accepted in principle'))).toBe(true);
+    expect(summary.events.some((entry) => entry.includes('accepted terms with'))).toBe(false);
+    expect(director!.availability).toBe('available');
+    expect(project!.directorId).not.toBe(director!.id);
+  });
+
   it('enforces phase progression gates and advances when requirements are met', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

@@ -239,6 +239,9 @@ export class StudioManager {
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'development') {
+      return { success: false, message: 'Talent negotiations can only be opened for development projects.' };
+    }
 
     const talent = this.talentPool.find((item) => item.id === talentId);
     if (!talent) return { success: false, message: 'Talent not found.' };
@@ -338,6 +341,9 @@ export class StudioManager {
   negotiateAndAttachTalent(projectId: string, talentId: string): { success: boolean; message: string } {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'development') {
+      return { success: false, message: 'Talent attachments can only be closed for development projects.' };
+    }
 
     const talent = this.talentPool.find((item) => item.id === talentId);
     if (!talent) return { success: false, message: 'Talent not found.' };
@@ -347,7 +353,9 @@ export class StudioManager {
     const retainer = talent.salary.base * 0.08;
     if (this.cash < retainer) return { success: false, message: 'Insufficient funds for deal memo retainer.' };
     if (this.negotiationRng() > chance) return { success: false, message: `${talent.name}'s reps declined current terms.` };
-    this.finalizeTalentAttachment(project, talent);
+    if (!this.finalizeTalentAttachment(project, talent)) {
+      return { success: false, message: `Deal memo failed for ${talent.name}; cash is below retainer.` };
+    }
     return { success: true, message: `${talent.name} attached to ${project.title}.` };
   }
 
@@ -1274,8 +1282,11 @@ export class StudioManager {
 
       const chance = this.talentDealChance(talent, 0.7);
       if (this.negotiationRng() <= chance) {
-        this.finalizeTalentAttachment(project, talent);
-        events.push(`${talent.name} accepted terms with ${this.studioName}.`);
+        if (this.finalizeTalentAttachment(project, talent)) {
+          events.push(`${talent.name} accepted terms with ${this.studioName}.`);
+        } else {
+          events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);
+        }
       } else {
         talent.availability = 'available';
         events.push(`${talent.name} declined final terms.`);
@@ -1688,11 +1699,11 @@ export class StudioManager {
     return clamp(base + relationshipBoost + heatBoost + arcLeverage - reputationPenalty - egoPenalty - agentPenalty, 0.08, 0.95);
   }
 
-  private finalizeTalentAttachment(project: MovieProject, talent: Talent): void {
+  private finalizeTalentAttachment(project: MovieProject, talent: Talent): boolean {
     const retainer = talent.salary.base * 0.08;
     if (this.cash < retainer) {
       talent.availability = 'available';
-      return;
+      return false;
     }
     this.cash -= retainer;
     talent.availability = 'attached';
@@ -1706,6 +1717,7 @@ export class StudioManager {
       }
     }
     project.hypeScore = clamp(project.hypeScore + talent.starPower * 0.8, 0, 100);
+    return true;
   }
 
   private resolveTalentPoachCrisis(project: MovieProject, option: CrisisEvent['options'][number]): void {
@@ -1716,8 +1728,9 @@ export class StudioManager {
     if (option.kind === 'talentCounter') {
       const premium = option.premiumMultiplier ?? 1.25;
       const cost = talent.salary.base * 0.2 * premium;
+      const retainer = talent.salary.base * 0.08;
       const chance = clamp(0.55 + this.studioHeat / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
-      if (this.cash >= cost && this.negotiationRng() <= chance) {
+      if (this.cash >= cost + retainer && this.negotiationRng() <= chance) {
         this.cash -= cost;
         if (rival) {
           rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
