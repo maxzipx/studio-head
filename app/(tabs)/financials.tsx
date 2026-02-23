@@ -13,11 +13,7 @@ export default function FinancialsScreen() {
   const totalBudget = projects.reduce((sum, project) => sum + project.budget.ceiling, 0);
   const totalSpend = projects.reduce((sum, project) => sum + project.budget.actualSpend, 0);
   const released = projects.filter((project) => project.phase === 'released');
-  const inFlight = projects.filter((project) => project.phase !== 'released');
-  const burnThisWeek = inFlight.reduce(
-    (sum, project) => sum + (project.budget.ceiling * 0.004 + project.marketingBudget * 0.1),
-    0
-  );
+  const burnThisWeek = manager.estimateWeeklyBurn();
   const completionPct = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
   const lastDelta = manager.lastWeekSummary?.cashDelta ?? 0;
   const runwayWeeks = burnThisWeek > 0 ? manager.cash / burnThisWeek : 0;

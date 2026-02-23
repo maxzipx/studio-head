@@ -46,6 +46,15 @@ describe('StudioManager', () => {
     expect(manager.cash).toBeLessThan(cashBefore);
   });
 
+  it('keeps opening decision copy aligned with project-level effects', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const opening = manager.decisionQueue[0];
+
+    expect(opening.title).toContain('Development Sprint');
+    expect(opening.options[0].label).toBe('Fund Sprint');
+    expect(opening.options[0].preview).toContain('lead project');
+  });
+
   it('applies extended decision effects to project, heat, and story flags', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const project = manager.activeProjects[0];
@@ -587,6 +596,14 @@ describe('StudioManager', () => {
     expect(arcPressure).toBeGreaterThan(0);
   });
 
+  it('estimates weekly burn with the same formula used for burn application', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const estimated = manager.estimateWeeklyBurn();
+
+    const applied = (manager as unknown as { applyWeeklyBurn: () => number }).applyWeeklyBurn();
+    expect(estimated).toBeCloseTo(applied, 5);
+  });
+
   it('runs blockbuster signature move and injects tentpole release conflict pressure', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
     manager.rivals = [
@@ -613,5 +630,39 @@ describe('StudioManager', () => {
     expect(events.some((entry) => entry.includes('tentpole'))).toBe(true);
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
     expect(manager.storyFlags.rival_tentpole_threat).toBeGreaterThan(0);
+  });
+
+  it('clears counterplay flag on expiry so future counterplay can re-queue', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-1',
+        name: 'Test Blockbuster',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+    const target = manager.activeProjects[0];
+    target.phase = 'distribution';
+    target.releaseWeek = manager.currentWeek + 4;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+
+    expect(manager.storyFlags.rival_tentpole_threat).toBeGreaterThan(0);
+    expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
+
+    const expiryEvents: string[] = [];
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+
+    expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
+    expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(false);
+
+    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+    expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
   });
 });

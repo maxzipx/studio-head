@@ -550,12 +550,24 @@ export class StudioManager {
     return { critical, openingLow, openingHigh, roi };
   }
 
+  estimateWeeklyBurn(): number {
+    const modifiers = this.getArcOutcomeModifiers();
+    return this.activeProjects.reduce((sum, project) => {
+      if (project.phase === 'released') return sum;
+      return sum + this.projectedBurnForProject(project, modifiers.burnMultiplier);
+    }, 0);
+  }
+
+  private projectedBurnForProject(project: MovieProject, burnMultiplier: number): number {
+    return project.budget.ceiling * phaseBurnMultiplier(project.phase) * burnMultiplier;
+  }
+
   private applyWeeklyBurn(): number {
     const modifiers = this.getArcOutcomeModifiers();
     let total = 0;
     for (const project of this.activeProjects) {
       if (project.phase === 'released') continue;
-      const burn = project.budget.ceiling * phaseBurnMultiplier(project.phase) * modifiers.burnMultiplier;
+      const burn = this.projectedBurnForProject(project, modifiers.burnMultiplier);
       total += burn;
       project.budget.actualSpend += burn;
       project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining - 1);
@@ -579,6 +591,16 @@ export class StudioManager {
     }
     const expired = this.decisionQueue.filter((item) => item.weeksUntilExpiry < 0);
     if (expired.length > 0) {
+      for (const item of expired) {
+        const flag = item.onExpireClearFlag;
+        if (!flag) continue;
+        const current = this.storyFlags[flag] ?? 0;
+        if (current <= 1) {
+          delete this.storyFlags[flag];
+        } else {
+          this.storyFlags[flag] = current - 1;
+        }
+      }
       this.decisionQueue = this.decisionQueue.filter((item) => item.weeksUntilExpiry >= 0);
       events.push(`${expired.length} decision item(s) expired.`);
       this.studioHeat = clamp(this.studioHeat - expired.length, 0, 100);
@@ -1360,6 +1382,7 @@ export class StudioManager {
         title,
         body: 'A major rival crowded your release corridor. Choose how to defend opening week share.',
         weeksUntilExpiry: 1,
+        onExpireClearFlag: 'rival_tentpole_threat',
         options: [
           {
             id: id('opt'),
@@ -1396,6 +1419,7 @@ export class StudioManager {
         title,
         body: 'Awards conversation shifted away from your slate. Decide whether to contest the narrative.',
         weeksUntilExpiry: 1,
+        onExpireClearFlag: 'awards_headwind',
         options: [
           {
             id: id('opt'),
@@ -1432,6 +1456,7 @@ export class StudioManager {
         title,
         body: 'Rival package deals are squeezing your talent access. Choose your labor strategy.',
         weeksUntilExpiry: 1,
+        onExpireClearFlag: 'rival_talent_lock',
         options: [
           {
             id: id('opt'),
@@ -1467,6 +1492,7 @@ export class StudioManager {
         title,
         body: 'Aggressive streaming terms are distorting your release leverage.',
         weeksUntilExpiry: 1,
+        onExpireClearFlag: 'streaming_pressure',
         options: [
           {
             id: id('opt'),
@@ -1502,6 +1528,7 @@ export class StudioManager {
         title,
         body: 'A rival social blitz is pulling mindshare away from your campaign.',
         weeksUntilExpiry: 1,
+        onExpireClearFlag: 'guerrilla_pressure',
         options: [
           {
             id: id('opt'),

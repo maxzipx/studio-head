@@ -137,14 +137,14 @@ export function createOpeningDecisions(): DecisionItem[] {
     {
       id: id('decision'),
       projectId: null,
-      title: 'Spec Script Offer: "Glass Harbor"',
-      body: 'Asking price is $360K. Agency asks for answer within two weeks.',
+      title: 'Development Sprint Proposal',
+      body: 'A top script doctor can run a two-week polish sprint on your lead project for $360K.',
       weeksUntilExpiry: 2,
       options: [
         {
           id: id('option'),
-          label: 'Acquire Script',
-          preview: 'Add a strong thriller script to development slate.',
+          label: 'Fund Sprint',
+          preview: 'Improve your current lead project script quality this week.',
           cashDelta: -360_000,
           scriptQualityDelta: 0.8,
           hypeDelta: 0,
@@ -152,7 +152,7 @@ export function createOpeningDecisions(): DecisionItem[] {
         {
           id: id('option'),
           label: 'Pass',
-          preview: 'No spend this week, potential relationship hit with agency.',
+          preview: 'No spend this week and no uplift to project quality.',
           cashDelta: 0,
           scriptQualityDelta: 0,
           hypeDelta: -1,

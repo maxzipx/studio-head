@@ -131,6 +131,7 @@ export interface DecisionItem {
   title: string;
   body: string;
   weeksUntilExpiry: number;
+  onExpireClearFlag?: string;
   category?: DecisionCategory;
   sourceEventId?: string;
   arcId?: string;
