@@ -3,9 +3,18 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function roleLabel(value: string): string {
+  return value === 'leadActor' ? 'Lead Actor' : value === 'supportingActor' ? 'Supporting Actor' : value;
+}
+
 export default function TalentScreen() {
   const { manager, startNegotiation, attachTalent, lastMessage } = useGame();
   const activeProject = manager.activeProjects.find((project) => project.phase === 'development') ?? manager.activeProjects[0];
+  const projectLedger = manager.activeProjects.filter((project) => project.phase !== 'released');
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -13,12 +22,58 @@ export default function TalentScreen() {
       <Text style={styles.subtitle}>Shared market with rival lock status and negotiation controls</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
 
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Star vs Craft</Text>
+        <Text style={styles.body}>
+          Star = audience draw and launch heat. Craft = execution quality and critic stability. Big stars open films; high craft sustains reviews.
+        </Text>
+      </View>
+
       {activeProject ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Active Target Project</Text>
-          <Text style={styles.body}>{activeProject.title}</Text>
+          <Text style={styles.body}>
+            {activeProject.title} ({activeProject.genre}) | {activeProject.phase}
+          </Text>
+          <Text style={styles.muted}>
+            Director:{' '}
+            {activeProject.directorId
+              ? manager.talentPool.find((talent) => talent.id === activeProject.directorId)?.name ?? 'Unknown'
+              : 'Unattached'}
+          </Text>
+          <Text style={styles.muted}>
+            Cast:{' '}
+            {activeProject.castIds.length > 0
+              ? activeProject.castIds
+                  .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
+                  .filter((value): value is string => !!value)
+                  .join(', ')
+              : 'None'}
+          </Text>
         </View>
       ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Project Ledger</Text>
+        {projectLedger.length === 0 ? <Text style={styles.muted}>No active projects.</Text> : null}
+        {projectLedger.map((project) => {
+          const director = project.directorId
+            ? manager.talentPool.find((talent) => talent.id === project.directorId)?.name ?? 'Unknown'
+            : 'Unattached';
+          const cast = project.castIds
+            .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
+            .filter((value): value is string => !!value);
+          return (
+            <View key={project.id} style={styles.subCard}>
+              <Text style={styles.bodyStrong}>
+                {project.title} | {project.genre} | {project.phase}
+              </Text>
+              <Text style={styles.muted}>Director: {director}</Text>
+              <Text style={styles.muted}>Cast: {cast.length > 0 ? cast.join(', ') : 'None'}</Text>
+            </View>
+          );
+        })}
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Open Negotiations</Text>
@@ -26,35 +81,49 @@ export default function TalentScreen() {
         {manager.playerNegotiations.map((entry) => {
           const talent = manager.talentPool.find((item) => item.id === entry.talentId);
           const project = manager.activeProjects.find((item) => item.id === entry.projectId);
+          const chance = manager.getNegotiationChance(entry.talentId);
           return (
-            <Text key={`${entry.projectId}-${entry.talentId}`} style={styles.muted}>
-              {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'} (week {entry.openedWeek})
-            </Text>
+            <View key={`${entry.projectId}-${entry.talentId}`} style={styles.subCard}>
+              <Text style={styles.bodyStrong}>
+                {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'}
+              </Text>
+              <Text style={styles.muted}>
+                Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
+              </Text>
+            </View>
           );
         })}
       </View>
 
       {manager.talentPool.map((talent) => {
         const rival = manager.rivals.find((item) => item.lockedTalentIds.includes(talent.id));
+        const attachedProject =
+          talent.attachedProjectId && manager.activeProjects.find((project) => project.id === talent.attachedProjectId);
         const status =
           talent.availability === 'unavailable' && rival
             ? `In Production - ${rival.name} (returns W${talent.unavailableUntilWeek ?? '-'})`
             : talent.availability;
+        const topFit = Object.entries(talent.genreFit).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
         return (
           <View key={talent.id} style={styles.card}>
             <Text style={styles.cardTitle}>{talent.name}</Text>
             <Text style={styles.body}>
-              {talent.role} | Star {talent.starPower.toFixed(1)} | Craft {talent.craftScore.toFixed(1)}
+              {roleLabel(talent.role)} | Star {talent.starPower.toFixed(1)} | Craft {talent.craftScore.toFixed(1)}
             </Text>
             <Text style={styles.muted}>Status: {status}</Text>
             <Text style={styles.muted}>Agent: {talent.agentTier.toUpperCase()} | Ego {talent.egoLevel.toFixed(1)}</Text>
+            <Text style={styles.muted}>Relationship: {talent.studioRelationship.toFixed(2)} | Reputation: {talent.reputation.toFixed(1)}</Text>
+            <Text style={styles.muted}>
+              Best fit: {topFit ? `${topFit[0]} (${pct(topFit[1] ?? 0)})` : 'Generalist'}
+            </Text>
+            {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
             {activeProject && talent.availability === 'available' ? (
               <View style={styles.actions}>
                 <Pressable style={styles.button} onPress={() => startNegotiation(activeProject.id, talent.id)}>
-                  <Text style={styles.buttonText}>Open Negotiation</Text>
+                  <Text style={styles.buttonText}>Open Negotiation {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => attachTalent(activeProject.id, talent.id)}>
-                  <Text style={styles.buttonText}>Quick Close</Text>
+                  <Text style={styles.buttonText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -79,8 +148,17 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
   },
+  subCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 8,
+    gap: 4,
+  },
   cardTitle: { color: tokens.textPrimary, fontSize: 18, fontWeight: '700' },
   body: { color: tokens.textSecondary, fontSize: 13 },
+  bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   button: {

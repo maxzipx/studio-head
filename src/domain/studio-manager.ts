@@ -132,8 +132,92 @@ export class StudioManager {
     return this.pendingCrises.length === 0;
   }
 
+  setStudioName(name: string): { success: boolean; message: string } {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) {
+      return { success: false, message: 'Studio name must be at least 2 characters.' };
+    }
+    const sanitized = trimmed.slice(0, 32);
+    this.studioName = sanitized;
+    return { success: true, message: `Studio renamed to ${sanitized}.` };
+  }
+
   getAvailableTalentForRole(role: TalentRole): Talent[] {
     return this.talentPool.filter((talent) => talent.role === role && talent.availability === 'available');
+  }
+
+  getNegotiationChance(talentId: string): number | null {
+    const talent = this.talentPool.find((item) => item.id === talentId);
+    if (!talent) return null;
+    return this.talentDealChance(talent, 0.7);
+  }
+
+  getQuickCloseChance(talentId: string): number | null {
+    const talent = this.talentPool.find((item) => item.id === talentId);
+    if (!talent) return null;
+    return this.talentDealChance(talent, 0.72);
+  }
+
+  evaluateScriptPitch(scriptId: string): {
+    score: number;
+    recommendation: 'strongBuy' | 'conditional' | 'pass';
+    expectedROI: number;
+    fitScore: number;
+    riskLabel: 'low' | 'medium' | 'high';
+  } | null {
+    const script = this.scriptMarket.find((item) => item.id === scriptId);
+    if (!script) return null;
+
+    const budget = initialBudgetForGenre(script.genre);
+    const availableDirectors = this.getAvailableTalentForRole('director');
+    const availableLeads = this.getAvailableTalentForRole('leadActor');
+    const bestDirector = [...availableDirectors].sort((a, b) => b.craftScore - a.craftScore)[0];
+    const bestLead = [...availableLeads].sort((a, b) => b.starPower - a.starPower)[0];
+    const bestDirectorFit = bestDirector?.genreFit[script.genre] ?? 0.6;
+    const bestLeadFit = bestLead?.genreFit[script.genre] ?? 0.6;
+    const fitScore = clamp((bestDirectorFit + bestLeadFit) / 2, 0, 1);
+
+    const critical = projectedCriticalScore({
+      scriptQuality: script.scriptQuality,
+      directorCraft: bestDirector?.craftScore ?? 6,
+      leadActorCraft: bestLead?.craftScore ?? 6,
+      productionSpend: budget * 0.8,
+      conceptStrength: script.conceptStrength,
+      editorialCutChoice: 5,
+      crisisPenalty: 0,
+      chemistryPenalty: 0,
+    });
+    const opening = projectedOpeningWeekendRange({
+      genre: script.genre,
+      hypeScore: 12,
+      starPower: bestLead?.starPower ?? 5.5,
+      marketingBudget: budget * 0.12,
+      totalBudget: budget,
+    });
+    const expectedROI = projectedROI({
+      openingWeekend: opening.midpoint,
+      criticalScore: critical,
+      audienceScore: clamp(critical + 4, 0, 100),
+      genre: script.genre,
+      totalCost: budget * 1.12,
+    });
+
+    const affordability = script.askingPrice / Math.max(1, this.cash);
+    const score = clamp(
+      (critical / 100) * 40 + clamp(expectedROI / 2.4, 0, 1) * 35 + fitScore * 20 + (1 - clamp(affordability, 0, 1)) * 5,
+      0,
+      100
+    );
+    const recommendation = score >= 70 ? 'strongBuy' : score >= 55 ? 'conditional' : 'pass';
+    const riskLabel = affordability > 0.15 || expectedROI < 1 ? 'high' : affordability > 0.08 || expectedROI < 1.4 ? 'medium' : 'low';
+
+    return {
+      score,
+      recommendation,
+      expectedROI,
+      fitScore,
+      riskLabel,
+    };
   }
 
   getIndustryHeatLeaderboard(): { name: string; heat: number; isPlayer: boolean }[] {
@@ -169,7 +253,11 @@ export class StudioManager {
       projectId,
       openedWeek: this.currentWeek,
     });
-    return { success: true, message: `Opened negotiation with ${talent.name}.` };
+    const chance = this.talentDealChance(talent, 0.7);
+    return {
+      success: true,
+      message: `Opened negotiation with ${talent.name}. Expected close chance ${Math.round(chance * 100)}% at next End Week.`,
+    };
   }
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
@@ -255,17 +343,7 @@ export class StudioManager {
     if (!talent) return { success: false, message: 'Talent not found.' };
     if (talent.availability !== 'available') return { success: false, message: `${talent.name} is unavailable.` };
 
-    const difficulty = AGENT_DIFFICULTY[talent.agentTier] + talent.egoLevel * 0.04;
-    const modifiers = this.getArcOutcomeModifiers();
-    const chance = clamp(
-      0.72 +
-        this.studioHeat / 220 +
-        talent.studioRelationship * 0.15 -
-        difficulty * 0.2 +
-        modifiers.talentLeverage,
-      0.15,
-      0.95
-    );
+    const chance = this.talentDealChance(talent, 0.72);
     const retainer = talent.salary.base * 0.08;
     if (this.cash < retainer) return { success: false, message: 'Insufficient funds for deal memo retainer.' };
     if (this.negotiationRng() > chance) return { success: false, message: `${talent.name}'s reps declined current terms.` };
@@ -1030,9 +1108,9 @@ export class StudioManager {
       id: id('crisis'),
       projectId: project.id,
       kind: 'production',
-      title: selected.title,
+      title: `${project.title}: ${selected.title}`,
       severity: selected.severity,
-      body: selected.body,
+      body: `${project.title} is affected. ${selected.body}`,
       options: selected.options,
     };
   }
@@ -1136,13 +1214,15 @@ export class StudioManager {
       if (this.playerNegotiations.some((item) => item.talentId === picked.id)) {
         const negotiation = this.playerNegotiations.find((item) => item.talentId === picked.id);
         if (negotiation) {
+          const project = this.activeProjects.find((item) => item.id === negotiation.projectId);
+          const projectTitle = project?.title ?? 'your project';
           this.pendingCrises.push({
             id: id('crisis'),
             projectId: negotiation.projectId,
             kind: 'talentPoached',
-            title: `${picked.name} just closed with ${rival.name}`,
+            title: `${picked.name} just closed with ${rival.name} (${projectTitle})`,
             severity: 'red',
-            body: 'Counter-offer now at a premium or walk away.',
+            body: `${projectTitle} lost a key attachment. Counter-offer now at a premium or walk away.`,
             options: [
               {
                 id: id('c-opt'),
@@ -1169,7 +1249,7 @@ export class StudioManager {
               },
             ],
           });
-          events.push(`${rival.name} poached ${picked.name}. Counter-offer decision required.`);
+          events.push(`${rival.name} poached ${picked.name} from ${projectTitle}. Counter-offer decision required.`);
         }
       } else {
         events.push(`${rival.name} attached ${picked.name}. Available again around week ${unavailableUntil}.`);
@@ -1178,7 +1258,6 @@ export class StudioManager {
   }
 
   private processPlayerNegotiations(events: string[]): void {
-    const modifiers = this.getArcOutcomeModifiers();
     const resolved: string[] = [];
     for (const negotiation of this.playerNegotiations) {
       if (this.currentWeek - negotiation.openedWeek < 1) continue;
@@ -1193,16 +1272,7 @@ export class StudioManager {
         continue;
       }
 
-      const difficulty = AGENT_DIFFICULTY[talent.agentTier] + talent.egoLevel * 0.04;
-      const chance = clamp(
-        0.7 +
-          this.studioHeat / 220 +
-          talent.studioRelationship * 0.15 -
-          difficulty * 0.2 +
-          modifiers.talentLeverage,
-        0.15,
-        0.95
-      );
+      const chance = this.talentDealChance(talent, 0.7);
       if (this.negotiationRng() <= chance) {
         this.finalizeTalentAttachment(project, talent);
         events.push(`${talent.name} accepted terms with ${this.studioName}.`);
@@ -1255,9 +1325,9 @@ export class StudioManager {
           id: id('crisis'),
           projectId: target.id,
           kind: 'releaseConflict',
-          title: `${rival.name} moved into your release window`,
+      title: `${target.title}: ${rival.name} moved into your release window`,
           severity: 'orange',
-          body: `Projected opening is under pressure in week ${target.releaseWeek}.`,
+          body: `${target.title} is under opening pressure in week ${target.releaseWeek}.`,
           options: [
             {
               id: id('c-opt'),
@@ -1606,6 +1676,16 @@ export class StudioManager {
       sorted.sort(() => this.rivalRng() - 0.5);
     }
     return sorted[0] ?? null;
+  }
+
+  private talentDealChance(talent: Talent, base: number): number {
+    const arcLeverage = this.getArcOutcomeModifiers().talentLeverage;
+    const relationshipBoost = clamp((talent.studioRelationship - 0.5) * 0.24, -0.12, 0.12);
+    const heatBoost = clamp((this.studioHeat - 10) / 260, -0.08, 0.16);
+    const reputationPenalty = clamp((talent.starPower - 5) * 0.015 + (talent.craftScore - 5) * 0.01, 0, 0.16);
+    const egoPenalty = clamp((talent.egoLevel - 5) * 0.018, -0.04, 0.16);
+    const agentPenalty = clamp((AGENT_DIFFICULTY[talent.agentTier] - 1) * 0.2, 0, 0.12);
+    return clamp(base + relationshipBoost + heatBoost + arcLeverage - reputationPenalty - egoPenalty - agentPenalty, 0.08, 0.95);
   }
 
   private finalizeTalentAttachment(project: MovieProject, talent: Talent): void {

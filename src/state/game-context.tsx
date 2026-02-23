@@ -13,6 +13,7 @@ interface GameContextValue {
   runOptionalAction: () => void;
   acquireScript: (scriptId: string) => void;
   passScript: (scriptId: string) => void;
+  renameStudio: (name: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
   startNegotiation: (projectId: string, talentId: string) => void;
   advancePhase: (projectId: string) => void;
@@ -86,6 +87,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       passScript: (scriptId: string) => {
         manager.passScript(scriptId);
         saveAndTick('Script passed.');
+      },
+      renameStudio: (name: string) => {
+        const result = manager.setStudioName(name);
+        saveAndTick(result.message);
       },
       attachTalent: (projectId: string, talentId: string) => {
         const result = manager.negotiateAndAttachTalent(projectId, talentId);

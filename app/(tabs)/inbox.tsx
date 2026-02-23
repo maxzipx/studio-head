@@ -17,6 +17,9 @@ export default function InboxScreen() {
 
       {manager.pendingCrises.map((crisis) => (
         <View key={crisis.id} style={[styles.card, styles.crisisCard]}>
+          <Text style={styles.scope}>
+            Affects: {manager.activeProjects.find((project) => project.id === crisis.projectId)?.title ?? 'Unknown project'}
+          </Text>
           <Text style={styles.crisisTitle}>{crisis.title}</Text>
           <Text style={styles.body}>{crisis.body}</Text>
           <Text style={styles.severity}>Severity: {crisis.severity.toUpperCase()}</Text>
@@ -34,6 +37,9 @@ export default function InboxScreen() {
 
       {manager.decisionQueue.map((item) => (
         <View key={item.id} style={styles.card}>
+          <Text style={styles.scope}>
+            Scope: {item.projectId ? manager.activeProjects.find((project) => project.id === item.projectId)?.title ?? 'Unknown project' : 'Studio-wide'}
+          </Text>
           <Text style={styles.decisionTitle}>{item.title}</Text>
           <Text style={styles.body}>{item.body}</Text>
           <Text style={styles.expiry}>Expires in: {Math.max(0, item.weeksUntilExpiry)} week(s)</Text>
@@ -110,6 +116,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   expiry: {
+    color: tokens.textMuted,
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  scope: {
     color: tokens.textMuted,
     fontSize: 12,
     marginBottom: 2,

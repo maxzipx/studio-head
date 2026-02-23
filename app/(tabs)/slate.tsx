@@ -7,6 +7,16 @@ function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
+  if (value === 'strongBuy') return 'Strong Buy';
+  if (value === 'conditional') return 'Conditional Buy';
+  return 'Pass';
+}
+
 export default function SlateScreen() {
   const { manager, acquireScript, advancePhase, passScript, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, lastMessage } =
     useGame();
@@ -66,6 +76,16 @@ export default function SlateScreen() {
             </View>
             <Text style={styles.body}>{script.logline}</Text>
             <Text style={styles.muted}>Ask: {money(script.askingPrice)} | Exp: {script.expiresInWeeks}w</Text>
+            {(() => {
+              const evalResult = manager.evaluateScriptPitch(script.id);
+              if (!evalResult) return null;
+              return (
+                <Text style={styles.muted}>
+                  {recommendationLabel(evalResult.recommendation)} | Score {evalResult.score.toFixed(0)} | ROI {evalResult.expectedROI.toFixed(2)}x | Fit{' '}
+                  {pct(evalResult.fitScore)} | Risk {evalResult.riskLabel}
+                </Text>
+              );
+            })()}
             <View style={styles.actions}>
               <Pressable style={styles.button} onPress={() => acquireScript(script.id)}>
                 <Text style={styles.buttonText}>Acquire</Text>
@@ -84,12 +104,22 @@ export default function SlateScreen() {
         {inFlight.map((project) => {
           const projection = manager.getProjectedForProject(project.id);
           const burnPct = (project.budget.actualSpend / project.budget.ceiling) * 100;
+          const director = project.directorId
+            ? manager.talentPool.find((talent) => talent.id === project.directorId)?.name ?? 'Unknown'
+            : 'Unattached';
+          const cast = project.castIds
+            .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
+            .filter((value): value is string => !!value);
           return (
             <View key={project.id} style={styles.card}>
               <View style={styles.row}>
                 <Text style={styles.cardTitle}>{project.title}</Text>
                 <Text style={styles.genre}>{project.phase}</Text>
               </View>
+              <Text style={styles.body}>
+                {project.genre} | Director: {director}
+              </Text>
+              <Text style={styles.muted}>Cast: {cast.length > 0 ? cast.join(', ') : 'None attached'}</Text>
               <Text style={styles.body}>
                 Budget: {money(project.budget.actualSpend)} / {money(project.budget.ceiling)} ({burnPct.toFixed(1)}%)
               </Text>

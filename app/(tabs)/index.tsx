@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
@@ -22,7 +22,8 @@ const ARC_LABELS: Record<string, string> = {
 };
 
 export default function HQScreen() {
-  const { manager, dismissReleaseReveal, endWeek, resolveCrisis, resolveDecision, runOptionalAction } = useGame();
+  const { manager, dismissReleaseReveal, endWeek, resolveCrisis, resolveDecision, runOptionalAction, renameStudio, lastMessage } =
+    useGame();
   const reveal = manager.getNextReleaseReveal();
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
@@ -38,6 +39,7 @@ export default function HQScreen() {
     .slice(0, 8);
   const activeArcCount = arcEntries.filter(([, arc]) => arc.status === 'active').length;
   const anim = useRef(new Animated.Value(0)).current;
+  const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
 
   useEffect(() => {
     if (!reveal) return;
@@ -50,12 +52,32 @@ export default function HQScreen() {
     }).start();
   }, [anim, reveal]);
 
+  useEffect(() => {
+    setStudioNameDraft(manager.studioName);
+  }, [manager.studioName]);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Studio HQ</Text>
       <Text style={styles.subtitle}>
         Week {manager.currentWeek} | {manager.studioName}
       </Text>
+      {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Studio Identity</Text>
+        <TextInput
+          value={studioNameDraft}
+          onChangeText={setStudioNameDraft}
+          placeholder="Enter studio name"
+          placeholderTextColor={tokens.textMuted}
+          style={styles.input}
+          maxLength={32}
+        />
+        <Pressable style={styles.choiceButton} onPress={() => renameStudio(studioNameDraft)}>
+          <Text style={styles.choiceTitle}>Rename Studio</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.row}>
         <View style={styles.card}>
@@ -108,6 +130,9 @@ export default function HQScreen() {
         {manager.pendingCrises.length === 0 ? <Text style={styles.mutedBody}>No blocking crises this week.</Text> : null}
         {manager.pendingCrises.map((crisis) => (
           <View key={crisis.id} style={styles.actionCard}>
+            <Text style={styles.mutedBody}>
+              Affects: {manager.activeProjects.find((project) => project.id === crisis.projectId)?.title ?? 'Unknown project'}
+            </Text>
             <Text style={styles.crisisTitle}>{crisis.title}</Text>
             <Text style={styles.body}>{crisis.body}</Text>
             <Text style={styles.alert}>Severity: {crisis.severity.toUpperCase()}</Text>
@@ -129,6 +154,9 @@ export default function HQScreen() {
         {manager.decisionQueue.length === 0 ? <Text style={styles.mutedBody}>No active decisions right now.</Text> : null}
         {manager.decisionQueue.map((item) => (
           <View key={item.id} style={styles.actionCard}>
+            <Text style={styles.mutedBody}>
+              Scope: {item.projectId ? manager.activeProjects.find((project) => project.id === item.projectId)?.title ?? 'Unknown project' : 'Studio-wide'}
+            </Text>
             <Text style={styles.bodyStrong}>{item.title}</Text>
             <Text style={styles.body}>{item.body}</Text>
             <Text style={styles.mutedBody}>Expires in {Math.max(0, item.weeksUntilExpiry)} week(s)</Text>
@@ -258,6 +286,21 @@ const styles = StyleSheet.create({
     color: tokens.textSecondary,
     marginTop: -2,
     marginBottom: 8,
+    fontSize: 13,
+  },
+  message: {
+    color: tokens.accentTeal,
+    marginBottom: 4,
+    fontSize: 13,
+  },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    color: tokens.textPrimary,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     fontSize: 13,
   },
   row: {

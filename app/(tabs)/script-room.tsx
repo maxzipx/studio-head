@@ -7,6 +7,16 @@ function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
+  if (value === 'strongBuy') return 'Strong Buy';
+  if (value === 'conditional') return 'Conditional Buy';
+  return 'Pass';
+}
+
 export default function ScriptRoomScreen() {
   const { manager, acquireScript, passScript, startNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
@@ -26,10 +36,16 @@ export default function ScriptRoomScreen() {
             {manager.playerNegotiations.map((entry) => {
               const talent = manager.talentPool.find((item) => item.id === entry.talentId);
               const project = manager.activeProjects.find((item) => item.id === entry.projectId);
+              const chance = manager.getNegotiationChance(entry.talentId);
               return (
-                <Text key={`${entry.projectId}-${entry.talentId}`} style={styles.muted}>
-                  {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'} (opened week {entry.openedWeek})
-                </Text>
+                <View key={`${entry.projectId}-${entry.talentId}`} style={styles.subCard}>
+                  <Text style={styles.bodyStrong}>
+                    {talent?.name ?? 'Talent'} for {project?.title ?? 'Project'}
+                  </Text>
+                  <Text style={styles.muted}>
+                    Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
+                  </Text>
+                </View>
               );
             })}
           </View>
@@ -52,6 +68,20 @@ export default function ScriptRoomScreen() {
               <Text style={styles.muted}>
                 Script: {script.scriptQuality.toFixed(1)} | Concept: {script.conceptStrength.toFixed(1)}
               </Text>
+              {(() => {
+                const evalResult = manager.evaluateScriptPitch(script.id);
+                if (!evalResult) return null;
+                return (
+                  <View style={styles.subCard}>
+                    <Text style={styles.bodyStrong}>
+                      {recommendationLabel(evalResult.recommendation)} | Score {evalResult.score.toFixed(0)}
+                    </Text>
+                    <Text style={styles.muted}>
+                      Est ROI {evalResult.expectedROI.toFixed(2)}x | Talent fit {pct(evalResult.fitScore)} | Risk {evalResult.riskLabel}
+                    </Text>
+                  </View>
+                );
+              })()}
               <View style={styles.actions}>
                 <Pressable style={styles.actionButton} onPress={() => acquireScript(script.id)}>
                   <Text style={styles.actionText}>Acquire</Text>
@@ -73,11 +103,18 @@ export default function ScriptRoomScreen() {
           developmentProjects.map((project) => {
             const projection = manager.getProjectedForProject(project.id);
             const attachedDirector = manager.talentPool.find((talent) => talent.id === project.directorId);
+            const castNames = project.castIds
+              .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
+              .filter((value): value is string => !!value);
             return (
               <View key={project.id} style={styles.card}>
                 <Text style={styles.cardTitle}>{project.title}</Text>
-                <Text style={styles.body}>Director: {attachedDirector?.name ?? 'Unattached'}</Text>
-                <Text style={styles.body}>Cast attached: {project.castIds.length}</Text>
+                <Text style={styles.body}>
+                  {project.genre} | Director: {attachedDirector?.name ?? 'Unattached'}
+                </Text>
+                <Text style={styles.body}>
+                  Cast attached: {project.castIds.length} {castNames.length > 0 ? `(${castNames.join(', ')})` : ''}
+                </Text>
                 {projection ? (
                   <Text style={styles.muted}>
                     Projection: Critic {projection.critical.toFixed(0)} | ROI {projection.roi.toFixed(2)}x
@@ -91,9 +128,10 @@ export default function ScriptRoomScreen() {
                       <Text style={styles.talentText}>
                         Open: {talent.name} | Craft {talent.craftScore.toFixed(1)} | {talent.agentTier.toUpperCase()}
                       </Text>
+                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
                     </Pressable>
                     <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
-                      <Text style={styles.quickText}>Quick Close</Text>
+                      <Text style={styles.quickText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
                     </Pressable>
                   </View>
                 ))}
@@ -105,9 +143,10 @@ export default function ScriptRoomScreen() {
                       <Text style={styles.talentText}>
                         Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {talent.agentTier.toUpperCase()}
                       </Text>
+                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
                     </Pressable>
                     <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
-                      <Text style={styles.quickText}>Quick Close</Text>
+                      <Text style={styles.quickText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
                     </Pressable>
                   </View>
                 ))}
@@ -162,6 +201,14 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
   },
+  subCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 8,
+    gap: 3,
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -181,6 +228,11 @@ const styles = StyleSheet.create({
   body: {
     color: tokens.textSecondary,
     fontSize: 13,
+  },
+  bodyStrong: {
+    color: tokens.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   muted: {
     color: tokens.textMuted,
@@ -227,6 +279,11 @@ const styles = StyleSheet.create({
   talentText: {
     color: tokens.textSecondary,
     fontSize: 12,
+  },
+  talentMeta: {
+    color: tokens.textMuted,
+    fontSize: 11,
+    marginTop: 3,
   },
   quickButton: {
     borderRadius: 10,
