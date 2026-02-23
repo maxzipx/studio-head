@@ -80,6 +80,15 @@ const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
   caa: 1.4,
 };
 
+interface ArcOutcomeModifiers {
+  talentLeverage: number;
+  distributionLeverage: number;
+  burnMultiplier: number;
+  hypeDecayStep: number;
+  releaseHeatMomentum: number;
+  categoryBias: Partial<Record<DecisionCategory, number>>;
+}
+
 export class StudioManager {
   private readonly crisisRng: () => number;
   private readonly eventRng: () => number;
@@ -247,8 +256,13 @@ export class StudioManager {
     if (talent.availability !== 'available') return { success: false, message: `${talent.name} is unavailable.` };
 
     const difficulty = AGENT_DIFFICULTY[talent.agentTier] + talent.egoLevel * 0.04;
+    const modifiers = this.getArcOutcomeModifiers();
     const chance = clamp(
-      0.72 + this.studioHeat / 220 + talent.studioRelationship * 0.15 - difficulty * 0.2,
+      0.72 +
+        this.studioHeat / 220 +
+        talent.studioRelationship * 0.15 -
+        difficulty * 0.2 +
+        modifiers.talentLeverage,
       0.15,
       0.95
     );
@@ -529,10 +543,11 @@ export class StudioManager {
   }
 
   private applyWeeklyBurn(): number {
+    const modifiers = this.getArcOutcomeModifiers();
     let total = 0;
     for (const project of this.activeProjects) {
       if (project.phase === 'released') continue;
-      const burn = project.budget.ceiling * phaseBurnMultiplier(project.phase);
+      const burn = project.budget.ceiling * phaseBurnMultiplier(project.phase) * modifiers.burnMultiplier;
       total += burn;
       project.budget.actualSpend += burn;
       project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining - 1);
@@ -543,8 +558,10 @@ export class StudioManager {
   }
 
   private applyHypeDecay(): void {
+    const modifiers = this.getArcOutcomeModifiers();
+    const step = clamp(modifiers.hypeDecayStep, 0.8, 3.2);
     for (const project of this.activeProjects) {
-      project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
+      project.hypeScore = clamp(project.hypeScore - step, 0, 100);
     }
   }
 
@@ -645,6 +662,7 @@ export class StudioManager {
 
   private eventWeight(event: EventTemplate): number {
     let weight = event.baseWeight;
+    const modifiers = this.getArcOutcomeModifiers();
     const candidates = this.getEventProjectCandidates(event);
     if (event.scope === 'project' && candidates.length === 0) return 0;
 
@@ -661,6 +679,7 @@ export class StudioManager {
     if (event.category === 'operations' && this.pendingCrises.length > 0) {
       weight *= 0.75;
     }
+    weight += modifiers.categoryBias[event.category] ?? 0;
 
     const arcId = this.getEventArcId(event);
     if (arcId) {
@@ -971,6 +990,7 @@ export class StudioManager {
   }
 
   private tickReleasedFilms(events: string[]): void {
+    const modifiers = this.getArcOutcomeModifiers();
     for (const project of this.activeProjects) {
       if (project.phase !== 'released') continue;
       if (project.releaseResolved) continue;
@@ -998,10 +1018,11 @@ export class StudioManager {
           awardsWins: 0,
           controversyPenalty: 0,
         });
-        this.studioHeat = clamp(this.studioHeat + heatDelta, 0, 100);
+        const adjustedHeatDelta = heatDelta + modifiers.releaseHeatMomentum;
+        this.studioHeat = clamp(this.studioHeat + adjustedHeatDelta, 0, 100);
         project.releaseResolved = true;
         events.push(
-          `${project.title} completed theatrical run. Heat ${heatDelta >= 0 ? '+' : ''}${heatDelta.toFixed(0)}.`
+          `${project.title} completed theatrical run. Heat ${adjustedHeatDelta >= 0 ? '+' : ''}${adjustedHeatDelta.toFixed(0)}.`
         );
       }
     }
@@ -1101,6 +1122,7 @@ export class StudioManager {
   }
 
   private processPlayerNegotiations(events: string[]): void {
+    const modifiers = this.getArcOutcomeModifiers();
     const resolved: string[] = [];
     for (const negotiation of this.playerNegotiations) {
       if (this.currentWeek - negotiation.openedWeek < 1) continue;
@@ -1117,7 +1139,11 @@ export class StudioManager {
 
       const difficulty = AGENT_DIFFICULTY[talent.agentTier] + talent.egoLevel * 0.04;
       const chance = clamp(
-        0.7 + this.studioHeat / 220 + talent.studioRelationship * 0.15 - difficulty * 0.2,
+        0.7 +
+          this.studioHeat / 220 +
+          talent.studioRelationship * 0.15 -
+          difficulty * 0.2 +
+          modifiers.talentLeverage,
         0.15,
         0.95
       );
@@ -1686,6 +1712,70 @@ export class StudioManager {
     }
   }
 
+  private getArcOutcomeModifiers(): ArcOutcomeModifiers {
+    const modifiers: ArcOutcomeModifiers = {
+      talentLeverage: 0,
+      distributionLeverage: 0,
+      burnMultiplier: 1,
+      hypeDecayStep: 2,
+      releaseHeatMomentum: 0,
+      categoryBias: {},
+    };
+
+    for (const [arcId, arc] of Object.entries(this.storyArcs)) {
+      if (arc.status === 'resolved') {
+        if (arcId === 'awards-circuit') {
+          modifiers.talentLeverage += 0.05;
+          modifiers.releaseHeatMomentum += 1;
+          modifiers.categoryBias.marketing = (modifiers.categoryBias.marketing ?? 0) + 0.2;
+        } else if (arcId === 'exhibitor-war') {
+          modifiers.distributionLeverage += 0.05;
+          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.12;
+        } else if (arcId === 'financier-control') {
+          modifiers.distributionLeverage += 0.02;
+          modifiers.burnMultiplier *= 0.98;
+        } else if (arcId === 'leak-piracy') {
+          modifiers.hypeDecayStep -= 0.2;
+          modifiers.distributionLeverage += 0.02;
+        } else if (arcId === 'talent-meltdown') {
+          modifiers.talentLeverage += 0.04;
+          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.15;
+        } else if (arcId === 'franchise-pivot') {
+          modifiers.distributionLeverage += 0.03;
+          modifiers.burnMultiplier *= 1.02;
+          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.1;
+        }
+      } else if (arc.status === 'failed') {
+        if (arcId === 'awards-circuit') {
+          modifiers.talentLeverage -= 0.04;
+          modifiers.releaseHeatMomentum -= 1;
+        } else if (arcId === 'exhibitor-war') {
+          modifiers.distributionLeverage -= 0.05;
+          modifiers.hypeDecayStep += 0.2;
+        } else if (arcId === 'financier-control') {
+          modifiers.burnMultiplier *= 1.04;
+          modifiers.talentLeverage -= 0.03;
+        } else if (arcId === 'leak-piracy') {
+          modifiers.hypeDecayStep += 0.35;
+          modifiers.distributionLeverage -= 0.03;
+        } else if (arcId === 'talent-meltdown') {
+          modifiers.talentLeverage -= 0.08;
+          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.08;
+        } else if (arcId === 'franchise-pivot') {
+          modifiers.burnMultiplier *= 0.99;
+          modifiers.distributionLeverage -= 0.02;
+        }
+      }
+    }
+
+    modifiers.burnMultiplier = clamp(modifiers.burnMultiplier, 0.85, 1.2);
+    modifiers.distributionLeverage = clamp(modifiers.distributionLeverage, -0.12, 0.12);
+    modifiers.talentLeverage = clamp(modifiers.talentLeverage, -0.2, 0.2);
+    modifiers.hypeDecayStep = clamp(modifiers.hypeDecayStep, 0.8, 3.2);
+    modifiers.releaseHeatMomentum = clamp(modifiers.releaseHeatMomentum, -3, 3);
+    return modifiers;
+  }
+
   private rivalNewsHeadline(name: string, delta: number): string {
     if (delta >= 8) return `${name} lands a breakout hit. Heat +${delta.toFixed(0)}.`;
     if (delta >= 3) return `${name} posts a solid industry week. Heat +${delta.toFixed(0)}.`;
@@ -1709,17 +1799,20 @@ export class StudioManager {
     if (!project) return;
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
 
+    const modifiers = this.getArcOutcomeModifiers();
     const base = project.budget.ceiling * 0.2;
     const hypeFactor = 1 + project.hypeScore / 200;
+    const mgMultiplier = 1 + modifiers.distributionLeverage;
+    const shareLift = modifiers.distributionLeverage * 0.22;
     const offers: DistributionOffer[] = [
       {
         id: id('deal'),
         projectId,
         partner: 'Aster Peak Pictures',
         releaseWindow: 'wideTheatrical',
-        minimumGuarantee: base * 1.2 * hypeFactor,
+        minimumGuarantee: base * 1.2 * hypeFactor * mgMultiplier,
         pAndACommitment: project.budget.ceiling * 0.12,
-        revenueShareToStudio: 0.54,
+        revenueShareToStudio: clamp(0.54 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 1.15,
       },
       {
@@ -1727,9 +1820,9 @@ export class StudioManager {
         projectId,
         partner: 'Northstream',
         releaseWindow: 'streamingExclusive',
-        minimumGuarantee: base * 1.55,
+        minimumGuarantee: base * 1.55 * mgMultiplier,
         pAndACommitment: project.budget.ceiling * 0.06,
-        revenueShareToStudio: 0.62,
+        revenueShareToStudio: clamp(0.62 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 0.8,
       },
       {
@@ -1737,9 +1830,9 @@ export class StudioManager {
         projectId,
         partner: 'Constellation Media',
         releaseWindow: 'hybridWindow',
-        minimumGuarantee: base * 1.32,
+        minimumGuarantee: base * 1.32 * mgMultiplier,
         pAndACommitment: project.budget.ceiling * 0.1,
-        revenueShareToStudio: 0.58,
+        revenueShareToStudio: clamp(0.58 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 1.03,
       },
     ];

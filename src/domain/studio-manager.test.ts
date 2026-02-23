@@ -295,6 +295,36 @@ describe('StudioManager', () => {
     expect(manager.decisionQueue.some((item) => item.title === 'Arc Gated Decision')).toBe(true);
   });
 
+  it('derives persistent modifiers from resolved and failed arcs', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    manager.storyArcs['awards-circuit'] = { stage: 3, status: 'resolved', lastUpdatedWeek: manager.currentWeek };
+    manager.storyArcs['exhibitor-war'] = { stage: 2, status: 'failed', lastUpdatedWeek: manager.currentWeek };
+
+    const modifiers = (manager as unknown as { getArcOutcomeModifiers: () => { releaseHeatMomentum: number; distributionLeverage: number } }).getArcOutcomeModifiers();
+    expect(modifiers.releaseHeatMomentum).toBeGreaterThanOrEqual(1);
+    expect(modifiers.distributionLeverage).toBeLessThan(0.05);
+  });
+
+  it('applies arc outcome modifiers to generated distribution offers', () => {
+    const baseManager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const boostedManager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const projectA = baseManager.activeProjects[0];
+    const projectB = boostedManager.activeProjects[0];
+    projectA.phase = 'distribution';
+    projectB.phase = 'distribution';
+
+    boostedManager.storyArcs['exhibitor-war'] = { stage: 3, status: 'resolved', lastUpdatedWeek: boostedManager.currentWeek };
+
+    (baseManager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(projectA.id);
+    (boostedManager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(projectB.id);
+
+    const offerA = baseManager.getOffersForProject(projectA.id)[0];
+    const offerB = boostedManager.getOffersForProject(projectB.id)[0];
+    expect(offerA).toBeTruthy();
+    expect(offerB).toBeTruthy();
+    expect((offerB?.minimumGuarantee ?? 0)).toBeGreaterThan(offerA?.minimumGuarantee ?? 0);
+  });
+
   it('generates and manages distribution offers', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
