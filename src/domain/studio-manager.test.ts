@@ -103,4 +103,194 @@ describe('StudioManager', () => {
     const unique = new Set(titles);
     expect(unique.size).toBe(titles.length);
   });
+
+  it('generates and manages distribution offers', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    expect(project!.phase).toBe('distribution');
+    const offers = manager.getOffersForProject(project!.id);
+    expect(offers.length).toBeGreaterThanOrEqual(2);
+
+    const counter = manager.counterDistributionOffer(project!.id, offers[0].id);
+    expect(counter.success).toBe(true);
+
+    const accept = manager.acceptDistributionOffer(project!.id, offers[0].id);
+    expect(accept.success).toBe(true);
+    expect(project!.releaseWindow).toBeTruthy();
+
+    manager.walkAwayDistribution(project!.id);
+    expect(manager.getOffersForProject(project!.id).length).toBe(0);
+  });
+
+  it('resolves release run over weeks and finalizes heat impact', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    const offer = manager.getOffersForProject(project!.id)[0];
+    manager.acceptDistributionOffer(project!.id, offer.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    expect(project!.phase).toBe('released');
+    expect(project!.openingWeekendGross).toBeTruthy();
+
+    let guard = 20;
+    while (!project!.releaseResolved && guard > 0) {
+      manager.endWeek();
+      guard -= 1;
+    }
+
+    expect(project!.releaseResolved).toBe(true);
+    expect(project!.weeklyGrossHistory.length).toBeGreaterThan(2);
+    expect(project!.projectedROI).toBeGreaterThan(0);
+  });
+
+  it('queues and dismisses opening weekend reveal card', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    const offer = manager.getOffersForProject(project!.id)[0];
+    manager.acceptDistributionOffer(project!.id, offer.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    const reveal = manager.getNextReleaseReveal();
+    expect(reveal?.id).toBe(project!.id);
+    manager.dismissReleaseReveal(project!.id);
+    expect(manager.getNextReleaseReveal()).toBeNull();
+  });
+
+  it('ticks rival heat and produces news + leaderboard updates', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 1 });
+    const before = manager.rivals.map((rival) => rival.studioHeat);
+
+    manager.endWeek();
+
+    const after = manager.rivals.map((rival) => rival.studioHeat);
+    expect(after.some((value, index) => value !== before[index])).toBe(true);
+    expect(manager.industryNewsLog.length).toBeGreaterThan(0);
+
+    const board = manager.getIndustryHeatLeaderboard();
+    for (let i = 1; i < board.length; i += 1) {
+      expect(board[i - 1].heat).toBeGreaterThanOrEqual(board[i].heat);
+    }
+  });
+
+  it('creates talent poach interrupt when rival closes during player negotiation', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const targetTalent = manager.talentPool
+      .filter((item) => item.role === 'leadActor')
+      .sort((a, b) => b.craftScore - a.craftScore)[0];
+    expect(project).toBeTruthy();
+    expect(targetTalent).toBeTruthy();
+
+    const start = manager.startTalentNegotiation(project!.id, targetTalent!.id);
+    expect(start.success).toBe(true);
+
+    manager.endWeek();
+    const poach = manager.pendingCrises.find((item) => item.kind === 'talentPoached');
+    expect(poach).toBeTruthy();
+  });
+
+  it('creates release conflict interrupt when rival moves into player week', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0, rivalRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    expect(project!.phase).toBe('distribution');
+    manager.endWeek();
+    const conflict = manager.pendingCrises.find((item) => item.kind === 'releaseConflict');
+    expect(conflict).toBeTruthy();
+  });
+
+  it('applies calendar pressure when rival release overlaps week', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.releaseWeek = manager.currentWeek + 6;
+    const clearProjection = manager.getProjectedForProject(project.id);
+    expect(clearProjection).toBeTruthy();
+
+    manager.rivals[0].upcomingReleases.push({
+      id: 'test-rival-film',
+      title: 'Overlap Film',
+      genre: project.genre,
+      releaseWeek: project.releaseWeek,
+      releaseWindow: 'wideTheatrical',
+      estimatedBudget: 140_000_000,
+      hypeScore: 80,
+      finalGross: null,
+      criticalScore: null,
+    });
+
+    const pressuredProjection = manager.getProjectedForProject(project.id);
+    expect(pressuredProjection).toBeTruthy();
+    expect((pressuredProjection?.openingHigh ?? 0)).toBeLessThan(clearProjection?.openingHigh ?? 0);
+  });
 });

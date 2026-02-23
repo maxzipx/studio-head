@@ -5,13 +5,24 @@ import {
   projectedROI,
 } from './formulas';
 import { chooseEventProjectId, getEventDeck } from './event-deck';
-import { createOpeningDecisions, createSeedProjects, createSeedScriptMarket, createSeedTalentPool } from './seeds';
+import {
+  createOpeningDecisions,
+  createSeedProjects,
+  createSeedRivals,
+  createSeedScriptMarket,
+  createSeedTalentPool,
+} from './seeds';
 import type {
   CrisisEvent,
   DecisionItem,
+  DistributionOffer,
   EventTemplate,
+  IndustryNewsItem,
   MovieGenre,
   MovieProject,
+  PlayerNegotiation,
+  RivalFilm,
+  RivalStudio,
   ScriptPitch,
   Talent,
   TalentRole,
@@ -71,6 +82,7 @@ export class StudioManager {
   private readonly crisisRng: () => number;
   private readonly eventRng: () => number;
   private readonly negotiationRng: () => number;
+  private readonly rivalRng: () => number;
   private readonly eventDeck: EventTemplate[] = getEventDeck();
   private readonly lastEventWeek = new Map<string, number>();
 
@@ -79,16 +91,27 @@ export class StudioManager {
   studioHeat = 12;
   currentWeek = 1;
   pendingCrises: CrisisEvent[] = [];
+  distributionOffers: DistributionOffer[] = [];
+  pendingReleaseReveals: string[] = [];
   decisionQueue: DecisionItem[] = createOpeningDecisions();
   activeProjects: MovieProject[] = createSeedProjects();
   talentPool: Talent[] = createSeedTalentPool();
   scriptMarket: ScriptPitch[] = createSeedScriptMarket();
+  rivals: RivalStudio[] = createSeedRivals();
+  industryNewsLog: IndustryNewsItem[] = [];
+  playerNegotiations: PlayerNegotiation[] = [];
   lastWeekSummary: WeekSummary | null = null;
 
-  constructor(input?: { crisisRng?: () => number; eventRng?: () => number; negotiationRng?: () => number }) {
+  constructor(input?: {
+    crisisRng?: () => number;
+    eventRng?: () => number;
+    negotiationRng?: () => number;
+    rivalRng?: () => number;
+  }) {
     this.crisisRng = input?.crisisRng ?? Math.random;
     this.eventRng = input?.eventRng ?? Math.random;
     this.negotiationRng = input?.negotiationRng ?? Math.random;
+    this.rivalRng = input?.rivalRng ?? Math.random;
   }
 
   get canEndWeek(): boolean {
@@ -99,12 +122,63 @@ export class StudioManager {
     return this.talentPool.filter((talent) => talent.role === role && talent.availability === 'available');
   }
 
+  getIndustryHeatLeaderboard(): { name: string; heat: number; isPlayer: boolean }[] {
+    const rows = [
+      { name: this.studioName, heat: this.studioHeat, isPlayer: true },
+      ...this.rivals.map((rival) => ({ name: rival.name, heat: rival.studioHeat, isPlayer: false })),
+    ];
+    return rows.sort((a, b) => b.heat - a.heat);
+  }
+
   runOptionalAction(): void {
     const project = this.activeProjects[0];
     if (!project) return;
     project.hypeScore = clamp(project.hypeScore + 4, 0, 100);
     project.marketingBudget += 250_000;
     this.cash -= 250_000;
+  }
+
+  startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+
+    const talent = this.talentPool.find((item) => item.id === talentId);
+    if (!talent) return { success: false, message: 'Talent not found.' };
+    if (talent.availability !== 'available') return { success: false, message: `${talent.name} is unavailable.` };
+    if (this.playerNegotiations.some((item) => item.talentId === talentId)) {
+      return { success: false, message: `${talent.name} is already in negotiation.` };
+    }
+
+    talent.availability = 'inNegotiation';
+    this.playerNegotiations.push({
+      talentId,
+      projectId,
+      openedWeek: this.currentWeek,
+    });
+    return { success: true, message: `Opened negotiation with ${talent.name}.` };
+  }
+
+  setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project || project.phase !== 'distribution') {
+      return { success: false, message: 'Project is not in distribution.' };
+    }
+    project.releaseWeek = clamp(Math.round(releaseWeek), this.currentWeek + 1, this.currentWeek + 52);
+    return { success: true, message: `${project.title} release moved to week ${project.releaseWeek}.` };
+  }
+
+  getOffersForProject(projectId: string): DistributionOffer[] {
+    return this.distributionOffers.filter((offer) => offer.projectId === projectId);
+  }
+
+  getNextReleaseReveal(): MovieProject | null {
+    const nextId = this.pendingReleaseReveals[0];
+    if (!nextId) return null;
+    return this.activeProjects.find((project) => project.id === nextId) ?? null;
+  }
+
+  dismissReleaseReveal(projectId: string): void {
+    this.pendingReleaseReveals = this.pendingReleaseReveals.filter((idValue) => idValue !== projectId);
   }
 
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
@@ -139,7 +213,14 @@ export class StudioManager {
       hypeScore: 8,
       marketingBudget: 0,
       releaseWindow: null,
+      releaseWeek: null,
+      distributionPartner: null,
+      studioRevenueShare: 0.52,
       projectedROI: 1,
+      openingWeekendGross: null,
+      weeklyGrossHistory: [],
+      releaseWeeksRemaining: 0,
+      releaseResolved: false,
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
@@ -169,19 +250,7 @@ export class StudioManager {
     const retainer = talent.salary.base * 0.1;
     if (this.cash < retainer) return { success: false, message: 'Insufficient funds for deal memo retainer.' };
     if (this.negotiationRng() > chance) return { success: false, message: `${talent.name}'s reps declined current terms.` };
-
-    this.cash -= retainer;
-    talent.availability = 'attached';
-    talent.attachedProjectId = project.id;
-
-    if (talent.role === 'director') {
-      project.directorId = talent.id;
-    } else if (talent.role === 'leadActor' || talent.role === 'supportingActor') {
-      if (!project.castIds.includes(talent.id)) {
-        project.castIds.push(talent.id);
-      }
-    }
-    project.hypeScore = clamp(project.hypeScore + talent.starPower * 0.8, 0, 100);
+    this.finalizeTalentAttachment(project, talent);
     return { success: true, message: `${talent.name} attached to ${project.title}.` };
   }
 
@@ -229,8 +298,10 @@ export class StudioManager {
         return { success: false, message: 'Allocate marketing spend before entering distribution.' };
       }
       project.phase = 'distribution';
-      project.releaseWindow = 'wideTheatrical';
+      project.releaseWindow = null;
+      project.releaseWeek = this.currentWeek + 4;
       project.scheduledWeeksRemaining = 3;
+      this.generateDistributionOffers(project.id);
       return { success: true, message: `${project.title} moved to Distribution.` };
     }
 
@@ -238,27 +309,71 @@ export class StudioManager {
       if (project.scheduledWeeksRemaining > 0) {
         return { success: false, message: 'Distribution setup is still underway.' };
       }
+      if (!project.releaseWindow) {
+        return { success: false, message: 'Select a distribution deal first.' };
+      }
       const projection = this.getProjectedForProject(project.id);
       if (!projection) return { success: false, message: 'Projection unavailable.' };
       project.phase = 'released';
       project.criticalScore = projection.critical;
       project.audienceScore = clamp(projection.critical + 4, 0, 100);
-      project.finalBoxOffice = projection.openingHigh * 3.1;
+      project.openingWeekendGross = projection.openingHigh;
+      project.weeklyGrossHistory = [projection.openingHigh];
+      project.finalBoxOffice = projection.openingHigh;
+      project.releaseWeeksRemaining = this.estimateReleaseRunWeeks(project);
+      project.releaseResolved = false;
       project.projectedROI = projection.roi;
-      const heatDelta = heatDeltaFromRelease({
-        currentHeat: this.studioHeat,
-        criticalScore: project.criticalScore,
-        roi: project.projectedROI,
-        awardsNominations: 0,
-        awardsWins: 0,
-        controversyPenalty: 0,
-      });
-      this.studioHeat = clamp(this.studioHeat + heatDelta, 0, 100);
+      this.pendingReleaseReveals.push(project.id);
       this.releaseTalent(project.id);
-      return { success: true, message: `${project.title} released. Heat change: ${heatDelta >= 0 ? '+' : ''}${heatDelta.toFixed(0)}.` };
+      return { success: true, message: `${project.title} released. Opening weekend posted.` };
     }
 
     return { success: false, message: 'Project is already released.' };
+  }
+
+  acceptDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project || project.phase !== 'distribution') {
+      return { success: false, message: 'Project is not in distribution phase.' };
+    }
+    const offer = this.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
+    if (!offer) return { success: false, message: 'Offer not found.' };
+
+    project.releaseWindow = offer.releaseWindow;
+    project.distributionPartner = offer.partner;
+    project.studioRevenueShare = offer.revenueShareToStudio;
+    if (!project.releaseWeek) {
+      project.releaseWeek = this.currentWeek + 4;
+    }
+    project.marketingBudget += offer.pAndACommitment;
+    project.hypeScore = clamp(project.hypeScore + 6, 0, 100);
+    this.cash += offer.minimumGuarantee;
+    this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
+    return { success: true, message: `Accepted ${offer.partner} offer.` };
+  }
+
+  counterDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
+    const offer = this.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
+    if (!offer) return { success: false, message: 'Offer not found.' };
+    const successChance = clamp(0.45 + this.studioHeat / 200, 0.2, 0.85);
+    if (this.negotiationRng() > successChance) {
+      return { success: false, message: `${offer.partner} declined the counter.` };
+    }
+
+    offer.minimumGuarantee *= 1.12;
+    offer.revenueShareToStudio = clamp(offer.revenueShareToStudio + 0.03, 0.45, 0.7);
+    return { success: true, message: `${offer.partner} improved terms after counter.` };
+  }
+
+  walkAwayDistribution(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project || project.phase !== 'distribution') {
+      return { success: false, message: 'Project is not in distribution phase.' };
+    }
+    const removed = this.distributionOffers.filter((item) => item.projectId === projectId).length;
+    this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
+    this.studioHeat = clamp(this.studioHeat - 2, 0, 100);
+    return { success: true, message: `Walked away from ${removed} offer(s). Studio heat -2.` };
   }
 
   resolveCrisis(crisisId: string, optionId: string): void {
@@ -269,6 +384,20 @@ export class StudioManager {
 
     const project = this.activeProjects.find((item) => item.id === crisis.projectId);
     if (project) {
+      if (crisis.kind === 'talentPoached') {
+        this.resolveTalentPoachCrisis(project, option);
+        this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
+        return;
+      }
+      if (crisis.kind === 'releaseConflict') {
+        if (typeof option.releaseWeekShift === 'number' && project.releaseWeek) {
+          project.releaseWeek = clamp(project.releaseWeek + option.releaseWeekShift, this.currentWeek + 1, this.currentWeek + 52);
+        }
+        project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
+        this.cash += option.cashDelta;
+        this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
+        return;
+      }
       project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining + option.scheduleDelta);
       project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
       project.budget.actualSpend += Math.max(0, -option.cashDelta);
@@ -310,10 +439,17 @@ export class StudioManager {
     }
 
     this.applyHypeDecay();
+    this.updateTalentAvailability();
     this.tickDecisionExpiry(events);
     this.tickScriptMarketExpiry(events);
+    this.tickDistributionWindows(events);
     this.rollForCrises(events);
+    this.processRivalTalentAcquisitions(events);
+    this.processPlayerNegotiations(events);
     this.generateEventDecisions(events);
+    this.tickReleasedFilms(events);
+    this.tickRivalHeat(events);
+    this.processRivalCalendarMoves(events);
     this.projectOutcomes();
 
     this.currentWeek += 1;
@@ -358,16 +494,20 @@ export class StudioManager {
       marketingBudget: project.marketingBudget,
       totalBudget: project.budget.ceiling,
     });
+    const pressure = this.calendarPressureMultiplier(project.releaseWeek ?? this.currentWeek + 4, project.genre);
+    const openingLow = opening.low * pressure;
+    const openingHigh = opening.high * pressure;
+    const openingMid = opening.midpoint * pressure;
 
     const roi = projectedROI({
-      openingWeekend: opening.midpoint,
+      openingWeekend: openingMid,
       criticalScore: critical,
       audienceScore: clamp(critical + 4, 0, 100),
       genre: project.genre,
       totalCost: project.budget.ceiling + project.marketingBudget,
     });
 
-    return { critical, openingLow: opening.low, openingHigh: opening.high, roi };
+    return { critical, openingLow, openingHigh, roi };
   }
 
   private applyWeeklyBurn(): number {
@@ -424,6 +564,7 @@ export class StudioManager {
       const crisis: CrisisEvent = {
         id: id('crisis'),
         projectId: project.id,
+        kind: 'production',
         title: 'Lead Actor Scheduling Conflict',
         severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
         body: 'A hard conflict puts next week shooting at risk. Choose how to handle it.',
@@ -510,6 +651,411 @@ export class StudioManager {
       if (!projection) continue;
       project.projectedROI = projection.roi;
     }
+  }
+
+  private tickReleasedFilms(events: string[]): void {
+    for (const project of this.activeProjects) {
+      if (project.phase !== 'released') continue;
+      if (project.releaseResolved) continue;
+      if (!project.finalBoxOffice || !project.openingWeekendGross) continue;
+
+      if (project.releaseWeeksRemaining > 0) {
+        const decayFactor = 0.62 + project.releaseWeeksRemaining * 0.015;
+        const lastWeek =
+          project.weeklyGrossHistory[project.weeklyGrossHistory.length - 1] ?? project.openingWeekendGross;
+        const weekly = Math.max(250_000, lastWeek * decayFactor);
+        project.weeklyGrossHistory.push(weekly);
+        project.finalBoxOffice += weekly;
+        project.releaseWeeksRemaining -= 1;
+      }
+
+      if (project.releaseWeeksRemaining <= 0) {
+        const totalCost = project.budget.ceiling + project.marketingBudget;
+        const netRevenue = project.finalBoxOffice * project.studioRevenueShare;
+        project.projectedROI = netRevenue / Math.max(1, totalCost);
+        const heatDelta = heatDeltaFromRelease({
+          currentHeat: this.studioHeat,
+          criticalScore: project.criticalScore ?? 50,
+          roi: project.projectedROI,
+          awardsNominations: 0,
+          awardsWins: 0,
+          controversyPenalty: 0,
+        });
+        this.studioHeat = clamp(this.studioHeat + heatDelta, 0, 100);
+        project.releaseResolved = true;
+        events.push(
+          `${project.title} completed theatrical run. Heat ${heatDelta >= 0 ? '+' : ''}${heatDelta.toFixed(0)}.`
+        );
+      }
+    }
+  }
+
+  private estimateReleaseRunWeeks(project: MovieProject): number {
+    const quality = ((project.criticalScore ?? 50) + (project.audienceScore ?? 50)) / 2;
+    if (quality >= 85) return 8;
+    if (quality >= 70) return 6;
+    if (quality >= 55) return 5;
+    return 4;
+  }
+
+  private tickRivalHeat(events: string[]): void {
+    for (const rival of this.rivals) {
+      const baseVolatility = this.rivalRng() * 10 - 5;
+      const personalityBias = this.rivalHeatBias(rival.personality);
+      const delta = clamp(baseVolatility + personalityBias, -12, 14);
+      if (Math.abs(delta) < 3) continue;
+
+      rival.studioHeat = clamp(rival.studioHeat + delta, 0, 100);
+      const item: IndustryNewsItem = {
+        id: id('news'),
+        week: this.currentWeek + 1,
+        studioName: rival.name,
+        headline: this.rivalNewsHeadline(rival.name, delta),
+        heatDelta: delta,
+      };
+      this.industryNewsLog.unshift(item);
+      events.push(item.headline);
+    }
+    this.industryNewsLog = this.industryNewsLog.slice(0, 60);
+  }
+
+  private processRivalTalentAcquisitions(events: string[]): void {
+    for (const rival of this.rivals) {
+      if (this.rivalRng() > 0.35) continue;
+      const candidates = this.talentPool.filter((talent) =>
+        talent.availability === 'available' || talent.availability === 'inNegotiation'
+      );
+      if (candidates.length === 0) continue;
+
+      const picked = this.pickTalentForRival(rival, candidates);
+      if (!picked) continue;
+
+      const unavailableUntil = this.currentWeek + 12 + Math.floor(this.rivalRng() * 18);
+      picked.availability = 'unavailable';
+      picked.unavailableUntilWeek = unavailableUntil;
+      picked.attachedProjectId = null;
+      if (!rival.lockedTalentIds.includes(picked.id)) {
+        rival.lockedTalentIds.push(picked.id);
+      }
+
+      if (this.playerNegotiations.some((item) => item.talentId === picked.id)) {
+        const negotiation = this.playerNegotiations.find((item) => item.talentId === picked.id);
+        if (negotiation) {
+          this.pendingCrises.push({
+            id: id('crisis'),
+            projectId: negotiation.projectId,
+            kind: 'talentPoached',
+            title: `${picked.name} just closed with ${rival.name}`,
+            severity: 'red',
+            body: 'Counter-offer now at a premium or walk away.',
+            options: [
+              {
+                id: id('c-opt'),
+                label: 'Counter Offer (25% premium)',
+                preview: 'Higher cost, chance to reclaim attachment.',
+                cashDelta: 0,
+                scheduleDelta: 0,
+                hypeDelta: 1,
+                kind: 'talentCounter',
+                talentId: picked.id,
+                rivalStudioId: rival.id,
+                premiumMultiplier: 1.25,
+              },
+              {
+                id: id('c-opt'),
+                label: 'Walk Away',
+                preview: 'Save cash, lose momentum and relationship.',
+                cashDelta: 0,
+                scheduleDelta: 0,
+                hypeDelta: -2,
+                kind: 'talentWalk',
+                talentId: picked.id,
+                rivalStudioId: rival.id,
+              },
+            ],
+          });
+          events.push(`${rival.name} poached ${picked.name}. Counter-offer decision required.`);
+        }
+      } else {
+        events.push(`${rival.name} attached ${picked.name}. Available again around week ${unavailableUntil}.`);
+      }
+    }
+  }
+
+  private processPlayerNegotiations(events: string[]): void {
+    const resolved: string[] = [];
+    for (const negotiation of this.playerNegotiations) {
+      if (this.currentWeek - negotiation.openedWeek < 1) continue;
+      const talent = this.talentPool.find((item) => item.id === negotiation.talentId);
+      const project = this.activeProjects.find((item) => item.id === negotiation.projectId);
+      if (!talent || !project) {
+        resolved.push(negotiation.talentId);
+        continue;
+      }
+      if (talent.availability !== 'inNegotiation') {
+        resolved.push(negotiation.talentId);
+        continue;
+      }
+
+      const difficulty = AGENT_DIFFICULTY[talent.agentTier] + talent.egoLevel * 0.04;
+      const chance = clamp(
+        0.7 + this.studioHeat / 220 + talent.studioRelationship * 0.15 - difficulty * 0.2,
+        0.15,
+        0.95
+      );
+      if (this.negotiationRng() <= chance) {
+        this.finalizeTalentAttachment(project, talent);
+        events.push(`${talent.name} accepted terms with ${this.studioName}.`);
+      } else {
+        talent.availability = 'available';
+        events.push(`${talent.name} declined final terms.`);
+      }
+      resolved.push(negotiation.talentId);
+    }
+    if (resolved.length > 0) {
+      this.playerNegotiations = this.playerNegotiations.filter((item) => !resolved.includes(item.talentId));
+    }
+  }
+
+  private processRivalCalendarMoves(events: string[]): void {
+    const playerDistribution = this.activeProjects.filter(
+      (project) => project.phase === 'distribution' && project.releaseWeek !== null
+    );
+    for (const rival of this.rivals) {
+      if (this.rivalRng() > 0.28) continue;
+
+      const target = playerDistribution[Math.floor(this.rivalRng() * Math.max(1, playerDistribution.length))];
+      const forceConflict = !!target && this.rivalRng() < 0.35;
+      const week = forceConflict && target.releaseWeek ? target.releaseWeek : this.currentWeek + 2 + Math.floor(this.rivalRng() * 14);
+      const genre: MovieGenre = (['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'] as MovieGenre[])[
+        Math.floor(this.rivalRng() * 8)
+      ];
+
+      const film: RivalFilm = {
+        id: id('r-film'),
+        title: `${rival.name.split(' ')[0]} Untitled ${this.currentWeek}`,
+        genre,
+        releaseWeek: week,
+        releaseWindow: 'wideTheatrical',
+        estimatedBudget: 20_000_000 + this.rivalRng() * 120_000_000,
+        hypeScore: 35 + this.rivalRng() * 45,
+        finalGross: null,
+        criticalScore: null,
+      };
+
+      rival.upcomingReleases.unshift(film);
+      rival.upcomingReleases = rival.upcomingReleases
+        .filter((item) => item.releaseWeek >= this.currentWeek - 1)
+        .slice(0, 10);
+      events.push(`${rival.name} scheduled ${film.title} for week ${film.releaseWeek}.`);
+
+      if (target && target.releaseWeek && Math.abs(target.releaseWeek - film.releaseWeek) <= 0) {
+        this.pendingCrises.push({
+          id: id('crisis'),
+          projectId: target.id,
+          kind: 'releaseConflict',
+          title: `${rival.name} moved into your release window`,
+          severity: 'orange',
+          body: `Projected opening is under pressure in week ${target.releaseWeek}.`,
+          options: [
+            {
+              id: id('c-opt'),
+              label: 'Hold Position',
+              preview: 'Keep date and absorb competitive pressure.',
+              cashDelta: 0,
+              scheduleDelta: 0,
+              hypeDelta: 0,
+              releaseWeekShift: 0,
+              kind: 'releaseHold',
+            },
+            {
+              id: id('c-opt'),
+              label: 'Shift 1 Week Earlier',
+              preview: 'Move early to avoid overlap.',
+              cashDelta: -120_000,
+              scheduleDelta: 0,
+              hypeDelta: -1,
+              releaseWeekShift: -1,
+              kind: 'releaseShift',
+            },
+            {
+              id: id('c-opt'),
+              label: 'Delay 4 Weeks',
+              preview: 'Wait for cleaner window; costs additional carry.',
+              cashDelta: -250_000,
+              scheduleDelta: 0,
+              hypeDelta: 1,
+              releaseWeekShift: 4,
+              kind: 'releaseShift',
+            },
+          ],
+        });
+      }
+    }
+  }
+
+  private calendarPressureMultiplier(week: number, genre: MovieGenre): number {
+    let pressure = 1;
+    const rivalFilms = this.rivals
+      .flatMap((rival) => rival.upcomingReleases)
+      .filter((film) => Math.abs(film.releaseWeek - week) <= 1);
+
+    for (const rivalFilm of rivalFilms) {
+      const budgetPenalty = rivalFilm.estimatedBudget > 100_000_000 ? 0.12 : 0.05;
+      const genreOverlap = rivalFilm.genre === genre ? 0.08 : 0.02;
+      pressure -= budgetPenalty + genreOverlap;
+    }
+    return Math.max(0.45, pressure);
+  }
+
+  private pickTalentForRival(rival: RivalStudio, candidates: Talent[]): Talent | null {
+    if (candidates.length === 0) return null;
+    let sorted = [...candidates];
+    if (rival.personality === 'blockbusterFactory') {
+      sorted.sort((a, b) => b.starPower - a.starPower);
+    } else if (rival.personality === 'prestigeHunter') {
+      sorted.sort((a, b) => b.craftScore - a.craftScore);
+    } else if (rival.personality === 'genreSpecialist') {
+      sorted.sort((a, b) => b.egoLevel - a.egoLevel);
+    } else {
+      sorted.sort(() => this.rivalRng() - 0.5);
+    }
+    return sorted[0] ?? null;
+  }
+
+  private finalizeTalentAttachment(project: MovieProject, talent: Talent): void {
+    const retainer = talent.salary.base * 0.1;
+    if (this.cash < retainer) {
+      talent.availability = 'available';
+      return;
+    }
+    this.cash -= retainer;
+    talent.availability = 'attached';
+    talent.unavailableUntilWeek = null;
+    talent.attachedProjectId = project.id;
+    if (talent.role === 'director') {
+      project.directorId = talent.id;
+    } else if (talent.role === 'leadActor' || talent.role === 'supportingActor') {
+      if (!project.castIds.includes(talent.id)) {
+        project.castIds.push(talent.id);
+      }
+    }
+    project.hypeScore = clamp(project.hypeScore + talent.starPower * 0.8, 0, 100);
+  }
+
+  private resolveTalentPoachCrisis(project: MovieProject, option: CrisisEvent['options'][number]): void {
+    const talent = this.talentPool.find((item) => item.id === option.talentId);
+    if (!talent) return;
+    const rival = this.rivals.find((item) => item.id === option.rivalStudioId);
+
+    if (option.kind === 'talentCounter') {
+      const premium = option.premiumMultiplier ?? 1.25;
+      const cost = talent.salary.base * 0.2 * premium;
+      const chance = clamp(0.55 + this.studioHeat / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
+      if (this.cash >= cost && this.negotiationRng() <= chance) {
+        this.cash -= cost;
+        if (rival) {
+          rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
+        }
+        this.finalizeTalentAttachment(project, talent);
+      }
+    }
+
+    if (option.kind === 'talentWalk') {
+      project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
+    }
+
+    this.playerNegotiations = this.playerNegotiations.filter((item) => item.talentId !== talent.id);
+  }
+
+  private updateTalentAvailability(): void {
+    for (const talent of this.talentPool) {
+      if (talent.availability !== 'unavailable') continue;
+      if (!talent.unavailableUntilWeek) continue;
+      if (this.currentWeek < talent.unavailableUntilWeek) continue;
+      talent.availability = 'available';
+      talent.unavailableUntilWeek = null;
+      for (const rival of this.rivals) {
+        rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
+      }
+    }
+  }
+
+  private rivalHeatBias(personality: RivalStudio['personality']): number {
+    switch (personality) {
+      case 'blockbusterFactory':
+        return 0.8;
+      case 'prestigeHunter':
+        return 0.5;
+      case 'genreSpecialist':
+        return 0.2;
+      case 'streamingFirst':
+        return -0.2;
+      case 'scrappyUpstart':
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
+  private rivalNewsHeadline(name: string, delta: number): string {
+    if (delta >= 8) return `${name} lands a breakout hit. Heat +${delta.toFixed(0)}.`;
+    if (delta >= 3) return `${name} posts a solid industry week. Heat +${delta.toFixed(0)}.`;
+    if (delta <= -8) return `${name} stumbles on a costly miss. Heat ${delta.toFixed(0)}.`;
+    return `${name} slips in the market conversation. Heat ${delta.toFixed(0)}.`;
+  }
+
+  private tickDistributionWindows(events: string[]): void {
+    for (const project of this.activeProjects) {
+      if (project.phase !== 'distribution') continue;
+      if (project.releaseWindow) continue;
+      if (this.getOffersForProject(project.id).length === 0) {
+        this.generateDistributionOffers(project.id);
+        events.push(`New distribution offers received for ${project.title}.`);
+      }
+    }
+  }
+
+  private generateDistributionOffers(projectId: string): void {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return;
+    this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
+
+    const base = project.budget.ceiling * 0.18;
+    const hypeFactor = 1 + project.hypeScore / 220;
+    const offers: DistributionOffer[] = [
+      {
+        id: id('deal'),
+        projectId,
+        partner: 'Aster Peak Pictures',
+        releaseWindow: 'wideTheatrical',
+        minimumGuarantee: base * 1.2 * hypeFactor,
+        pAndACommitment: project.budget.ceiling * 0.12,
+        revenueShareToStudio: 0.54,
+        projectedOpeningOverride: 1.15,
+      },
+      {
+        id: id('deal'),
+        projectId,
+        partner: 'Northstream',
+        releaseWindow: 'streamingExclusive',
+        minimumGuarantee: base * 1.55,
+        pAndACommitment: project.budget.ceiling * 0.06,
+        revenueShareToStudio: 0.62,
+        projectedOpeningOverride: 0.8,
+      },
+      {
+        id: id('deal'),
+        projectId,
+        partner: 'Constellation Media',
+        releaseWindow: 'hybridWindow',
+        minimumGuarantee: base * 1.32,
+        pAndACommitment: project.budget.ceiling * 0.1,
+        revenueShareToStudio: 0.58,
+        projectedOpeningOverride: 1.03,
+      },
+    ];
+    this.distributionOffers.push(...offers);
   }
 
   private releaseTalent(projectId: string): void {

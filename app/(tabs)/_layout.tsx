@@ -45,6 +45,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="distribution"
+        options={{
+          title: 'Distribution',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.line.uptrend.xyaxis" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="box-office"
+        options={{
+          title: 'Box Office',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="ticket.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="inbox"
         options={{
           title: 'Inbox',

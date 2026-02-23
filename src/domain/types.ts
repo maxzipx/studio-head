@@ -86,11 +86,17 @@ export interface CrisisOption {
   cashDelta: number;
   scheduleDelta: number;
   hypeDelta: number;
+  releaseWeekShift?: number;
+  kind?: 'standard' | 'talentCounter' | 'talentWalk' | 'releaseHold' | 'releaseShift';
+  talentId?: string;
+  rivalStudioId?: string;
+  premiumMultiplier?: number;
 }
 
 export interface CrisisEvent {
   id: string;
   projectId: string;
+  kind: 'production' | 'talentPoached' | 'releaseConflict';
   title: string;
   severity: 'yellow' | 'orange' | 'red';
   body: string;
@@ -143,10 +149,34 @@ export interface MovieProject {
   hypeScore: number;
   marketingBudget: number;
   releaseWindow: ReleaseWindow | null;
+  releaseWeek: number | null;
+  distributionPartner: string | null;
+  studioRevenueShare: number;
   projectedROI: number;
+  openingWeekendGross: number | null;
+  weeklyGrossHistory: number[];
+  releaseWeeksRemaining: number;
+  releaseResolved: boolean;
   finalBoxOffice: number | null;
   criticalScore: number | null;
   audienceScore: number | null;
+}
+
+export interface PlayerNegotiation {
+  talentId: string;
+  projectId: string;
+  openedWeek: number;
+}
+
+export interface DistributionOffer {
+  id: string;
+  projectId: string;
+  partner: string;
+  releaseWindow: ReleaseWindow;
+  minimumGuarantee: number;
+  pAndACommitment: number;
+  revenueShareToStudio: number;
+  projectedOpeningOverride: number;
 }
 
 export interface WeekSummary {
@@ -155,4 +185,41 @@ export interface WeekSummary {
   events: string[];
   hasPendingCrises: boolean;
   decisionQueueCount: number;
+}
+
+export type RivalPersonality =
+  | 'prestigeHunter'
+  | 'blockbusterFactory'
+  | 'genreSpecialist'
+  | 'streamingFirst'
+  | 'scrappyUpstart';
+
+export interface RivalFilm {
+  id: string;
+  title: string;
+  genre: MovieGenre;
+  releaseWeek: number;
+  releaseWindow: ReleaseWindow;
+  estimatedBudget: number;
+  hypeScore: number;
+  finalGross: number | null;
+  criticalScore: number | null;
+}
+
+export interface RivalStudio {
+  id: string;
+  name: string;
+  personality: RivalPersonality;
+  studioHeat: number;
+  activeReleases: RivalFilm[];
+  upcomingReleases: RivalFilm[];
+  lockedTalentIds: string[];
+}
+
+export interface IndustryNewsItem {
+  id: string;
+  week: number;
+  studioName: string;
+  headline: string;
+  heatDelta: number;
 }

@@ -1,4 +1,4 @@
-import type { DecisionItem, MovieProject, ScriptPitch, Talent } from './types';
+import type { DecisionItem, MovieProject, RivalStudio, ScriptPitch, Talent } from './types';
 
 function id(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -82,7 +82,14 @@ export function createSeedProjects(): MovieProject[] {
       hypeScore: 33,
       marketingBudget: 2_000_000,
       releaseWindow: null,
+      releaseWeek: null,
+      distributionPartner: null,
+      studioRevenueShare: 0.52,
       projectedROI: 1.52,
+      openingWeekendGross: null,
+      weeklyGrossHistory: [],
+      releaseWeeksRemaining: 0,
+      releaseResolved: false,
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
@@ -110,7 +117,14 @@ export function createSeedProjects(): MovieProject[] {
       hypeScore: 18,
       marketingBudget: 0,
       releaseWindow: null,
+      releaseWeek: null,
+      distributionPartner: null,
+      studioRevenueShare: 0.52,
       projectedROI: 1.18,
+      openingWeekendGross: null,
+      weeklyGrossHistory: [],
+      releaseWeeksRemaining: 0,
+      releaseResolved: false,
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
@@ -179,6 +193,56 @@ export function createSeedScriptMarket(): ScriptPitch[] {
       conceptStrength: 6.4,
       logline: 'Three estranged siblings reunite over one weekend to decide the fate of their family theater.',
       expiresInWeeks: 2,
+    },
+  ];
+}
+
+export function createSeedRivals(): RivalStudio[] {
+  return [
+    {
+      id: id('rival'),
+      name: 'Meridian Pictures',
+      personality: 'prestigeHunter',
+      studioHeat: 61,
+      activeReleases: [],
+      upcomingReleases: [],
+      lockedTalentIds: [],
+    },
+    {
+      id: id('rival'),
+      name: 'Apex Global',
+      personality: 'blockbusterFactory',
+      studioHeat: 74,
+      activeReleases: [],
+      upcomingReleases: [],
+      lockedTalentIds: [],
+    },
+    {
+      id: id('rival'),
+      name: 'Neon Slate',
+      personality: 'genreSpecialist',
+      studioHeat: 56,
+      activeReleases: [],
+      upcomingReleases: [],
+      lockedTalentIds: [],
+    },
+    {
+      id: id('rival'),
+      name: 'Harbor Road',
+      personality: 'streamingFirst',
+      studioHeat: 52,
+      activeReleases: [],
+      upcomingReleases: [],
+      lockedTalentIds: [],
+    },
+    {
+      id: id('rival'),
+      name: 'Freehold Films',
+      personality: 'scrappyUpstart',
+      studioHeat: 41,
+      activeReleases: [],
+      upcomingReleases: [],
+      lockedTalentIds: [],
     },
   ];
 }

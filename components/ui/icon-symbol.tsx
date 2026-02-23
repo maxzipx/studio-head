@@ -21,6 +21,8 @@ const MAPPING = {
   'tray.full.fill': 'inbox',
   'doc.text.fill': 'description',
   'person.2.fill': 'groups',
+  'chart.line.uptrend.xyaxis': 'query-stats',
+  'ticket.fill': 'local-activity',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

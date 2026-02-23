@@ -8,7 +8,7 @@ function money(amount: number): string {
 }
 
 export default function ScriptRoomScreen() {
-  const { manager, acquireScript, passScript, attachTalent, lastMessage } = useGame();
+  const { manager, acquireScript, passScript, startNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const availableDirectors = manager.getAvailableTalentForRole('director');
   const availableLeads = manager.getAvailableTalentForRole('leadActor');
@@ -16,8 +16,25 @@ export default function ScriptRoomScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Script Room</Text>
-      <Text style={styles.subtitle}>Acquire projects, evaluate projections, attach talent</Text>
+      <Text style={styles.subtitle}>Acquire projects, evaluate projections, and open negotiations</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+
+      {manager.playerNegotiations.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Open Negotiations</Text>
+          <View style={styles.card}>
+            {manager.playerNegotiations.map((entry) => {
+              const talent = manager.talentPool.find((item) => item.id === entry.talentId);
+              const project = manager.activeProjects.find((item) => item.id === entry.projectId);
+              return (
+                <Text key={`${entry.projectId}-${entry.talentId}`} style={styles.muted}>
+                  {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'} (opened week {entry.openedWeek})
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Market Offers</Text>
@@ -31,9 +48,9 @@ export default function ScriptRoomScreen() {
                 <Text style={styles.genre}>{script.genre}</Text>
               </View>
               <Text style={styles.body}>{script.logline}</Text>
-              <Text style={styles.muted}>Ask: {money(script.askingPrice)} • Expires in {script.expiresInWeeks}w</Text>
+              <Text style={styles.muted}>Ask: {money(script.askingPrice)} | Expires in {script.expiresInWeeks}w</Text>
               <Text style={styles.muted}>
-                Script: {script.scriptQuality.toFixed(1)} • Concept: {script.conceptStrength.toFixed(1)}
+                Script: {script.scriptQuality.toFixed(1)} | Concept: {script.conceptStrength.toFixed(1)}
               </Text>
               <View style={styles.actions}>
                 <Pressable style={styles.actionButton} onPress={() => acquireScript(script.id)}>
@@ -63,32 +80,36 @@ export default function ScriptRoomScreen() {
                 <Text style={styles.body}>Cast attached: {project.castIds.length}</Text>
                 {projection ? (
                   <Text style={styles.muted}>
-                    Projection: Critic {projection.critical.toFixed(0)} • ROI {projection.roi.toFixed(2)}x
+                    Projection: Critic {projection.critical.toFixed(0)} | ROI {projection.roi.toFixed(2)}x
                   </Text>
                 ) : null}
 
-                <Text style={styles.subHeader}>Attach Director</Text>
+                <Text style={styles.subHeader}>Director</Text>
                 {availableDirectors.map((talent) => (
-                  <Pressable
-                    key={talent.id}
-                    style={styles.talentButton}
-                    onPress={() => attachTalent(project.id, talent.id)}>
-                    <Text style={styles.talentText}>
-                      {talent.name} • Craft {talent.craftScore.toFixed(1)} • {talent.agentTier.toUpperCase()}
-                    </Text>
-                  </Pressable>
+                  <View key={talent.id} style={styles.inlineActions}>
+                    <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
+                      <Text style={styles.talentText}>
+                        Open: {talent.name} | Craft {talent.craftScore.toFixed(1)} | {talent.agentTier.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                    <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
+                      <Text style={styles.quickText}>Quick Close</Text>
+                    </Pressable>
+                  </View>
                 ))}
 
-                <Text style={styles.subHeader}>Attach Lead Actor</Text>
+                <Text style={styles.subHeader}>Lead Actor</Text>
                 {availableLeads.map((talent) => (
-                  <Pressable
-                    key={talent.id}
-                    style={styles.talentButton}
-                    onPress={() => attachTalent(project.id, talent.id)}>
-                    <Text style={styles.talentText}>
-                      {talent.name} • Star {talent.starPower.toFixed(1)} • {talent.agentTier.toUpperCase()}
-                    </Text>
-                  </Pressable>
+                  <View key={talent.id} style={styles.inlineActions}>
+                    <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
+                      <Text style={styles.talentText}>
+                        Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {talent.agentTier.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                    <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
+                      <Text style={styles.quickText}>Quick Close</Text>
+                    </Pressable>
+                  </View>
                 ))}
               </View>
             );
@@ -189,7 +210,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+  },
   talentButton: {
+    flex: 1,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: tokens.border,
@@ -200,5 +227,18 @@ const styles = StyleSheet.create({
   talentText: {
     color: tokens.textSecondary,
     fontSize: 12,
+  },
+  quickButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: '#263754',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  quickText: {
+    color: tokens.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

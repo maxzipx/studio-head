@@ -13,7 +13,13 @@ interface GameContextValue {
   acquireScript: (scriptId: string) => void;
   passScript: (scriptId: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
+  startNegotiation: (projectId: string, talentId: string) => void;
   advancePhase: (projectId: string) => void;
+  setReleaseWeek: (projectId: string, releaseWeek: number) => void;
+  acceptOffer: (projectId: string, offerId: string) => void;
+  counterOffer: (projectId: string, offerId: string) => void;
+  walkAwayOffer: (projectId: string) => void;
+  dismissReleaseReveal: (projectId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -68,9 +74,38 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setLastMessage(result.message);
         setTick((value) => value + 1);
       },
+      startNegotiation: (projectId: string, talentId: string) => {
+        const result = manager.startTalentNegotiation(projectId, talentId);
+        setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
       advancePhase: (projectId: string) => {
         const result = manager.advanceProjectPhase(projectId);
         setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
+      setReleaseWeek: (projectId: string, releaseWeek: number) => {
+        const result = manager.setProjectReleaseWeek(projectId, releaseWeek);
+        setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
+      acceptOffer: (projectId: string, offerId: string) => {
+        const result = manager.acceptDistributionOffer(projectId, offerId);
+        setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
+      counterOffer: (projectId: string, offerId: string) => {
+        const result = manager.counterDistributionOffer(projectId, offerId);
+        setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
+      walkAwayOffer: (projectId: string) => {
+        const result = manager.walkAwayDistribution(projectId);
+        setLastMessage(result.message);
+        setTick((value) => value + 1);
+      },
+      dismissReleaseReveal: (projectId: string) => {
+        manager.dismissReleaseReveal(projectId);
         setTick((value) => value + 1);
       },
     }),
