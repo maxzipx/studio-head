@@ -41,7 +41,14 @@ export default function DistributionScreen() {
         {
           text: 'Release',
           style: 'destructive',
-          onPress: () => advancePhase(projectId),
+          onPress: () => {
+            const beforeReleased = manager.activeProjects.find((project) => project.id === projectId)?.phase === 'released';
+            advancePhase(projectId);
+            const afterReleased = manager.activeProjects.find((project) => project.id === projectId)?.phase === 'released';
+            if (!beforeReleased && !afterReleased) {
+              Alert.alert('Release Blocked', 'Release conditions changed. Re-check readiness and blockers before trying again.');
+            }
+          },
         },
       ]
     );

@@ -36,7 +36,7 @@ export default function BoxOfficeScreen() {
             Status: {project.releaseResolved ? 'Run Completed' : `Run Active (${project.releaseWeeksRemaining}w left)`}
           </Text>
           <Text style={styles.meta}>
-            Critics: {project.criticalScore?.toFixed(0) ?? '--'} • Audience: {project.audienceScore?.toFixed(0) ?? '--'}
+            Critics: {project.criticalScore?.toFixed(0) ?? '--'} | Audience: {project.audienceScore?.toFixed(0) ?? '--'}
           </Text>
 
           <View style={styles.history}>
@@ -80,3 +80,4 @@ const styles = StyleSheet.create({
   historyTitle: { color: tokens.textPrimary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
   historyLine: { color: tokens.textSecondary, fontSize: 12 },
 });
+

@@ -46,6 +46,36 @@ describe('StudioManager', () => {
     expect(manager.cash).toBeLessThan(cashBefore);
   });
 
+  it('does not apply project mutations for studio-level decisions without explicit projectId', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    const startScript = project.scriptQuality;
+    const startHype = project.hypeScore;
+
+    manager.decisionQueue.push({
+      id: 'studio-only-decision',
+      projectId: null,
+      title: 'Studio Macro Choice',
+      body: 'test',
+      weeksUntilExpiry: 1,
+      options: [
+        {
+          id: 'studio-only-option',
+          label: 'Apply',
+          preview: 'test',
+          cashDelta: 0,
+          scriptQualityDelta: 1.5,
+          hypeDelta: 8,
+        },
+      ],
+    });
+
+    manager.resolveDecision('studio-only-decision', 'studio-only-option');
+
+    expect(project.scriptQuality).toBe(startScript);
+    expect(project.hypeScore).toBe(startHype);
+  });
+
   it('keeps opening decision copy aligned with project-level effects', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const opening = manager.decisionQueue[0];
@@ -694,5 +724,57 @@ describe('StudioManager', () => {
 
     (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
+  });
+
+  it('decrements stacked counterplay flags one layer at a time on expiry', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.storyFlags.rival_tentpole_threat = 2;
+    manager.decisionQueue.push({
+      id: 'stacked-flag-decision',
+      projectId: null,
+      category: 'marketing',
+      title: 'Counterplay: Stacked Threat',
+      body: 'test',
+      weeksUntilExpiry: 1,
+      onExpireClearFlag: 'rival_tentpole_threat',
+      options: [
+        {
+          id: 'stacked-flag-option',
+          label: 'test',
+          preview: 'test',
+          cashDelta: 0,
+          scriptQualityDelta: 0,
+          hypeDelta: 0,
+        },
+      ],
+    });
+
+    const expiryEvents: string[] = [];
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    expect(manager.storyFlags.rival_tentpole_threat).toBe(1);
+
+    manager.decisionQueue.push({
+      id: 'stacked-flag-decision-2',
+      projectId: null,
+      category: 'marketing',
+      title: 'Counterplay: Stacked Threat 2',
+      body: 'test',
+      weeksUntilExpiry: 1,
+      onExpireClearFlag: 'rival_tentpole_threat',
+      options: [
+        {
+          id: 'stacked-flag-option-2',
+          label: 'test',
+          preview: 'test',
+          cashDelta: 0,
+          scriptQualityDelta: 0,
+          hypeDelta: 0,
+        },
+      ],
+    });
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
   });
 });

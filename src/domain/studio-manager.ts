@@ -437,7 +437,7 @@ export class StudioManager {
     const option = decision.options.find((item) => item.id === optionId);
     if (!option) return;
 
-    const project = this.getDecisionTargetProject(decision);
+    const project = decision.projectId ? this.getDecisionTargetProject(decision) : null;
     if (project) {
       project.scriptQuality = clamp(project.scriptQuality + option.scriptQualityDelta, 0, 10);
       project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
