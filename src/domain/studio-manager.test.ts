@@ -484,4 +484,55 @@ describe('StudioManager', () => {
     expect(pressuredProjection).toBeTruthy();
     expect((pressuredProjection?.openingHigh ?? 0)).toBeLessThan(clearProjection?.openingHigh ?? 0);
   });
+
+  it('applies rival personality pressure to matching arc families', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.5 });
+    manager.rivals = [
+      {
+        id: 'r-1',
+        name: 'Test Blockbuster',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+
+    const arcPressure = (manager as unknown as { getArcPressureFromRivals: (arcId: string) => number }).getArcPressureFromRivals(
+      'exhibitor-war'
+    );
+    const unrelatedPressure = (manager as unknown as { getArcPressureFromRivals: (arcId: string) => number }).getArcPressureFromRivals(
+      'awards-circuit'
+    );
+
+    expect(arcPressure).toBeGreaterThan(unrelatedPressure);
+    expect(arcPressure).toBeGreaterThan(0);
+  });
+
+  it('runs blockbuster signature move and injects tentpole release conflict pressure', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-1',
+        name: 'Test Blockbuster',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+
+    const target = manager.activeProjects[0];
+    target.phase = 'distribution';
+    target.releaseWeek = manager.currentWeek + 4;
+    const events: string[] = [];
+
+    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+
+    expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
+    expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(target.releaseWeek);
+    expect(events.some((entry) => entry.includes('tentpole'))).toBe(true);
+  });
 });

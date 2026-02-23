@@ -467,6 +467,7 @@ export class StudioManager {
     this.tickReleasedFilms(events);
     this.tickRivalHeat(events);
     this.processRivalCalendarMoves(events);
+    this.processRivalSignatureMoves(events);
     this.projectOutcomes();
 
     this.currentWeek += 1;
@@ -661,6 +662,11 @@ export class StudioManager {
       weight *= 0.75;
     }
 
+    const arcId = this.getEventArcId(event);
+    if (arcId) {
+      weight += this.getArcPressureFromRivals(arcId);
+    }
+
     if (this.recentDecisionCategories[0] === event.category) {
       weight *= 0.7;
     }
@@ -669,6 +675,19 @@ export class StudioManager {
     }
 
     return weight;
+  }
+
+  private getEventArcId(event: EventTemplate): string | null {
+    return event.requiresArc?.id ?? event.blocksArc?.id ?? null;
+  }
+
+  private getArcPressureFromRivals(arcId: string): number {
+    let pressure = 0;
+    for (const rival of this.rivals) {
+      const profile = this.getRivalBehaviorProfile(rival);
+      pressure += profile.arcPressure[arcId] ?? 0;
+    }
+    return clamp(pressure / Math.max(1, this.rivals.length), 0, 0.7);
   }
 
   private getEventProjectCandidates(event: EventTemplate): MovieProject[] {
@@ -1019,7 +1038,8 @@ export class StudioManager {
 
   private processRivalTalentAcquisitions(events: string[]): void {
     for (const rival of this.rivals) {
-      if (this.rivalRng() > 0.35) continue;
+      const profile = this.getRivalBehaviorProfile(rival);
+      if (this.rivalRng() > profile.talentPoachChance) continue;
       const candidates = this.talentPool.filter((talent) =>
         talent.availability === 'available' || talent.availability === 'inNegotiation'
       );
@@ -1120,10 +1140,11 @@ export class StudioManager {
       (project) => project.phase === 'distribution' && project.releaseWeek !== null
     );
     for (const rival of this.rivals) {
-      if (this.rivalRng() > 0.28) continue;
+      const profile = this.getRivalBehaviorProfile(rival);
+      if (this.rivalRng() > profile.calendarMoveChance) continue;
 
       const target = playerDistribution[Math.floor(this.rivalRng() * Math.max(1, playerDistribution.length))];
-      const forceConflict = !!target && this.rivalRng() < 0.35;
+      const forceConflict = !!target && this.rivalRng() < profile.conflictPush;
       const week = forceConflict && target.releaseWeek ? target.releaseWeek : this.currentWeek + 2 + Math.floor(this.rivalRng() * 14);
       const genre: MovieGenre = (['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'] as MovieGenre[])[
         Math.floor(this.rivalRng() * 8)
@@ -1135,8 +1156,8 @@ export class StudioManager {
         genre,
         releaseWeek: week,
         releaseWindow: 'wideTheatrical',
-        estimatedBudget: 20_000_000 + this.rivalRng() * 120_000_000,
-        hypeScore: 35 + this.rivalRng() * 45,
+        estimatedBudget: (20_000_000 + this.rivalRng() * 120_000_000) * profile.budgetScale,
+        hypeScore: clamp((35 + this.rivalRng() * 45) * profile.hypeScale, 20, 98),
         finalGross: null,
         criticalScore: null,
       };
@@ -1188,6 +1209,80 @@ export class StudioManager {
             },
           ],
         });
+      }
+    }
+  }
+
+  private processRivalSignatureMoves(events: string[]): void {
+    for (const rival of this.rivals) {
+      const profile = this.getRivalBehaviorProfile(rival);
+      if (this.rivalRng() > profile.signatureMoveChance) continue;
+
+      if (rival.personality === 'blockbusterFactory') {
+        const target = this.activeProjects.find((project) => project.phase === 'distribution' && project.releaseWeek !== null);
+        if (target?.releaseWeek) {
+          rival.upcomingReleases.unshift({
+            id: id('r-film'),
+            title: `${rival.name.split(' ')[0]} Event Tentpole`,
+            genre: 'action',
+            releaseWeek: target.releaseWeek,
+            releaseWindow: 'wideTheatrical',
+            estimatedBudget: 170_000_000 + this.rivalRng() * 80_000_000,
+            hypeScore: 80 + this.rivalRng() * 15,
+            finalGross: null,
+            criticalScore: null,
+          });
+          events.push(`${rival.name} dropped a four-quadrant tentpole into your weekend corridor.`);
+        }
+        continue;
+      }
+
+      if (rival.personality === 'prestigeHunter') {
+        this.studioHeat = clamp(this.studioHeat - 1.5, 0, 100);
+        this.storyFlags.awards_headwind = (this.storyFlags.awards_headwind ?? 0) + 1;
+        events.push(`${rival.name} dominated guild chatter this week. Awards headwind intensified.`);
+        continue;
+      }
+
+      if (rival.personality === 'genreSpecialist') {
+        const targetTalent = this.talentPool
+          .filter((talent) => talent.availability === 'available' && talent.role !== 'director')
+          .sort((a, b) => b.craftScore - a.craftScore)[0];
+        if (targetTalent) {
+          targetTalent.availability = 'unavailable';
+          targetTalent.unavailableUntilWeek = this.currentWeek + 6;
+          if (!rival.lockedTalentIds.includes(targetTalent.id)) {
+            rival.lockedTalentIds.push(targetTalent.id);
+          }
+          events.push(`${rival.name} locked ${targetTalent.name} into a niche franchise hold.`);
+        }
+        continue;
+      }
+
+      if (rival.personality === 'streamingFirst') {
+        const project = this.activeProjects.find((item) => item.phase === 'distribution');
+        if (project) {
+          this.distributionOffers.push({
+            id: id('deal'),
+            projectId: project.id,
+            partner: `${rival.name} Stream+`,
+            releaseWindow: 'streamingExclusive',
+            minimumGuarantee: project.budget.ceiling * 0.4,
+            pAndACommitment: project.budget.ceiling * 0.05,
+            revenueShareToStudio: 0.66,
+            projectedOpeningOverride: 0.72,
+          });
+          events.push(`${rival.name} floated an aggressive streaming pre-buy into your distribution stack.`);
+        }
+        continue;
+      }
+
+      if (rival.personality === 'scrappyUpstart') {
+        const targetProject = this.activeProjects.find((project) => project.phase === 'distribution' || project.phase === 'released');
+        if (targetProject) {
+          targetProject.hypeScore = clamp(targetProject.hypeScore - 2, 0, 100);
+          events.push(`${rival.name} ran a guerrilla social blitz that clipped hype on ${targetProject.title}.`);
+        }
       }
     }
   }
@@ -1293,6 +1388,98 @@ export class StudioManager {
         return 0;
       default:
         return 0;
+    }
+  }
+
+  private getRivalBehaviorProfile(rival: RivalStudio): {
+    arcPressure: Record<string, number>;
+    talentPoachChance: number;
+    calendarMoveChance: number;
+    conflictPush: number;
+    signatureMoveChance: number;
+    budgetScale: number;
+    hypeScale: number;
+  } {
+    switch (rival.personality) {
+      case 'blockbusterFactory':
+        return {
+          arcPressure: {
+            'exhibitor-war': 0.6,
+            'franchise-pivot': 0.5,
+            'leak-piracy': 0.2,
+          },
+          talentPoachChance: 0.32,
+          calendarMoveChance: 0.4,
+          conflictPush: 0.5,
+          signatureMoveChance: 0.22,
+          budgetScale: 1.4,
+          hypeScale: 1.25,
+        };
+      case 'prestigeHunter':
+        return {
+          arcPressure: {
+            'awards-circuit': 0.6,
+            'financier-control': 0.2,
+            'talent-meltdown': 0.2,
+          },
+          talentPoachChance: 0.28,
+          calendarMoveChance: 0.24,
+          conflictPush: 0.2,
+          signatureMoveChance: 0.2,
+          budgetScale: 0.9,
+          hypeScale: 1.05,
+        };
+      case 'genreSpecialist':
+        return {
+          arcPressure: {
+            'talent-meltdown': 0.45,
+            'leak-piracy': 0.25,
+          },
+          talentPoachChance: 0.38,
+          calendarMoveChance: 0.3,
+          conflictPush: 0.28,
+          signatureMoveChance: 0.18,
+          budgetScale: 1.05,
+          hypeScale: 1.1,
+        };
+      case 'streamingFirst':
+        return {
+          arcPressure: {
+            'exhibitor-war': 0.3,
+            'financier-control': 0.35,
+            'franchise-pivot': 0.2,
+          },
+          talentPoachChance: 0.24,
+          calendarMoveChance: 0.18,
+          conflictPush: 0.18,
+          signatureMoveChance: 0.24,
+          budgetScale: 0.85,
+          hypeScale: 0.95,
+        };
+      case 'scrappyUpstart':
+        return {
+          arcPressure: {
+            'talent-meltdown': 0.3,
+            'leak-piracy': 0.3,
+            'financier-control': 0.25,
+          },
+          talentPoachChance: 0.3,
+          calendarMoveChance: 0.26,
+          conflictPush: 0.3,
+          signatureMoveChance: 0.2,
+          budgetScale: 0.8,
+          hypeScale: 1.15,
+        };
+      default:
+        return {
+          arcPressure: {},
+          talentPoachChance: 0.3,
+          calendarMoveChance: 0.28,
+          conflictPush: 0.3,
+          signatureMoveChance: 0.15,
+          budgetScale: 1,
+          hypeScale: 1,
+        };
     }
   }
 
