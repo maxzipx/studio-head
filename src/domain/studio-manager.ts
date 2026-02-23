@@ -513,7 +513,33 @@ export class StudioManager {
   } | null {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return null;
+    return this.buildProjection(project, project.releaseWeek ?? this.currentWeek + 4);
+  }
 
+  getProjectedForProjectAtWeek(
+    projectId: string,
+    releaseWeek: number
+  ): {
+    critical: number;
+    openingLow: number;
+    openingHigh: number;
+    roi: number;
+  } | null {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return null;
+    const clampedWeek = clamp(Math.round(releaseWeek), this.currentWeek + 1, this.currentWeek + 52);
+    return this.buildProjection(project, clampedWeek);
+  }
+
+  private buildProjection(
+    project: MovieProject,
+    releaseWeek: number
+  ): {
+    critical: number;
+    openingLow: number;
+    openingHigh: number;
+    roi: number;
+  } {
     const director = this.talentPool.find((item) => item.id === project.directorId);
     const lead = this.talentPool.find((item) => project.castIds.includes(item.id) && item.role === 'leadActor');
     const critical = projectedCriticalScore({
@@ -534,7 +560,7 @@ export class StudioManager {
       marketingBudget: project.marketingBudget,
       totalBudget: project.budget.ceiling,
     });
-    const pressure = this.calendarPressureMultiplier(project.releaseWeek ?? this.currentWeek + 4, project.genre);
+    const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
     const openingLow = opening.low * pressure;
     const openingHigh = opening.high * pressure;
     const openingMid = opening.midpoint * pressure;

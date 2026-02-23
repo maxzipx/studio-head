@@ -571,6 +571,36 @@ describe('StudioManager', () => {
     expect((pressuredProjection?.openingHigh ?? 0)).toBeLessThan(clearProjection?.openingHigh ?? 0);
   });
 
+  it('projects alternate release weeks without mutating project state', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.releaseWeek = manager.currentWeek + 6;
+    const originalWeek = project.releaseWeek;
+
+    manager.rivals[0].upcomingReleases.push({
+      id: 'test-rival-week',
+      title: 'Pressure Week Film',
+      genre: project.genre,
+      releaseWeek: originalWeek,
+      releaseWindow: 'wideTheatrical',
+      estimatedBudget: 150_000_000,
+      hypeScore: 85,
+      finalGross: null,
+      criticalScore: null,
+    });
+
+    const atCurrent = manager.getProjectedForProject(project.id);
+    const atSameWeek = manager.getProjectedForProjectAtWeek(project.id, originalWeek);
+    const atLaterWeek = manager.getProjectedForProjectAtWeek(project.id, originalWeek + 4);
+
+    expect(atCurrent).toBeTruthy();
+    expect(atSameWeek).toBeTruthy();
+    expect(atLaterWeek).toBeTruthy();
+    expect((atSameWeek?.openingHigh ?? 0)).toBeCloseTo(atCurrent?.openingHigh ?? 0, 5);
+    expect((atLaterWeek?.openingHigh ?? 0)).toBeGreaterThan(atSameWeek?.openingHigh ?? 0);
+    expect(project.releaseWeek).toBe(originalWeek);
+  });
+
   it('applies rival personality pressure to matching arc families', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.5 });
     manager.rivals = [

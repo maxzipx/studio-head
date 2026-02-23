@@ -1,10 +1,14 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
+}
+
+function signedMoney(amount: number): string {
+  return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
 }
 
 export default function DistributionScreen() {
@@ -28,10 +32,25 @@ export default function DistributionScreen() {
     return { label: 'High', color: tokens.accentRed };
   }
 
+  function confirmRelease(projectId: string, title: string, openingBand: string): void {
+    Alert.alert(
+      `Release ${title}?`,
+      `Opening forecast will lock at ${openingBand}. Talent attached to this project will return to the market.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Release',
+          style: 'destructive',
+          onPress: () => advancePhase(projectId),
+        },
+      ]
+    );
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Distribution Deals</Text>
-      <Text style={styles.subtitle}>Negotiate offers and pick release windows against rival calendar pressure</Text>
+      <Text style={styles.subtitle}>Negotiate offers, manage calendar pressure, and confirm release timing</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
 
       {projects.length === 0 ? (
@@ -43,6 +62,39 @@ export default function DistributionScreen() {
       {projects.map((project) => {
         const offers = manager.getOffersForProject(project.id);
         const projection = manager.getProjectedForProject(project.id);
+        const hasProjection = !!projection;
+        const minWeek = manager.currentWeek + 1;
+        const maxWeek = manager.currentWeek + 52;
+        const releaseWeek = project.releaseWeek;
+        const previousWeek = releaseWeek ? Math.max(minWeek, releaseWeek - 1) : null;
+        const nextWeek = releaseWeek ? Math.min(maxWeek, releaseWeek + 1) : null;
+        const projectionPrevious =
+          releaseWeek && previousWeek !== null ? manager.getProjectedForProjectAtWeek(project.id, previousWeek) : null;
+        const projectionNext = releaseWeek && nextWeek !== null ? manager.getProjectedForProjectAtWeek(project.id, nextWeek) : null;
+        const readinessChecks = [
+          {
+            label:
+              project.scheduledWeeksRemaining <= 0
+                ? 'Distribution setup complete'
+                : `${project.scheduledWeeksRemaining} setup week(s) remaining`,
+            ok: project.scheduledWeeksRemaining <= 0,
+          },
+          {
+            label: project.releaseWindow ? `Deal locked (${project.releaseWindow})` : 'No accepted distribution deal',
+            ok: !!project.releaseWindow,
+          },
+          {
+            label: releaseWeek ? `Release week set (W${releaseWeek})` : 'Release week not set',
+            ok: !!releaseWeek,
+          },
+          {
+            label: hasProjection ? 'Opening forecast available' : 'Opening forecast unavailable',
+            ok: hasProjection,
+          },
+        ];
+        const blockers = readinessChecks.filter((item) => !item.ok).map((item) => item.label);
+        const canRelease = blockers.length === 0;
+        const openingBand = projection ? `${money(projection.openingLow)} - ${money(projection.openingHigh)}` : null;
         const pressure = pressureForWeek(project.releaseWeek);
         const nearby = rivalCalendar
           .filter((film) => project.releaseWeek && Math.abs(film.week - project.releaseWeek) <= 1)
@@ -61,19 +113,61 @@ export default function DistributionScreen() {
               </Text>
             ) : null}
 
+            <View style={[styles.readinessCard, canRelease ? styles.readinessReady : styles.readinessBlocked]}>
+              <Text style={styles.offerTitle}>Release Readiness</Text>
+              {readinessChecks.map((item) => (
+                <Text key={item.label} style={[styles.meta, item.ok ? styles.readyText : styles.blockedText]}>
+                  {item.ok ? 'OK' : 'BLOCKED'}: {item.label}
+                </Text>
+              ))}
+              {canRelease ? <Text style={styles.meta}>Ready to release this week.</Text> : null}
+            </View>
+
+            {projection && releaseWeek && projectionPrevious && projectionNext ? (
+              <View style={styles.shiftCard}>
+                <Text style={styles.offerTitle}>Week Shift Forecast</Text>
+                <Text style={styles.meta}>Current W{releaseWeek}: {openingBand}</Text>
+                <Text
+                  style={[
+                    styles.meta,
+                    projectionPrevious.openingHigh - projection.openingHigh >= 0 ? styles.readyText : styles.blockedText,
+                  ]}>
+                  W{previousWeek}: {money(projectionPrevious.openingLow)} - {money(projectionPrevious.openingHigh)} (
+                  {signedMoney(projectionPrevious.openingHigh - projection.openingHigh)} vs current high)
+                </Text>
+                <Text
+                  style={[
+                    styles.meta,
+                    projectionNext.openingHigh - projection.openingHigh >= 0 ? styles.readyText : styles.blockedText,
+                  ]}>
+                  W{nextWeek}: {money(projectionNext.openingLow)} - {money(projectionNext.openingHigh)} (
+                  {signedMoney(projectionNext.openingHigh - projection.openingHigh)} vs current high)
+                </Text>
+              </View>
+            ) : null}
+
             <View style={styles.actions}>
               <Pressable
-                style={styles.button}
+                style={[styles.button, !releaseWeek ? styles.buttonDisabled : null]}
+                disabled={!releaseWeek}
                 onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
                 <Text style={styles.buttonText}>Week -1</Text>
               </Pressable>
               <Pressable
-                style={styles.button}
+                style={[styles.button, !releaseWeek ? styles.buttonDisabled : null]}
+                disabled={!releaseWeek}
                 onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
                 <Text style={styles.buttonText}>Week +1</Text>
               </Pressable>
             </View>
-            <Pressable style={styles.releaseButton} onPress={() => advancePhase(project.id)}>
+
+            <Pressable
+              style={[styles.releaseButton, !canRelease ? styles.buttonDisabled : null]}
+              disabled={!canRelease}
+              onPress={() => {
+                if (!openingBand) return;
+                confirmRelease(project.id, project.title, openingBand);
+              }}>
               <Text style={styles.releaseButtonText}>Advance To Release</Text>
             </Pressable>
 
@@ -156,6 +250,7 @@ const styles = StyleSheet.create({
   },
   offerTitle: { color: tokens.textPrimary, fontSize: 15, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  buttonDisabled: { opacity: 0.45 },
   button: {
     flex: 1,
     borderRadius: 8,
@@ -175,6 +270,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   walkButtonText: { color: tokens.accentRed, fontWeight: '700', fontSize: 12 },
+  readinessCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    gap: 4,
+  },
+  readinessReady: {
+    borderColor: tokens.accentTeal,
+    backgroundColor: '#1A3030',
+  },
+  readinessBlocked: {
+    borderColor: tokens.accentGold,
+    backgroundColor: '#2D2616',
+  },
+  shiftCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 10,
+    gap: 4,
+  },
+  readyText: { color: tokens.accentTeal },
+  blockedText: { color: tokens.accentRed },
   releaseButton: {
     borderRadius: 10,
     borderWidth: 1,
