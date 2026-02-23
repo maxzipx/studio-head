@@ -27,6 +27,7 @@ const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const managerRef = useRef<StudioManager | null>(null);
+  const hasSaveFailureRef = useRef(false);
   const [tick, setTick] = useState(0);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
@@ -43,7 +44,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const saveAndTick = useCallback(
     (message?: string) => {
       if (message) setLastMessage(message);
-      void saveManagerToStorage(manager);
+      void saveManagerToStorage(manager)
+        .then(() => {
+          hasSaveFailureRef.current = false;
+        })
+        .catch(() => {
+          if (hasSaveFailureRef.current) return;
+          hasSaveFailureRef.current = true;
+          setLastMessage('Autosave failed: local storage is full. Gameplay continues, but progress may not persist.');
+        });
       setTick((value) => value + 1);
     },
     [manager]

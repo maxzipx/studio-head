@@ -5,13 +5,17 @@ import { StudioManager } from '../domain/studio-manager';
 const SAVE_KEY = 'pg.save.v1';
 const SAVE_VERSION = 1;
 
+interface StoredManager extends Record<string, unknown> {
+  lastEventWeek?: [string, number][];
+}
+
 interface SaveEnvelope {
   version: number;
   savedAt: string;
-  manager: StudioManager;
+  manager: StoredManager;
 }
 
-const RESTORE_BLOCKED_KEYS = new Set([
+const SERIALIZE_BLOCKED_KEYS = new Set([
   'crisisRng',
   'eventRng',
   'negotiationRng',
@@ -20,14 +24,31 @@ const RESTORE_BLOCKED_KEYS = new Set([
   'lastEventWeek',
 ]);
 
-export function restoreStudioManager(input: StudioManager): StudioManager {
+export function serializeStudioManager(manager: StudioManager): StoredManager {
+  const serialized: StoredManager = {};
+  for (const [key, value] of Object.entries(manager as unknown as Record<string, unknown>)) {
+    if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
+    serialized[key] = value;
+  }
+
+  const sourceLastEventWeek = (manager as unknown as { lastEventWeek?: unknown }).lastEventWeek;
+  if (sourceLastEventWeek instanceof Map) {
+    serialized.lastEventWeek = Array.from(sourceLastEventWeek.entries()).filter(
+      (entry): entry is [string, number] => typeof entry[0] === 'string' && typeof entry[1] === 'number'
+    );
+  }
+
+  return serialized;
+}
+
+export function restoreStudioManager(input: StoredManager): StudioManager {
   const manager = new StudioManager();
-  for (const [key, value] of Object.entries(input as unknown as Record<string, unknown>)) {
-    if (RESTORE_BLOCKED_KEYS.has(key)) continue;
+  for (const [key, value] of Object.entries(input)) {
+    if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
     (manager as unknown as Record<string, unknown>)[key] = value;
   }
 
-  const sourceLastEventWeek = (input as unknown as { lastEventWeek?: unknown }).lastEventWeek;
+  const sourceLastEventWeek = input.lastEventWeek;
   const targetLastEventWeek = (manager as unknown as { lastEventWeek: Map<string, number> }).lastEventWeek;
 
   if (Array.isArray(sourceLastEventWeek)) {
@@ -61,10 +82,11 @@ export async function loadManagerFromStorage(): Promise<StudioManager | null> {
 }
 
 export async function saveManagerToStorage(manager: StudioManager): Promise<void> {
+  const serializedManager = serializeStudioManager(manager);
   const envelope: SaveEnvelope = {
     version: SAVE_VERSION,
     savedAt: new Date().toISOString(),
-    manager,
+    manager: serializedManager,
   };
   await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(envelope));
 }
