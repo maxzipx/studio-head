@@ -40,15 +40,15 @@ function id(prefix: string): string {
 function phaseBurnMultiplier(phase: MovieProject['phase']): number {
   switch (phase) {
     case 'development':
-      return 0.006;
+      return 0.005;
     case 'preProduction':
-      return 0.009;
+      return 0.008;
     case 'production':
-      return 0.018;
+      return 0.015;
     case 'postProduction':
-      return 0.01;
+      return 0.009;
     case 'distribution':
-      return 0.004;
+      return 0.0035;
     default:
       return 0;
   }
@@ -133,9 +133,9 @@ export class StudioManager {
   runOptionalAction(): void {
     const project = this.activeProjects[0];
     if (!project) return;
-    project.hypeScore = clamp(project.hypeScore + 4, 0, 100);
-    project.marketingBudget += 250_000;
-    this.cash -= 250_000;
+    project.hypeScore = clamp(project.hypeScore + 5, 0, 100);
+    project.marketingBudget += 180_000;
+    this.cash -= 180_000;
   }
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
@@ -355,13 +355,13 @@ export class StudioManager {
   counterDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
     const offer = this.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
     if (!offer) return { success: false, message: 'Offer not found.' };
-    const successChance = clamp(0.45 + this.studioHeat / 200, 0.2, 0.85);
+    const successChance = clamp(0.53 + this.studioHeat / 220, 0.25, 0.9);
     if (this.negotiationRng() > successChance) {
       return { success: false, message: `${offer.partner} declined the counter.` };
     }
 
-    offer.minimumGuarantee *= 1.12;
-    offer.revenueShareToStudio = clamp(offer.revenueShareToStudio + 0.03, 0.45, 0.7);
+    offer.minimumGuarantee *= 1.1;
+    offer.revenueShareToStudio = clamp(offer.revenueShareToStudio + 0.025, 0.45, 0.7);
     return { success: true, message: `${offer.partner} improved terms after counter.` };
   }
 
@@ -572,8 +572,8 @@ export class StudioManager {
           {
             id: id('c-opt'),
             label: 'Pay Overtime to Keep Schedule',
-            preview: '-$600K now, no schedule slip.',
-            cashDelta: -600_000,
+            preview: '-$450K now, no schedule slip.',
+            cashDelta: -450_000,
             scheduleDelta: 0,
             hypeDelta: 0,
           },
@@ -581,7 +581,7 @@ export class StudioManager {
             id: id('c-opt'),
             label: 'Delay One Week',
             preview: 'Save cash, but schedule slips and press chatter starts.',
-            cashDelta: -100_000,
+            cashDelta: -50_000,
             scheduleDelta: 1,
             hypeDelta: -3,
           },
@@ -924,7 +924,7 @@ export class StudioManager {
   }
 
   private finalizeTalentAttachment(project: MovieProject, talent: Talent): void {
-    const retainer = talent.salary.base * 0.1;
+    const retainer = talent.salary.base * 0.08;
     if (this.cash < retainer) {
       talent.availability = 'available';
       return;
@@ -1021,8 +1021,8 @@ export class StudioManager {
     if (!project) return;
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
 
-    const base = project.budget.ceiling * 0.18;
-    const hypeFactor = 1 + project.hypeScore / 220;
+    const base = project.budget.ceiling * 0.2;
+    const hypeFactor = 1 + project.hypeScore / 200;
     const offers: DistributionOffer[] = [
       {
         id: id('deal'),
