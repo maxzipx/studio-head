@@ -12,12 +12,31 @@ function signedMoney(amount: number): string {
   return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
 }
 
+const ARC_LABELS: Record<string, string> = {
+  'awards-circuit': 'Awards Run',
+  'exhibitor-war': 'Theater Access Battle',
+  'financier-control': 'Investor Pressure',
+  'franchise-pivot': 'Universe Gamble',
+  'leak-piracy': 'Leak Fallout',
+  'talent-meltdown': 'Volatile Star Cycle',
+};
+
 export default function HQScreen() {
   const { manager, dismissReleaseReveal, endWeek, resolveCrisis, resolveDecision, runOptionalAction } = useGame();
   const reveal = manager.getNextReleaseReveal();
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
   const readyToAdvance = manager.canEndWeek ? 'Ready' : 'Blocked';
+  const arcEntries = Object.entries(manager.storyArcs)
+    .sort((a, b) => {
+      if (a[1].status === b[1].status) return b[1].lastUpdatedWeek - a[1].lastUpdatedWeek;
+      if (a[1].status === 'active') return -1;
+      if (b[1].status === 'active') return 1;
+      if (a[1].status === 'resolved') return -1;
+      return 1;
+    })
+    .slice(0, 8);
+  const activeArcCount = arcEntries.filter(([, arc]) => arc.status === 'active').length;
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -55,6 +74,33 @@ export default function HQScreen() {
         <Text style={styles.body}>Inbox Items: {manager.decisionQueue.length}</Text>
         <Text style={styles.body}>Active Projects: {manager.activeProjects.length}</Text>
         {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Week.</Text> : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Story Arcs</Text>
+        <Text style={styles.mutedBody}>Active arcs: {activeArcCount}</Text>
+        {arcEntries.length === 0 ? <Text style={styles.mutedBody}>No major arc threads have started yet.</Text> : null}
+        {arcEntries.map(([arcId, arc]) => (
+          <View key={arcId} style={styles.arcRow}>
+            <View style={styles.arcHeader}>
+              <Text style={styles.bodyStrong}>{ARC_LABELS[arcId] ?? arcId}</Text>
+              <Text
+                style={[
+                  styles.arcStatus,
+                  arc.status === 'resolved'
+                    ? styles.arcResolved
+                    : arc.status === 'failed'
+                      ? styles.arcFailed
+                      : styles.arcActive,
+                ]}>
+                {arc.status.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.mutedBody}>
+              Stage {arc.stage} | Last updated week {arc.lastUpdatedWeek}
+            </Text>
+          </View>
+        ))}
       </View>
 
       <View style={[styles.card, manager.pendingCrises.length > 0 ? styles.crisisCard : null]}>
@@ -268,6 +314,34 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.bgElevated,
     padding: 10,
     gap: 6,
+  },
+  arcRow: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 10,
+    gap: 4,
+  },
+  arcHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  arcStatus: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  arcActive: {
+    color: tokens.accentGold,
+  },
+  arcResolved: {
+    color: tokens.accentTeal,
+  },
+  arcFailed: {
+    color: tokens.accentRed,
   },
   alert: {
     color: tokens.accentRed,

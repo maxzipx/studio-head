@@ -1232,6 +1232,11 @@ export class StudioManager {
             finalGross: null,
             criticalScore: null,
           });
+          const hadFlag = this.hasStoryFlag('rival_tentpole_threat');
+          this.storyFlags.rival_tentpole_threat = (this.storyFlags.rival_tentpole_threat ?? 0) + 1;
+          if (!hadFlag) {
+            this.queueRivalCounterplayDecision('rival_tentpole_threat', rival.name, target.id);
+          }
           events.push(`${rival.name} dropped a four-quadrant tentpole into your weekend corridor.`);
         }
         continue;
@@ -1239,7 +1244,11 @@ export class StudioManager {
 
       if (rival.personality === 'prestigeHunter') {
         this.studioHeat = clamp(this.studioHeat - 1.5, 0, 100);
+        const hadFlag = this.hasStoryFlag('awards_headwind');
         this.storyFlags.awards_headwind = (this.storyFlags.awards_headwind ?? 0) + 1;
+        if (!hadFlag) {
+          this.queueRivalCounterplayDecision('awards_headwind', rival.name);
+        }
         events.push(`${rival.name} dominated guild chatter this week. Awards headwind intensified.`);
         continue;
       }
@@ -1253,6 +1262,11 @@ export class StudioManager {
           targetTalent.unavailableUntilWeek = this.currentWeek + 6;
           if (!rival.lockedTalentIds.includes(targetTalent.id)) {
             rival.lockedTalentIds.push(targetTalent.id);
+          }
+          const hadFlag = this.hasStoryFlag('rival_talent_lock');
+          this.storyFlags.rival_talent_lock = (this.storyFlags.rival_talent_lock ?? 0) + 1;
+          if (!hadFlag) {
+            this.queueRivalCounterplayDecision('rival_talent_lock', rival.name);
           }
           events.push(`${rival.name} locked ${targetTalent.name} into a niche franchise hold.`);
         }
@@ -1272,6 +1286,11 @@ export class StudioManager {
             revenueShareToStudio: 0.66,
             projectedOpeningOverride: 0.72,
           });
+          const hadFlag = this.hasStoryFlag('streaming_pressure');
+          this.storyFlags.streaming_pressure = (this.storyFlags.streaming_pressure ?? 0) + 1;
+          if (!hadFlag) {
+            this.queueRivalCounterplayDecision('streaming_pressure', rival.name, project.id);
+          }
           events.push(`${rival.name} floated an aggressive streaming pre-buy into your distribution stack.`);
         }
         continue;
@@ -1281,9 +1300,193 @@ export class StudioManager {
         const targetProject = this.activeProjects.find((project) => project.phase === 'distribution' || project.phase === 'released');
         if (targetProject) {
           targetProject.hypeScore = clamp(targetProject.hypeScore - 2, 0, 100);
+          const hadFlag = this.hasStoryFlag('guerrilla_pressure');
+          this.storyFlags.guerrilla_pressure = (this.storyFlags.guerrilla_pressure ?? 0) + 1;
+          if (!hadFlag) {
+            this.queueRivalCounterplayDecision('guerrilla_pressure', rival.name, targetProject.id);
+          }
           events.push(`${rival.name} ran a guerrilla social blitz that clipped hype on ${targetProject.title}.`);
         }
       }
+    }
+  }
+
+  private queueRivalCounterplayDecision(flag: string, rivalName: string, projectId?: string): void {
+    if (this.decisionQueue.length >= 5) return;
+    const targetProject = projectId ? this.activeProjects.find((item) => item.id === projectId) : null;
+
+    if (flag === 'rival_tentpole_threat') {
+      const title = `Counterplay: ${rivalName} Tentpole Threat`;
+      if (this.decisionQueue.some((item) => item.title === title)) return;
+      this.decisionQueue.push({
+        id: id('decision'),
+        projectId: targetProject?.id ?? null,
+        category: 'marketing',
+        title,
+        body: 'A major rival crowded your release corridor. Choose how to defend opening week share.',
+        weeksUntilExpiry: 1,
+        options: [
+          {
+            id: id('opt'),
+            label: 'Authorize Competitive Blitz',
+            preview: 'Spend to defend awareness and trailer share.',
+            cashDelta: -260_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 3,
+            studioHeatDelta: 1,
+            clearFlag: 'rival_tentpole_threat',
+          },
+          {
+            id: id('opt'),
+            label: 'Shift Date One Week',
+            preview: 'Reduce collision risk with moderate transition cost.',
+            cashDelta: -120_000,
+            scriptQualityDelta: 0,
+            hypeDelta: -1,
+            clearFlag: 'rival_tentpole_threat',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (flag === 'awards_headwind') {
+      const title = `Counterplay: ${rivalName} Awards Surge`;
+      if (this.decisionQueue.some((item) => item.title === title)) return;
+      this.decisionQueue.push({
+        id: id('decision'),
+        projectId: null,
+        category: 'marketing',
+        title,
+        body: 'Awards conversation shifted away from your slate. Decide whether to contest the narrative.',
+        weeksUntilExpiry: 1,
+        options: [
+          {
+            id: id('opt'),
+            label: 'Launch Guild Counter-Campaign',
+            preview: 'Spend to recover influence with voters and press.',
+            cashDelta: -180_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 1,
+            studioHeatDelta: 2,
+            clearFlag: 'awards_headwind',
+          },
+          {
+            id: id('opt'),
+            label: 'Conserve Budget',
+            preview: 'Protect cash but accept a temporary prestige dip.',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: -1,
+            studioHeatDelta: -1,
+            clearFlag: 'awards_headwind',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (flag === 'rival_talent_lock') {
+      const title = `Counterplay: ${rivalName} Talent Lock`;
+      if (this.decisionQueue.some((item) => item.title === title)) return;
+      this.decisionQueue.push({
+        id: id('decision'),
+        projectId: null,
+        category: 'talent',
+        title,
+        body: 'Rival package deals are squeezing your talent access. Choose your labor strategy.',
+        weeksUntilExpiry: 1,
+        options: [
+          {
+            id: id('opt'),
+            label: 'Fund Retention Incentives',
+            preview: 'Spend to improve relationship strength across reps.',
+            cashDelta: -220_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 1,
+            studioHeatDelta: 1,
+            clearFlag: 'rival_talent_lock',
+          },
+          {
+            id: id('opt'),
+            label: 'Scout Emerging Talent',
+            preview: 'Smaller spend, slightly slower impact, broader optionality.',
+            cashDelta: -80_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 1,
+            clearFlag: 'rival_talent_lock',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (flag === 'streaming_pressure') {
+      const title = `Counterplay: ${rivalName} Streaming Pressure`;
+      if (this.decisionQueue.some((item) => item.title === title)) return;
+      this.decisionQueue.push({
+        id: id('decision'),
+        projectId: targetProject?.id ?? null,
+        category: 'finance',
+        title,
+        body: 'Aggressive streaming terms are distorting your release leverage.',
+        weeksUntilExpiry: 1,
+        options: [
+          {
+            id: id('opt'),
+            label: 'Secure Theater Incentive Bundle',
+            preview: 'Spend now to protect theatrical leverage.',
+            cashDelta: -200_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 2,
+            studioHeatDelta: 1,
+            clearFlag: 'streaming_pressure',
+          },
+          {
+            id: id('opt'),
+            label: 'Take Hybrid Safety Deal',
+            preview: 'Accept immediate cash and de-risk near-term window.',
+            cashDelta: 150_000,
+            scriptQualityDelta: 0,
+            hypeDelta: -1,
+            clearFlag: 'streaming_pressure',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (flag === 'guerrilla_pressure') {
+      const title = `Counterplay: ${rivalName} Guerrilla Blitz`;
+      if (this.decisionQueue.some((item) => item.title === title)) return;
+      this.decisionQueue.push({
+        id: id('decision'),
+        projectId: targetProject?.id ?? null,
+        category: 'marketing',
+        title,
+        body: 'A rival social blitz is pulling mindshare away from your campaign.',
+        weeksUntilExpiry: 1,
+        options: [
+          {
+            id: id('opt'),
+            label: 'Run Community Counter-Blitz',
+            preview: 'Low cost and quick response to regain attention.',
+            cashDelta: -90_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 2,
+            clearFlag: 'guerrilla_pressure',
+          },
+          {
+            id: id('opt'),
+            label: 'Ignore The Noise',
+            preview: 'No spend, but campaign momentum softens.',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: -1,
+            clearFlag: 'guerrilla_pressure',
+          },
+        ],
+      });
     }
   }
 

@@ -534,5 +534,7 @@ describe('StudioManager', () => {
     expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(target.releaseWeek);
     expect(events.some((entry) => entry.includes('tentpole'))).toBe(true);
+    expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
+    expect(manager.storyFlags.rival_tentpole_threat).toBeGreaterThan(0);
   });
 });
