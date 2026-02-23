@@ -25,6 +25,7 @@ import type {
   RivalFilm,
   RivalStudio,
   ScriptPitch,
+  StoryArcState,
   Talent,
   TalentRole,
   WeekSummary,
@@ -102,6 +103,7 @@ export class StudioManager {
   industryNewsLog: IndustryNewsItem[] = [];
   playerNegotiations: PlayerNegotiation[] = [];
   storyFlags: Record<string, number> = {};
+  storyArcs: Record<string, StoryArcState> = {};
   recentDecisionCategories: DecisionCategory[] = [];
   lastWeekSummary: WeekSummary | null = null;
 
@@ -434,6 +436,9 @@ export class StudioManager {
     this.cash += option.cashDelta;
     this.studioHeat = clamp(this.studioHeat + (option.studioHeatDelta ?? 0), 0, 100);
     this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
+    if (decision.arcId) {
+      this.applyArcMutation(decision.arcId, option);
+    }
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
   }
 
@@ -617,6 +622,8 @@ export class StudioManager {
         if (queuedTitles.has(event.decisionTitle)) return false;
         if (event.requiresFlag && !this.hasStoryFlag(event.requiresFlag)) return false;
         if (event.blocksFlag && this.hasStoryFlag(event.blocksFlag)) return false;
+        if (event.requiresArc && !this.matchesArcRequirement(event.requiresArc)) return false;
+        if (event.blocksArc && this.matchesArcRequirement(event.blocksArc)) return false;
         const lastWeek = this.lastEventWeek.get(event.id);
         if (lastWeek !== undefined && this.currentWeek - lastWeek < event.cooldownWeeks) return false;
         return true;
@@ -683,6 +690,49 @@ export class StudioManager {
 
   private hasStoryFlag(flag: string): boolean {
     return (this.storyFlags[flag] ?? 0) > 0;
+  }
+
+  private matchesArcRequirement(input: {
+    id: string;
+    minStage?: number;
+    maxStage?: number;
+    status?: 'active' | 'resolved' | 'failed';
+  }): boolean {
+    const arc = this.storyArcs[input.id];
+    if (!arc) return false;
+    if (input.status && arc.status !== input.status) return false;
+    if (typeof input.minStage === 'number' && arc.stage < input.minStage) return false;
+    if (typeof input.maxStage === 'number' && arc.stage > input.maxStage) return false;
+    return true;
+  }
+
+  private ensureArcState(arcId: string): StoryArcState {
+    if (!this.storyArcs[arcId]) {
+      this.storyArcs[arcId] = {
+        stage: 0,
+        status: 'active',
+        lastUpdatedWeek: this.currentWeek,
+      };
+    }
+    return this.storyArcs[arcId];
+  }
+
+  private applyArcMutation(arcId: string, option: DecisionItem['options'][number]): void {
+    const arc = this.ensureArcState(arcId);
+    if (typeof option.setArcStage === 'number') {
+      arc.stage = Math.max(0, option.setArcStage);
+    }
+    if (typeof option.advanceArcBy === 'number') {
+      arc.stage = Math.max(0, arc.stage + option.advanceArcBy);
+    }
+    if (option.resolveArc) {
+      arc.status = 'resolved';
+    } else if (option.failArc) {
+      arc.status = 'failed';
+    } else {
+      arc.status = 'active';
+    }
+    arc.lastUpdatedWeek = this.currentWeek;
   }
 
   private applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {

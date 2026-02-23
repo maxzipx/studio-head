@@ -116,6 +116,10 @@ export interface DecisionOption {
   overrunRiskDelta?: number;
   setFlag?: string;
   clearFlag?: string;
+  setArcStage?: number;
+  advanceArcBy?: number;
+  resolveArc?: boolean;
+  failArc?: boolean;
 }
 
 export type DecisionCategory = 'creative' | 'marketing' | 'operations' | 'finance' | 'talent';
@@ -128,7 +132,16 @@ export interface DecisionItem {
   weeksUntilExpiry: number;
   category?: DecisionCategory;
   sourceEventId?: string;
+  arcId?: string;
+  arcStage?: number;
   options: DecisionOption[];
+}
+
+export interface ArcRequirement {
+  id: string;
+  minStage?: number;
+  maxStage?: number;
+  status?: 'active' | 'resolved' | 'failed';
 }
 
 export interface EventTemplate {
@@ -138,6 +151,8 @@ export interface EventTemplate {
   targetPhases?: ProjectPhase[];
   requiresFlag?: string;
   blocksFlag?: string;
+  requiresArc?: ArcRequirement;
+  blocksArc?: ArcRequirement;
   title: string;
   decisionTitle: string;
   body: string;
@@ -240,4 +255,10 @@ export interface IndustryNewsItem {
   studioName: string;
   headline: string;
   heatDelta: number;
+}
+
+export interface StoryArcState {
+  stage: number;
+  status: 'active' | 'resolved' | 'failed';
+  lastUpdatedWeek: number;
 }

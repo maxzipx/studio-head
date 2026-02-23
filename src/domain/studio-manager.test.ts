@@ -57,6 +57,8 @@ describe('StudioManager', () => {
     manager.decisionQueue.push({
       id: 'custom-decision',
       projectId: project.id,
+      arcId: 'ops-arc',
+      arcStage: 0,
       title: 'Custom Ops Decision',
       body: 'test',
       weeksUntilExpiry: 1,
@@ -73,6 +75,7 @@ describe('StudioManager', () => {
           marketingDelta: 120_000,
           overrunRiskDelta: -0.03,
           setFlag: 'ops_patch',
+          setArcStage: 1,
         },
       ],
     });
@@ -84,6 +87,8 @@ describe('StudioManager', () => {
     expect(project.budget.overrunRisk).toBeLessThan(startRisk);
     expect(manager.studioHeat).toBe(startHeat + 2);
     expect(manager.storyFlags.ops_patch).toBe(1);
+    expect(manager.storyArcs['ops-arc']?.stage).toBe(1);
+    expect(manager.storyArcs['ops-arc']?.status).toBe('active');
   });
 
   it('acquires script from market and creates development project', () => {
@@ -215,6 +220,79 @@ describe('StudioManager', () => {
     manager.storyFlags.gate_open = 1;
     manager.endWeek();
     expect(manager.decisionQueue.some((item) => item.title === 'Gated Decision')).toBe(true);
+  });
+
+  it('respects arc-gated events before and after prerequisite stage is reached', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
+    (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
+      {
+        id: 'arc-gated',
+        category: 'operations',
+        scope: 'studio',
+        requiresArc: { id: 'arc_a', minStage: 2, status: 'active' },
+        title: 'Arc Gated Event',
+        decisionTitle: 'Arc Gated Decision',
+        body: 'arc gated',
+        cooldownWeeks: 1,
+        baseWeight: 10,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Arc Gated Decision',
+          body: 'arc gated',
+          weeksUntilExpiry: 1,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+      {
+        id: 'fallback-open',
+        category: 'operations',
+        scope: 'studio',
+        title: 'Fallback Open',
+        decisionTitle: 'Fallback Open Decision',
+        body: 'fallback',
+        cooldownWeeks: 1,
+        baseWeight: 1,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Fallback Open Decision',
+          body: 'fallback',
+          weeksUntilExpiry: 1,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+    ];
+
+    manager.decisionQueue = [];
+    manager.endWeek();
+    expect(manager.decisionQueue.some((item) => item.title === 'Arc Gated Decision')).toBe(false);
+    expect(manager.decisionQueue.some((item) => item.title === 'Fallback Open Decision')).toBe(true);
+
+    manager.decisionQueue = [];
+    manager.storyArcs.arc_a = { stage: 2, status: 'active', lastUpdatedWeek: manager.currentWeek };
+    manager.endWeek();
+    expect(manager.decisionQueue.some((item) => item.title === 'Arc Gated Decision')).toBe(true);
   });
 
   it('generates and manages distribution offers', () => {
