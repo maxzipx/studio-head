@@ -46,6 +46,46 @@ describe('StudioManager', () => {
     expect(manager.cash).toBeLessThan(cashBefore);
   });
 
+  it('applies extended decision effects to project, heat, and story flags', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    const startWeeks = project.scheduledWeeksRemaining;
+    const startMarketing = project.marketingBudget;
+    const startRisk = project.budget.overrunRisk;
+    const startHeat = manager.studioHeat;
+
+    manager.decisionQueue.push({
+      id: 'custom-decision',
+      projectId: project.id,
+      title: 'Custom Ops Decision',
+      body: 'test',
+      weeksUntilExpiry: 1,
+      options: [
+        {
+          id: 'opt-a',
+          label: 'Commit',
+          preview: 'test',
+          cashDelta: -50_000,
+          scriptQualityDelta: 0.2,
+          hypeDelta: 1,
+          studioHeatDelta: 2,
+          scheduleDelta: -1,
+          marketingDelta: 120_000,
+          overrunRiskDelta: -0.03,
+          setFlag: 'ops_patch',
+        },
+      ],
+    });
+
+    manager.resolveDecision('custom-decision', 'opt-a');
+
+    expect(project.scheduledWeeksRemaining).toBe(Math.max(0, startWeeks - 1));
+    expect(project.marketingBudget).toBe(startMarketing + 120_000);
+    expect(project.budget.overrunRisk).toBeLessThan(startRisk);
+    expect(manager.studioHeat).toBe(startHeat + 2);
+    expect(manager.storyFlags.ops_patch).toBe(1);
+  });
+
   it('acquires script from market and creates development project', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const beforeProjects = manager.activeProjects.length;
@@ -102,6 +142,79 @@ describe('StudioManager', () => {
     const titles = manager.decisionQueue.map((item) => item.title);
     const unique = new Set(titles);
     expect(unique.size).toBe(titles.length);
+  });
+
+  it('respects flag-gated events before and after prerequisite flag is set', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
+    (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
+      {
+        id: 'gated',
+        category: 'operations',
+        scope: 'studio',
+        requiresFlag: 'gate_open',
+        title: 'Gated Event',
+        decisionTitle: 'Gated Decision',
+        body: 'gated',
+        cooldownWeeks: 1,
+        baseWeight: 10,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Gated Decision',
+          body: 'gated',
+          weeksUntilExpiry: 1,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+      {
+        id: 'open',
+        category: 'operations',
+        scope: 'studio',
+        title: 'Open Event',
+        decisionTitle: 'Open Decision',
+        body: 'open',
+        cooldownWeeks: 1,
+        baseWeight: 1,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Open Decision',
+          body: 'open',
+          weeksUntilExpiry: 1,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+    ];
+
+    manager.decisionQueue = [];
+    manager.endWeek();
+    expect(manager.decisionQueue.some((item) => item.title === 'Gated Decision')).toBe(false);
+    expect(manager.decisionQueue.some((item) => item.title === 'Open Decision')).toBe(true);
+
+    manager.decisionQueue = [];
+    manager.storyFlags.gate_open = 1;
+    manager.endWeek();
+    expect(manager.decisionQueue.some((item) => item.title === 'Gated Decision')).toBe(true);
   });
 
   it('generates and manages distribution offers', () => {

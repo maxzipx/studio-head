@@ -110,7 +110,15 @@ export interface DecisionOption {
   cashDelta: number;
   scriptQualityDelta: number;
   hypeDelta: number;
+  studioHeatDelta?: number;
+  scheduleDelta?: number;
+  marketingDelta?: number;
+  overrunRiskDelta?: number;
+  setFlag?: string;
+  clearFlag?: string;
 }
+
+export type DecisionCategory = 'creative' | 'marketing' | 'operations' | 'finance' | 'talent';
 
 export interface DecisionItem {
   id: string;
@@ -118,11 +126,18 @@ export interface DecisionItem {
   title: string;
   body: string;
   weeksUntilExpiry: number;
+  category?: DecisionCategory;
+  sourceEventId?: string;
   options: DecisionOption[];
 }
 
 export interface EventTemplate {
   id: string;
+  category: DecisionCategory;
+  scope: 'project' | 'studio';
+  targetPhases?: ProjectPhase[];
+  requiresFlag?: string;
+  blocksFlag?: string;
   title: string;
   decisionTitle: string;
   body: string;
@@ -132,6 +147,8 @@ export interface EventTemplate {
   buildDecision: (input: {
     idFactory: (prefix: string) => string;
     projectId: string | null;
+    projectTitle: string | null;
+    currentWeek: number;
   }) => DecisionItem;
 }
 

@@ -4,7 +4,7 @@ import {
   projectedOpeningWeekendRange,
   projectedROI,
 } from './formulas';
-import { chooseEventProjectId, getEventDeck } from './event-deck';
+import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
   createSeedProjects,
@@ -14,6 +14,7 @@ import {
 } from './seeds';
 import type {
   CrisisEvent,
+  DecisionCategory,
   DecisionItem,
   DistributionOffer,
   EventTemplate,
@@ -100,6 +101,8 @@ export class StudioManager {
   rivals: RivalStudio[] = createSeedRivals();
   industryNewsLog: IndustryNewsItem[] = [];
   playerNegotiations: PlayerNegotiation[] = [];
+  storyFlags: Record<string, number> = {};
+  recentDecisionCategories: DecisionCategory[] = [];
   lastWeekSummary: WeekSummary | null = null;
 
   constructor(input?: {
@@ -247,7 +250,7 @@ export class StudioManager {
       0.15,
       0.95
     );
-    const retainer = talent.salary.base * 0.1;
+    const retainer = talent.salary.base * 0.08;
     if (this.cash < retainer) return { success: false, message: 'Insufficient funds for deal memo retainer.' };
     if (this.negotiationRng() > chance) return { success: false, message: `${talent.name}'s reps declined current terms.` };
     this.finalizeTalentAttachment(project, talent);
@@ -413,15 +416,24 @@ export class StudioManager {
     const option = decision.options.find((item) => item.id === optionId);
     if (!option) return;
 
-    if (decision.projectId) {
-      const project = this.activeProjects.find((item) => item.id === decision.projectId);
-      if (project) {
-        project.scriptQuality = clamp(project.scriptQuality + option.scriptQualityDelta, 0, 10);
-        project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
+    const project = this.getDecisionTargetProject(decision);
+    if (project) {
+      project.scriptQuality = clamp(project.scriptQuality + option.scriptQualityDelta, 0, 10);
+      project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
+      if (typeof option.scheduleDelta === 'number') {
+        project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining + option.scheduleDelta);
+      }
+      if (typeof option.marketingDelta === 'number') {
+        project.marketingBudget = Math.max(0, project.marketingBudget + option.marketingDelta);
+      }
+      if (typeof option.overrunRiskDelta === 'number') {
+        project.budget.overrunRisk = clamp(project.budget.overrunRisk + option.overrunRiskDelta, 0.05, 0.75);
       }
     }
 
     this.cash += option.cashDelta;
+    this.studioHeat = clamp(this.studioHeat + (option.studioHeatDelta ?? 0), 0, 100);
+    this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
   }
 
@@ -556,37 +568,14 @@ export class StudioManager {
   private rollForCrises(events: string[]): void {
     const generated: CrisisEvent[] = [];
     for (const project of this.activeProjects) {
-      if (project.phase !== 'production') continue;
+      if (!['preProduction', 'production', 'postProduction'].includes(project.phase)) continue;
       const riskBoost = project.budget.overrunRisk * 0.2;
-      const rollThreshold = 0.18 + riskBoost;
+      const baseThreshold =
+        project.phase === 'production' ? 0.16 : project.phase === 'postProduction' ? 0.1 : 0.08;
+      const rollThreshold = baseThreshold + riskBoost;
       if (this.crisisRng() > rollThreshold) continue;
 
-      const crisis: CrisisEvent = {
-        id: id('crisis'),
-        projectId: project.id,
-        kind: 'production',
-        title: 'Lead Actor Scheduling Conflict',
-        severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
-        body: 'A hard conflict puts next week shooting at risk. Choose how to handle it.',
-        options: [
-          {
-            id: id('c-opt'),
-            label: 'Pay Overtime to Keep Schedule',
-            preview: '-$450K now, no schedule slip.',
-            cashDelta: -450_000,
-            scheduleDelta: 0,
-            hypeDelta: 0,
-          },
-          {
-            id: id('c-opt'),
-            label: 'Delay One Week',
-            preview: 'Save cash, but schedule slips and press chatter starts.',
-            cashDelta: -50_000,
-            scheduleDelta: 1,
-            hypeDelta: -3,
-          },
-        ],
-      };
+      const crisis = this.buildOperationalCrisis(project);
       generated.push(crisis);
       project.productionStatus = 'inCrisis';
     }
@@ -603,10 +592,20 @@ export class StudioManager {
     const nextEvent = this.pickWeightedEvent();
     if (!nextEvent) return;
 
-    const projectId = chooseEventProjectId(this.activeProjects);
-    const decision = nextEvent.buildDecision({ idFactory: id, projectId });
+    const project = this.chooseProjectForEvent(nextEvent);
+    if (nextEvent.scope === 'project' && !project) return;
+    const decision = nextEvent.buildDecision({
+      idFactory: id,
+      projectId: project?.id ?? null,
+      projectTitle: project?.title ?? null,
+      currentWeek: this.currentWeek,
+    });
+    decision.category ??= nextEvent.category;
+    decision.sourceEventId ??= nextEvent.id;
     this.decisionQueue.push(decision);
     this.lastEventWeek.set(nextEvent.id, this.currentWeek);
+    this.recentDecisionCategories.unshift(nextEvent.category);
+    this.recentDecisionCategories = this.recentDecisionCategories.slice(0, 5);
     events.push(`New event: ${nextEvent.title}.`);
   }
 
@@ -616,6 +615,8 @@ export class StudioManager {
       .filter((event) => {
         if (this.currentWeek < event.minWeek) return false;
         if (queuedTitles.has(event.decisionTitle)) return false;
+        if (event.requiresFlag && !this.hasStoryFlag(event.requiresFlag)) return false;
+        if (event.blocksFlag && this.hasStoryFlag(event.blocksFlag)) return false;
         const lastWeek = this.lastEventWeek.get(event.id);
         if (lastWeek !== undefined && this.currentWeek - lastWeek < event.cooldownWeeks) return false;
         return true;
@@ -636,13 +637,260 @@ export class StudioManager {
 
   private eventWeight(event: EventTemplate): number {
     let weight = event.baseWeight;
-    const hasDevelopment = this.activeProjects.some((project) => project.phase === 'development');
-    const hasProduction = this.activeProjects.some((project) => project.phase === 'production');
+    const candidates = this.getEventProjectCandidates(event);
+    if (event.scope === 'project' && candidates.length === 0) return 0;
 
-    if (event.id === 'rewrite-window' && hasDevelopment) weight += 0.9;
-    if (event.id === 'trailer-drop' && hasProduction) weight += 0.8;
-    if (event.id === 'festival-buzz') weight += this.studioHeat > 30 ? 1 : 0.2;
+    if (event.scope === 'project') {
+      weight += Math.min(1.3, candidates.length * 0.32);
+    }
+
+    if (event.category === 'finance' && this.cash < 25_000_000) {
+      weight += 0.45;
+    }
+    if (event.category === 'marketing' && this.studioHeat < 25) {
+      weight += 0.35;
+    }
+    if (event.category === 'operations' && this.pendingCrises.length > 0) {
+      weight *= 0.75;
+    }
+
+    if (this.recentDecisionCategories[0] === event.category) {
+      weight *= 0.7;
+    }
+    if (this.recentDecisionCategories[0] === event.category && this.recentDecisionCategories[1] === event.category) {
+      weight *= 0.55;
+    }
+
     return weight;
+  }
+
+  private getEventProjectCandidates(event: EventTemplate): MovieProject[] {
+    if (event.scope !== 'project') return [];
+    if (!event.targetPhases || event.targetPhases.length === 0) {
+      return this.activeProjects.filter((project) => project.phase !== 'released');
+    }
+    return this.activeProjects.filter((project) => event.targetPhases?.includes(project.phase));
+  }
+
+  private chooseProjectForEvent(event: EventTemplate): MovieProject | null {
+    const candidates = this.getEventProjectCandidates(event);
+    if (candidates.length === 0) return null;
+    const ranked = [...candidates].sort((a, b) => b.hypeScore - a.hypeScore);
+    const selectionPool = ranked.slice(0, Math.min(3, ranked.length));
+    const index = Math.floor(this.eventRng() * selectionPool.length);
+    return selectionPool[index] ?? selectionPool[0] ?? null;
+  }
+
+  private hasStoryFlag(flag: string): boolean {
+    return (this.storyFlags[flag] ?? 0) > 0;
+  }
+
+  private applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {
+    if (setFlag) {
+      this.storyFlags[setFlag] = (this.storyFlags[setFlag] ?? 0) + 1;
+    }
+    if (clearFlag) {
+      delete this.storyFlags[clearFlag];
+    }
+  }
+
+  private getDecisionTargetProject(decision: DecisionItem): MovieProject | null {
+    if (decision.projectId) {
+      return this.activeProjects.find((item) => item.id === decision.projectId) ?? null;
+    }
+    const ranked = this.activeProjects
+      .filter((project) => project.phase !== 'released')
+      .sort((a, b) => b.hypeScore - a.hypeScore);
+    return ranked[0] ?? this.activeProjects[0] ?? null;
+  }
+
+  private buildOperationalCrisis(project: MovieProject): CrisisEvent {
+    const phaseTemplates: {
+      title: string;
+      body: string;
+      severity: CrisisEvent['severity'];
+      options: CrisisEvent['options'];
+    }[] =
+      project.phase === 'preProduction'
+        ? [
+            {
+              title: 'Location Permit Reversal',
+              body: 'Primary location permits were rescinded. Prep schedule is at risk.',
+              severity: 'orange',
+              options: [
+                {
+                  id: id('c-opt'),
+                  label: 'Pay Fast-Track Permit Counsel',
+                  preview: '-$260K now, keep prep moving.',
+                  cashDelta: -260_000,
+                  scheduleDelta: 0,
+                  hypeDelta: 0,
+                },
+                {
+                  id: id('c-opt'),
+                  label: 'Re-scout Alternate Locations',
+                  preview: 'Lower spend, but schedule slips one week.',
+                  cashDelta: -80_000,
+                  scheduleDelta: 1,
+                  hypeDelta: -1,
+                },
+              ],
+            },
+            {
+              title: 'Department Head Walkout Threat',
+              body: 'A key department requests contract revisions before lock.',
+              severity: 'orange',
+              options: [
+                {
+                  id: id('c-opt'),
+                  label: 'Approve Contract Bump',
+                  preview: '-$220K now, no delay.',
+                  cashDelta: -220_000,
+                  scheduleDelta: 0,
+                  hypeDelta: 0,
+                },
+                {
+                  id: id('c-opt'),
+                  label: 'Re-negotiate Through Delay',
+                  preview: 'Save cash but lose one prep week and confidence.',
+                  cashDelta: -40_000,
+                  scheduleDelta: 1,
+                  hypeDelta: -2,
+                },
+              ],
+            },
+          ]
+        : project.phase === 'postProduction'
+          ? [
+              {
+                title: 'VFX Vendor Capacity Crunch',
+                body: 'Your primary vendor lost capacity to a tentpole competitor.',
+                severity: 'orange',
+                options: [
+                  {
+                    id: id('c-opt'),
+                    label: 'Pay For Priority Lane',
+                    preview: '-$300K now, lock delivery date.',
+                    cashDelta: -300_000,
+                    scheduleDelta: 0,
+                    hypeDelta: 0,
+                  },
+                  {
+                    id: id('c-opt'),
+                    label: 'Delay Final Deliverables',
+                    preview: 'Smaller immediate cost, but post slips by one week.',
+                    cashDelta: -70_000,
+                    scheduleDelta: 1,
+                    hypeDelta: -2,
+                  },
+                ],
+              },
+              {
+                title: 'Score Recording Overrun',
+                body: 'Orchestral sessions are exceeding booked stage time.',
+                severity: 'yellow',
+                options: [
+                  {
+                    id: id('c-opt'),
+                    label: 'Extend Sessions',
+                    preview: '-$180K now, preserve score quality.',
+                    cashDelta: -180_000,
+                    scheduleDelta: 0,
+                    hypeDelta: 1,
+                  },
+                  {
+                    id: id('c-opt'),
+                    label: 'Scale Back Arrangement',
+                    preview: 'Save cash, but lose some polish and buzz.',
+                    cashDelta: -40_000,
+                    scheduleDelta: 0,
+                    hypeDelta: -2,
+                  },
+                ],
+              },
+            ]
+          : [
+              {
+                title: 'Lead Actor Scheduling Conflict',
+                body: 'A hard conflict puts next week shooting at risk.',
+                severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
+                options: [
+                  {
+                    id: id('c-opt'),
+                    label: 'Pay Overtime to Keep Schedule',
+                    preview: '-$450K now, no schedule slip.',
+                    cashDelta: -450_000,
+                    scheduleDelta: 0,
+                    hypeDelta: 0,
+                  },
+                  {
+                    id: id('c-opt'),
+                    label: 'Delay One Week',
+                    preview: 'Save cash, but schedule slips and press chatter starts.',
+                    cashDelta: -50_000,
+                    scheduleDelta: 1,
+                    hypeDelta: -3,
+                  },
+                ],
+              },
+              {
+                title: 'Set Build Failure',
+                body: 'A key practical set failed safety checks before principal photography.',
+                severity: 'orange',
+                options: [
+                  {
+                    id: id('c-opt'),
+                    label: 'Rebuild Immediately',
+                    preview: '-$380K now, schedule protected.',
+                    cashDelta: -380_000,
+                    scheduleDelta: 0,
+                    hypeDelta: 0,
+                  },
+                  {
+                    id: id('c-opt'),
+                    label: 'Rewrite Around Set',
+                    preview: 'Save cash, but lose one week and some excitement.',
+                    cashDelta: -90_000,
+                    scheduleDelta: 1,
+                    hypeDelta: -2,
+                  },
+                ],
+              },
+              {
+                title: 'Second Unit Incident',
+                body: 'A second unit incident pauses action coverage for safety review.',
+                severity: 'red',
+                options: [
+                  {
+                    id: id('c-opt'),
+                    label: 'Bring In Replacement Unit',
+                    preview: '-$520K now to hold momentum.',
+                    cashDelta: -520_000,
+                    scheduleDelta: 0,
+                    hypeDelta: -1,
+                  },
+                  {
+                    id: id('c-opt'),
+                    label: 'Hold For Safety Reset',
+                    preview: 'Lower immediate spend, but lose two shooting weeks.',
+                    cashDelta: -120_000,
+                    scheduleDelta: 2,
+                    hypeDelta: -3,
+                  },
+                ],
+              },
+            ];
+
+    const selected = phaseTemplates[Math.floor(this.crisisRng() * phaseTemplates.length)] ?? phaseTemplates[0];
+    return {
+      id: id('crisis'),
+      projectId: project.id,
+      kind: 'production',
+      title: selected.title,
+      severity: selected.severity,
+      body: selected.body,
+      options: selected.options,
+    };
   }
 
   private projectOutcomes(): void {
