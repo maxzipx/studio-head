@@ -13,15 +13,32 @@ export default function FinancialsScreen() {
   const totalBudget = projects.reduce((sum, project) => sum + project.budget.ceiling, 0);
   const totalSpend = projects.reduce((sum, project) => sum + project.budget.actualSpend, 0);
   const released = projects.filter((project) => project.phase === 'released');
+  const inFlight = projects.filter((project) => project.phase !== 'released');
+  const burnThisWeek = inFlight.reduce(
+    (sum, project) => sum + (project.budget.ceiling * 0.004 + project.marketingBudget * 0.1),
+    0
+  );
+  const completionPct = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
+  const lastDelta = manager.lastWeekSummary?.cashDelta ?? 0;
+  const runwayWeeks = burnThisWeek > 0 ? manager.cash / burnThisWeek : 0;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Financials</Text>
-      <Text style={styles.subtitle}>Cashflow, project ROI, and studio heat trend</Text>
+      <Text style={styles.subtitle}>Cashflow, runway, and release performance</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Cash Position</Text>
-        <Text style={styles.metric}>{money(manager.cash)}</Text>
+      <View style={styles.row}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Cash Position</Text>
+          <Text style={styles.metric}>{money(manager.cash)}</Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Last Week Delta</Text>
+          <Text style={[styles.metricSmall, lastDelta >= 0 ? styles.positive : styles.negative]}>
+            {lastDelta >= 0 ? '+' : '-'}
+            {money(Math.abs(lastDelta))}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.row}>
@@ -32,6 +49,19 @@ export default function FinancialsScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Total Spend</Text>
           <Text style={styles.body}>{money(totalSpend)}</Text>
+          <Text style={styles.muted}>{completionPct.toFixed(1)}% consumed</Text>
+        </View>
+      </View>
+
+      <View style={styles.row}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Projected Weekly Burn</Text>
+          <Text style={styles.body}>{money(burnThisWeek)}</Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Runway</Text>
+          <Text style={styles.body}>{runwayWeeks.toFixed(1)} weeks</Text>
+          <Text style={styles.muted}>At current burn estimate</Text>
         </View>
       </View>
 
@@ -59,12 +89,6 @@ export default function FinancialsScreen() {
             {project.title}: {money(project.finalBoxOffice ?? 0)} gross | share {(project.studioRevenueShare * 100).toFixed(0)}%
           </Text>
         ))}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Studio Heat</Text>
-        <Text style={styles.metricSmall}>{manager.studioHeat.toFixed(0)} / 100</Text>
-        <Text style={styles.muted}>Current rank: #{manager.getIndustryHeatLeaderboard().findIndex((r) => r.isPlayer) + 1}</Text>
       </View>
     </ScrollView>
   );

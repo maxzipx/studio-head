@@ -12,9 +12,8 @@ export default function SlateScreen() {
     useGame();
 
   const projects = manager.activeProjects;
-  const development = projects.filter((project) => project.phase === 'development');
+  const inFlight = projects.filter((project) => project.phase !== 'released' && project.phase !== 'distribution');
   const distribution = projects.filter((project) => project.phase === 'distribution');
-  const released = projects.filter((project) => project.phase === 'released');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
       rival: rival.name,
@@ -40,6 +39,24 @@ export default function SlateScreen() {
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Pipeline Snapshot</Text>
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>In Flight</Text>
+            <Text style={styles.metricValue}>{inFlight.length + distribution.length}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Scripts</Text>
+            <Text style={styles.metricValue}>{manager.scriptMarket.length}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Distribution</Text>
+            <Text style={styles.metricValue}>{distribution.length}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Script Room</Text>
         {manager.scriptMarket.map((script) => (
           <View key={script.id} style={styles.card}>
@@ -63,8 +80,8 @@ export default function SlateScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Active Projects</Text>
-        {projects.map((project) => {
+        <Text style={styles.sectionTitle}>In-Flight Projects</Text>
+        {inFlight.map((project) => {
           const projection = manager.getProjectedForProject(project.id);
           const burnPct = (project.budget.actualSpend / project.budget.ceiling) * 100;
           return (
@@ -88,10 +105,11 @@ export default function SlateScreen() {
             </View>
           );
         })}
+        {inFlight.length === 0 ? <Text style={styles.muted}>No projects currently moving through production phases.</Text> : null}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Distribution</Text>
+        <Text style={styles.sectionTitle}>Distribution Desk</Text>
         {distribution.map((project) => {
           const offers = manager.getOffersForProject(project.id);
           const pressure = pressureForWeek(project.releaseWeek);
@@ -102,10 +120,16 @@ export default function SlateScreen() {
                 Week {project.releaseWeek ?? '-'} | Pressure: <Text style={{ color: pressure.color }}>{pressure.label}</Text>
               </Text>
               <View style={styles.actions}>
-                <Pressable style={styles.button} onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
+                <Pressable
+                  style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+                  disabled={!project.releaseWeek}
+                  onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
                   <Text style={styles.buttonText}>Week -1</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
+                <Pressable
+                  style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+                  disabled={!project.releaseWeek}
+                  onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
                   <Text style={styles.buttonText}>Week +1</Text>
                 </Pressable>
               </View>
@@ -137,32 +161,6 @@ export default function SlateScreen() {
         })}
         {distribution.length === 0 ? <Text style={styles.muted}>No projects in distribution phase.</Text> : null}
       </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Release & Aftermath</Text>
-        {released.map((project) => (
-          <View key={project.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{project.title}</Text>
-            <Text style={styles.muted}>
-              Opening: {money(project.openingWeekendGross ?? 0)} | Total: {money(project.finalBoxOffice ?? 0)}
-            </Text>
-            <Text style={styles.muted}>
-              ROI {project.projectedROI.toFixed(2)}x | {project.releaseResolved ? 'Run Completed' : `Run Active (${project.releaseWeeksRemaining}w)`}
-            </Text>
-          </View>
-        ))}
-        {released.length === 0 ? <Text style={styles.muted}>No released projects yet.</Text> : null}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Development Queue</Text>
-        {development.map((project) => (
-          <Text key={project.id} style={styles.muted}>
-            {project.title} | Director {project.directorId ? 'Attached' : 'Pending'} | Cast {project.castIds.length}
-          </Text>
-        ))}
-        {development.length === 0 ? <Text style={styles.muted}>No projects in development.</Text> : null}
-      </View>
     </ScrollView>
   );
 }
@@ -174,6 +172,19 @@ const styles = StyleSheet.create({
   subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
   message: { color: tokens.accentTeal, fontSize: 13 },
   section: { gap: 8 },
+  metricsRow: { flexDirection: 'row', gap: 8 },
+  metricCard: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 2,
+  },
+  metricLabel: { color: tokens.textMuted, textTransform: 'uppercase', fontSize: 10, letterSpacing: 0.8, fontWeight: '600' },
+  metricValue: { color: tokens.textPrimary, fontSize: 18, fontWeight: '700' },
   sectionTitle: {
     color: tokens.accentGold,
     fontWeight: '700',
@@ -211,6 +222,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  buttonDisabled: { opacity: 0.45 },
   buttonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
   walkButton: {
     borderRadius: 10,

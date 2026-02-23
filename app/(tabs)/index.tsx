@@ -8,11 +8,16 @@ function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function signedMoney(amount: number): string {
+  return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
+}
+
 export default function HQScreen() {
-  const { manager, dismissReleaseReveal, endWeek, runOptionalAction } = useGame();
+  const { manager, dismissReleaseReveal, endWeek, resolveCrisis, resolveDecision, runOptionalAction } = useGame();
   const reveal = manager.getNextReleaseReveal();
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
+  const readyToAdvance = manager.canEndWeek ? 'Ready' : 'Blocked';
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -35,12 +40,12 @@ export default function HQScreen() {
 
       <View style={styles.row}>
         <View style={styles.card}>
-          <Text style={styles.label}>Cash Position</Text>
-          <Text style={styles.metric}>{money(manager.cash)}</Text>
+          <Text style={styles.label}>Week Progress</Text>
+          <Text style={styles.metric}>{manager.currentWeek}</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.label}>Studio Heat</Text>
-          <Text style={styles.metric}>{manager.studioHeat.toFixed(0)} / 100</Text>
+          <Text style={styles.label}>Advance Status</Text>
+          <Text style={[styles.metric, manager.canEndWeek ? styles.metricReady : styles.metricBlocked]}>{readyToAdvance}</Text>
         </View>
       </View>
 
@@ -50,6 +55,47 @@ export default function HQScreen() {
         <Text style={styles.body}>Inbox Items: {manager.decisionQueue.length}</Text>
         <Text style={styles.body}>Active Projects: {manager.activeProjects.length}</Text>
         {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Week.</Text> : null}
+      </View>
+
+      <View style={[styles.card, manager.pendingCrises.length > 0 ? styles.crisisCard : null]}>
+        <Text style={styles.label}>Blocking Crises</Text>
+        {manager.pendingCrises.length === 0 ? <Text style={styles.mutedBody}>No blocking crises this week.</Text> : null}
+        {manager.pendingCrises.map((crisis) => (
+          <View key={crisis.id} style={styles.actionCard}>
+            <Text style={styles.crisisTitle}>{crisis.title}</Text>
+            <Text style={styles.body}>{crisis.body}</Text>
+            <Text style={styles.alert}>Severity: {crisis.severity.toUpperCase()}</Text>
+            {crisis.options.map((option) => (
+              <Pressable key={option.id} style={styles.choiceButton} onPress={() => resolveCrisis(crisis.id, option.id)}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                <Text style={styles.choiceBody}>
+                  {option.preview} ({signedMoney(option.cashDelta)}, schedule {option.scheduleDelta >= 0 ? '+' : ''}
+                  {option.scheduleDelta}w)
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Decision Inbox</Text>
+        {manager.decisionQueue.length === 0 ? <Text style={styles.mutedBody}>No active decisions right now.</Text> : null}
+        {manager.decisionQueue.map((item) => (
+          <View key={item.id} style={styles.actionCard}>
+            <Text style={styles.bodyStrong}>{item.title}</Text>
+            <Text style={styles.body}>{item.body}</Text>
+            <Text style={styles.mutedBody}>Expires in {Math.max(0, item.weeksUntilExpiry)} week(s)</Text>
+            {item.options.map((option) => (
+              <Pressable key={option.id} style={styles.choiceButton} onPress={() => resolveDecision(item.id, option.id)}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                <Text style={styles.choiceBody}>
+                  {option.preview} ({signedMoney(option.cashDelta)})
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ))}
       </View>
 
       <View style={styles.card}>
@@ -181,6 +227,9 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
   },
+  crisisCard: {
+    borderColor: tokens.accentRed,
+  },
   label: {
     color: tokens.textMuted,
     textTransform: 'uppercase',
@@ -193,18 +242,59 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  metricReady: {
+    color: tokens.accentTeal,
+  },
+  metricBlocked: {
+    color: tokens.accentRed,
+  },
   body: {
     color: tokens.textSecondary,
     fontSize: 14,
+  },
+  bodyStrong: {
+    color: tokens.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
   },
   mutedBody: {
     color: tokens.textMuted,
     fontSize: 13,
   },
+  actionCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 10,
+    gap: 6,
+  },
   alert: {
     color: tokens.accentRed,
     marginTop: 4,
     fontSize: 13,
+  },
+  crisisTitle: {
+    color: tokens.accentRed,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  choiceButton: {
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    padding: 9,
+    gap: 3,
+  },
+  choiceTitle: {
+    color: tokens.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  choiceBody: {
+    color: tokens.textMuted,
+    fontSize: 12,
   },
   rowLine: {
     flexDirection: 'row',
