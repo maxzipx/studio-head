@@ -374,6 +374,11 @@ export class StudioManager {
   counterDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
     const offer = this.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
     if (!offer) return { success: false, message: 'Offer not found.' };
+    const attempts = offer.counterAttempts ?? 0;
+    if (attempts >= 1) {
+      return { success: false, message: `${offer.partner} will not entertain another counter.` };
+    }
+    offer.counterAttempts = attempts + 1;
     const successChance = clamp(0.53 + this.studioHeat / 220, 0.25, 0.9);
     if (this.negotiationRng() > successChance) {
       return { success: false, message: `${offer.partner} declined the counter.` };
@@ -436,6 +441,9 @@ export class StudioManager {
     if (project) {
       project.scriptQuality = clamp(project.scriptQuality + option.scriptQualityDelta, 0, 10);
       project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
+      if (typeof option.releaseWeekShift === 'number' && project.releaseWeek) {
+        project.releaseWeek = clamp(project.releaseWeek + option.releaseWeekShift, this.currentWeek + 1, this.currentWeek + 52);
+      }
       if (typeof option.scheduleDelta === 'number') {
         project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining + option.scheduleDelta);
       }
@@ -1311,6 +1319,7 @@ export class StudioManager {
             pAndACommitment: project.budget.ceiling * 0.05,
             revenueShareToStudio: 0.66,
             projectedOpeningOverride: 0.72,
+            counterAttempts: 0,
           });
           const hadFlag = this.hasStoryFlag('streaming_pressure');
           this.storyFlags.streaming_pressure = (this.storyFlags.streaming_pressure ?? 0) + 1;
@@ -1369,6 +1378,7 @@ export class StudioManager {
             cashDelta: -120_000,
             scriptQualityDelta: 0,
             hypeDelta: -1,
+            releaseWeekShift: -1,
             clearFlag: 'rival_tentpole_threat',
           },
         ],
@@ -1814,6 +1824,7 @@ export class StudioManager {
         pAndACommitment: project.budget.ceiling * 0.12,
         revenueShareToStudio: clamp(0.54 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 1.15,
+        counterAttempts: 0,
       },
       {
         id: id('deal'),
@@ -1824,6 +1835,7 @@ export class StudioManager {
         pAndACommitment: project.budget.ceiling * 0.06,
         revenueShareToStudio: clamp(0.62 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 0.8,
+        counterAttempts: 0,
       },
       {
         id: id('deal'),
@@ -1834,6 +1846,7 @@ export class StudioManager {
         pAndACommitment: project.budget.ceiling * 0.1,
         revenueShareToStudio: clamp(0.58 + shareLift, 0.45, 0.7),
         projectedOpeningOverride: 1.03,
+        counterAttempts: 0,
       },
     ];
     this.distributionOffers.push(...offers);

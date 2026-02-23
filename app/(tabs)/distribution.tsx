@@ -8,7 +8,7 @@ function money(amount: number): string {
 }
 
 export default function DistributionScreen() {
-  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, lastMessage } = useGame();
+  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGame();
   const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
@@ -73,6 +73,9 @@ export default function DistributionScreen() {
                 <Text style={styles.buttonText}>Week +1</Text>
               </Pressable>
             </View>
+            <Pressable style={styles.releaseButton} onPress={() => advancePhase(project.id)}>
+              <Text style={styles.releaseButtonText}>Advance To Release</Text>
+            </Pressable>
 
             {nearby.length > 0 ? (
               <View style={styles.calendarCard}>
@@ -172,4 +175,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   walkButtonText: { color: tokens.accentRed, fontWeight: '700', fontSize: 12 },
+  releaseButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.accentGold,
+    backgroundColor: '#6A5222',
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  releaseButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 12 },
 });

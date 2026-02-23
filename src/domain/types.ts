@@ -112,6 +112,7 @@ export interface DecisionOption {
   hypeDelta: number;
   studioHeatDelta?: number;
   scheduleDelta?: number;
+  releaseWeekShift?: number;
   marketingDelta?: number;
   overrunRiskDelta?: number;
   setFlag?: string;
@@ -210,6 +211,7 @@ export interface DistributionOffer {
   pAndACommitment: number;
   revenueShareToStudio: number;
   projectedOpeningOverride: number;
+  counterAttempts: number;
 }
 
 export interface WeekSummary {

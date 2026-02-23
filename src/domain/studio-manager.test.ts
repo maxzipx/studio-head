@@ -361,6 +361,53 @@ describe('StudioManager', () => {
     expect(manager.getOffersForProject(project!.id).length).toBe(0);
   });
 
+  it('limits each distribution offer to a single counter attempt', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+
+    (manager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(project.id);
+    const offer = manager.getOffersForProject(project.id)[0];
+    expect(offer).toBeTruthy();
+
+    const first = manager.counterDistributionOffer(project.id, offer.id);
+    const second = manager.counterDistributionOffer(project.id, offer.id);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(false);
+    expect(second.message).toContain('will not entertain another counter');
+  });
+
+  it('applies release-week shifts from decision options', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWeek = manager.currentWeek + 6;
+
+    manager.decisionQueue.push({
+      id: 'release-shift-decision',
+      projectId: project.id,
+      title: 'Release Shift Test',
+      body: 'test',
+      weeksUntilExpiry: 1,
+      options: [
+        {
+          id: 'release-shift-option',
+          label: 'Shift',
+          preview: 'test',
+          cashDelta: 0,
+          scriptQualityDelta: 0,
+          hypeDelta: 0,
+          releaseWeekShift: -1,
+        },
+      ],
+    });
+
+    manager.resolveDecision('release-shift-decision', 'release-shift-option');
+
+    expect(project.releaseWeek).toBe(manager.currentWeek + 5);
+  });
+
   it('resolves release run over weeks and finalizes heat impact', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

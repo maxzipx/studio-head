@@ -133,6 +133,9 @@ export default function SlateScreen() {
                   <Text style={styles.buttonText}>Week +1</Text>
                 </Pressable>
               </View>
+              <Pressable style={styles.releaseButton} onPress={() => advancePhase(project.id)}>
+                <Text style={styles.releaseButtonText}>Advance To Release</Text>
+              </Pressable>
               {offers.map((offer) => (
                 <View key={offer.id} style={styles.offerCard}>
                   <Text style={styles.body}>
@@ -233,4 +236,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   walkButtonText: { color: tokens.accentRed, fontWeight: '700', fontSize: 12 },
+  releaseButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.accentGold,
+    backgroundColor: '#6A5222',
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  releaseButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 12 },
 });
