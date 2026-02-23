@@ -198,6 +198,48 @@ describe('StudioManager', () => {
     expect(project!.directorId).not.toBe(director!.id);
   });
 
+  it('cancels open negotiation if project leaves development before resolution', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiation(project!.id, lead!.id);
+    expect(opened.success).toBe(true);
+    project!.phase = 'preProduction';
+
+    manager.endWeek();
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('moved out of development'))).toBe(true);
+    expect(lead!.availability).toBe('available');
+    expect(project!.castIds.includes(lead!.id)).toBe(false);
+  });
+
+  it('gates optional action on cash and applies to highest-hype active project', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const [projectA, projectB] = manager.activeProjects;
+    expect(projectA).toBeTruthy();
+    expect(projectB).toBeTruthy();
+
+    projectA.hypeScore = 12;
+    projectB.hypeScore = 48;
+    const projectBMarketingBefore = projectB.marketingBudget;
+    const projectAMarketingBefore = projectA.marketingBudget;
+
+    manager.cash = 100_000;
+    const blocked = manager.runOptionalAction();
+    expect(blocked.success).toBe(false);
+    expect(blocked.message).toContain('Insufficient cash');
+
+    manager.cash = 1_000_000;
+    const success = manager.runOptionalAction();
+    expect(success.success).toBe(true);
+    expect(success.message).toContain(projectB.title);
+    expect(projectB.marketingBudget).toBe(projectBMarketingBefore + 180_000);
+    expect(projectA.marketingBudget).toBe(projectAMarketingBefore);
+  });
+
   it('enforces phase progression gates and advances when requirements are met', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
@@ -441,6 +483,34 @@ describe('StudioManager', () => {
     expect(manager.getOffersForProject(project!.id).length).toBe(0);
   });
 
+  it('prevents release before selected release week', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWindow = 'wideTheatrical';
+    project.scheduledWeeksRemaining = 0;
+    project.releaseWeek = manager.currentWeek + 2;
+
+    const blocked = manager.advanceProjectPhase(project.id);
+    expect(blocked.success).toBe(false);
+    expect(blocked.message).toContain('scheduled for week');
+
+    manager.currentWeek = project.releaseWeek;
+    const released = manager.advanceProjectPhase(project.id);
+    expect(released.success).toBe(true);
+    expect(project.phase).toBe('released');
+  });
+
+  it('replenishes script market after expirations', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+    manager.scriptMarket = manager.scriptMarket.slice(0, 1);
+    manager.scriptMarket[0].expiresInWeeks = 0;
+
+    manager.endWeek();
+
+    expect(manager.scriptMarket.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('limits each distribution offer to a single counter attempt', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects[0];
@@ -511,6 +581,7 @@ describe('StudioManager', () => {
     const offer = manager.getOffersForProject(project!.id)[0];
     manager.acceptDistributionOffer(project!.id, offer.id);
     project!.scheduledWeeksRemaining = 0;
+    project!.releaseWeek = manager.currentWeek;
     manager.advanceProjectPhase(project!.id);
 
     expect(project!.phase).toBe('released');
@@ -550,6 +621,7 @@ describe('StudioManager', () => {
     const offer = manager.getOffersForProject(project!.id)[0];
     manager.acceptDistributionOffer(project!.id, offer.id);
     project!.scheduledWeeksRemaining = 0;
+    project!.releaseWeek = manager.currentWeek;
     manager.advanceProjectPhase(project!.id);
 
     const reveal = manager.getNextReleaseReveal();

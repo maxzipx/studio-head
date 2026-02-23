@@ -104,8 +104,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       },
       runOptionalAction: () => {
         runWhenHydrated(() => {
-          manager.runOptionalAction();
-          saveAndTick('Optional action executed.');
+          const result = manager.runOptionalAction();
+          saveAndTick(result.message);
         });
       },
       acquireScript: (scriptId: string) => {

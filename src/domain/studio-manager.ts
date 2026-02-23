@@ -228,12 +228,20 @@ export class StudioManager {
     return rows.sort((a, b) => b.heat - a.heat);
   }
 
-  runOptionalAction(): void {
-    const project = this.activeProjects[0];
-    if (!project) return;
+  runOptionalAction(): { success: boolean; message: string } {
+    const project = this.activeProjects
+      .filter((item) => item.phase !== 'released')
+      .sort((a, b) => b.hypeScore - a.hypeScore)[0];
+    if (!project) return { success: false, message: 'No active project available for optional action.' };
+    if (this.cash < 180_000) return { success: false, message: 'Insufficient cash for optional campaign action.' };
+
     project.hypeScore = clamp(project.hypeScore + 5, 0, 100);
     project.marketingBudget += 180_000;
     this.cash -= 180_000;
+    return {
+      success: true,
+      message: `Optional campaign executed on ${project.title}. Hype +5 and marketing +$180K.`,
+    };
   }
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
@@ -417,6 +425,9 @@ export class StudioManager {
       if (!project.releaseWindow) {
         return { success: false, message: 'Select a distribution deal first.' };
       }
+      if (project.releaseWeek && this.currentWeek < project.releaseWeek) {
+        return { success: false, message: `${project.title} is scheduled for week ${project.releaseWeek}. End Week to reach release.` };
+      }
       const projection = this.getProjectedForProject(project.id);
       if (!projection) return { success: false, message: 'Projection unavailable.' };
       project.phase = 'released';
@@ -567,6 +578,7 @@ export class StudioManager {
     this.updateTalentAvailability();
     this.tickDecisionExpiry(events);
     this.tickScriptMarketExpiry(events);
+    this.refillScriptMarket(events);
     this.tickDistributionWindows(events);
     this.rollForCrises(events);
     this.processRivalTalentAcquisitions(events);
@@ -727,6 +739,43 @@ export class StudioManager {
     if (expired.length > 0) {
       this.scriptMarket = this.scriptMarket.filter((item) => item.expiresInWeeks >= 0);
       events.push(`${expired.length} script offer(s) expired from market.`);
+    }
+  }
+
+  private refillScriptMarket(events: string[]): void {
+    const targetOffers = 4;
+    if (this.scriptMarket.length >= targetOffers) return;
+
+    const catalog = createSeedScriptMarket();
+    const existingTitles = new Set(this.scriptMarket.map((item) => item.title));
+    let added = 0;
+
+    while (this.scriptMarket.length < targetOffers) {
+      const uniquePool = catalog.filter((item) => !existingTitles.has(item.title));
+      const pool = uniquePool.length > 0 ? uniquePool : catalog;
+      const source = pool[Math.floor(this.eventRng() * pool.length)];
+      if (!source) break;
+
+      const qualityJitter = (this.eventRng() - 0.5) * 0.6;
+      const conceptJitter = (this.eventRng() - 0.5) * 0.6;
+      const priceMultiplier = 0.88 + this.eventRng() * 0.28;
+      const refreshed: ScriptPitch = {
+        ...source,
+        id: id('script'),
+        askingPrice: Math.max(300_000, Math.round(source.askingPrice * priceMultiplier)),
+        scriptQuality: clamp(source.scriptQuality + qualityJitter, 1, 10),
+        conceptStrength: clamp(source.conceptStrength + conceptJitter, 1, 10),
+        expiresInWeeks: 3 + Math.floor(this.eventRng() * 4),
+      };
+
+      this.scriptMarket.push(refreshed);
+      existingTitles.add(refreshed.title);
+      added += 1;
+      if (added > 12) break;
+    }
+
+    if (added > 0) {
+      events.push(`${added} new script offer(s) entered the market.`);
     }
   }
 
@@ -1272,10 +1321,19 @@ export class StudioManager {
       const talent = this.talentPool.find((item) => item.id === negotiation.talentId);
       const project = this.activeProjects.find((item) => item.id === negotiation.projectId);
       if (!talent || !project) {
+        if (talent?.availability === 'inNegotiation') {
+          talent.availability = 'available';
+        }
         resolved.push(negotiation.talentId);
         continue;
       }
       if (talent.availability !== 'inNegotiation') {
+        resolved.push(negotiation.talentId);
+        continue;
+      }
+      if (project.phase !== 'development') {
+        talent.availability = 'available';
+        events.push(`Negotiation window closed for ${talent.name}; ${project.title} moved out of development.`);
         resolved.push(negotiation.talentId);
         continue;
       }

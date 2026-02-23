@@ -15,6 +15,48 @@ interface SaveEnvelope {
   manager: StoredManager;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function sanitizeRestoredManager(manager: StudioManager): void {
+  const defaults = new StudioManager();
+
+  if (typeof manager.studioName !== 'string' || manager.studioName.trim().length < 1) {
+    manager.studioName = defaults.studioName;
+  }
+  if (!Number.isFinite(manager.cash)) manager.cash = defaults.cash;
+  if (!Number.isFinite(manager.studioHeat)) manager.studioHeat = defaults.studioHeat;
+  manager.studioHeat = Math.min(100, Math.max(0, manager.studioHeat));
+  if (!Number.isFinite(manager.currentWeek) || manager.currentWeek < 1) {
+    manager.currentWeek = defaults.currentWeek;
+  }
+  manager.currentWeek = Math.max(1, Math.round(manager.currentWeek));
+
+  if (!Array.isArray(manager.pendingCrises)) manager.pendingCrises = [];
+  if (!Array.isArray(manager.distributionOffers)) manager.distributionOffers = [];
+  if (!Array.isArray(manager.pendingReleaseReveals)) manager.pendingReleaseReveals = [];
+  if (!Array.isArray(manager.decisionQueue)) manager.decisionQueue = defaults.decisionQueue;
+  if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
+  if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
+  if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
+  if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
+  if (!Array.isArray(manager.industryNewsLog)) manager.industryNewsLog = [];
+  if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
+  if (!Array.isArray(manager.recentDecisionCategories)) manager.recentDecisionCategories = [];
+
+  if (!isRecord(manager.storyFlags)) manager.storyFlags = {};
+  if (!isRecord(manager.storyArcs)) manager.storyArcs = {};
+  if (
+    manager.lastWeekSummary &&
+    (!Number.isFinite(manager.lastWeekSummary.week) ||
+      !Number.isFinite(manager.lastWeekSummary.cashDelta) ||
+      !Array.isArray(manager.lastWeekSummary.events))
+  ) {
+    manager.lastWeekSummary = null;
+  }
+}
+
 const SERIALIZE_BLOCKED_KEYS = new Set([
   'crisisRng',
   'eventRng',
@@ -47,6 +89,7 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
     if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
     (manager as unknown as Record<string, unknown>)[key] = value;
   }
+  sanitizeRestoredManager(manager);
 
   const sourceLastEventWeek = input.lastEventWeek;
   const targetLastEventWeek = (manager as unknown as { lastEventWeek: Map<string, number> }).lastEventWeek;
