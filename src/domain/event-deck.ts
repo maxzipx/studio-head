@@ -9,6 +9,7 @@ export function getEventDeck(): EventTemplate[] {
     {
       id: 'festival-buzz',
       title: 'Festival Programming Slot',
+      decisionTitle: 'Festival Slot Offer',
       body: 'A mid-tier festival programmer offers an early slot for one of your projects.',
       cooldownWeeks: 4,
       baseWeight: 1.2,
@@ -42,6 +43,7 @@ export function getEventDeck(): EventTemplate[] {
     {
       id: 'rewrite-window',
       title: 'Rewrite Window',
+      decisionTitle: 'Rewrite Pass Opportunity',
       body: 'A top script doctor opens a one-week slot.',
       cooldownWeeks: 3,
       baseWeight: 1.5,
@@ -75,6 +77,7 @@ export function getEventDeck(): EventTemplate[] {
     {
       id: 'trailer-drop',
       title: 'Trailer Slot',
+      decisionTitle: 'Premium Trailer Placement',
       body: 'A distributor offers premium trailer placement for a short window.',
       cooldownWeeks: 4,
       baseWeight: 1.1,

@@ -124,6 +124,7 @@ export interface DecisionItem {
 export interface EventTemplate {
   id: string;
   title: string;
+  decisionTitle: string;
   body: string;
   cooldownWeeks: number;
   baseWeight: number;

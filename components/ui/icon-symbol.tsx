@@ -23,6 +23,7 @@ const MAPPING = {
   'person.2.fill': 'groups',
   'chart.line.uptrend.xyaxis': 'query-stats',
   'ticket.fill': 'local-activity',
+  'dollarsign.circle.fill': 'attach-money',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

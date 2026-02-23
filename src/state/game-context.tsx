@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { StudioManager } from '@/src/domain/studio-manager';
+import { loadManagerFromStorage, saveManagerToStorage } from '@/src/state/persistence';
 
 interface GameContextValue {
   manager: StudioManager;
@@ -31,8 +32,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   if (!managerRef.current) {
     managerRef.current = new StudioManager();
+    void loadManagerFromStorage().then((loaded) => {
+      if (!loaded) return;
+      managerRef.current = loaded;
+      setTick((value) => value + 1);
+    });
   }
   const manager = managerRef.current;
+
+  const saveAndTick = useCallback(
+    (message?: string) => {
+      if (message) setLastMessage(message);
+      void saveManagerToStorage(manager);
+      setTick((value) => value + 1);
+    },
+    [manager]
+  );
 
   const value = useMemo(
     () => ({
@@ -41,75 +56,62 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       lastMessage,
       endWeek: () => {
         manager.endWeek();
-        setLastMessage('Week advanced.');
-        setTick((value) => value + 1);
+        saveAndTick('Week advanced.');
       },
       resolveCrisis: (crisisId: string, optionId: string) => {
         manager.resolveCrisis(crisisId, optionId);
-        setLastMessage('Crisis resolved.');
-        setTick((value) => value + 1);
+        saveAndTick('Crisis resolved.');
       },
       resolveDecision: (decisionId: string, optionId: string) => {
         manager.resolveDecision(decisionId, optionId);
-        setLastMessage('Decision committed.');
-        setTick((value) => value + 1);
+        saveAndTick('Decision committed.');
       },
       runOptionalAction: () => {
         manager.runOptionalAction();
-        setLastMessage('Optional action executed.');
-        setTick((value) => value + 1);
+        saveAndTick('Optional action executed.');
       },
       acquireScript: (scriptId: string) => {
         const result = manager.acquireScript(scriptId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       passScript: (scriptId: string) => {
         manager.passScript(scriptId);
-        setLastMessage('Script passed.');
-        setTick((value) => value + 1);
+        saveAndTick('Script passed.');
       },
       attachTalent: (projectId: string, talentId: string) => {
         const result = manager.negotiateAndAttachTalent(projectId, talentId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       startNegotiation: (projectId: string, talentId: string) => {
         const result = manager.startTalentNegotiation(projectId, talentId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       advancePhase: (projectId: string) => {
         const result = manager.advanceProjectPhase(projectId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       setReleaseWeek: (projectId: string, releaseWeek: number) => {
         const result = manager.setProjectReleaseWeek(projectId, releaseWeek);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       acceptOffer: (projectId: string, offerId: string) => {
         const result = manager.acceptDistributionOffer(projectId, offerId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       counterOffer: (projectId: string, offerId: string) => {
         const result = manager.counterDistributionOffer(projectId, offerId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       walkAwayOffer: (projectId: string) => {
         const result = manager.walkAwayDistribution(projectId);
-        setLastMessage(result.message);
-        setTick((value) => value + 1);
+        saveAndTick(result.message);
       },
       dismissReleaseReveal: (projectId: string) => {
         manager.dismissReleaseReveal(projectId);
-        setTick((value) => value + 1);
+        saveAndTick();
       },
     }),
-    [lastMessage, manager, tick]
+    [lastMessage, manager, saveAndTick, tick]
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

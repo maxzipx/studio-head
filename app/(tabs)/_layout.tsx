@@ -31,13 +31,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="script-room"
-        options={{
-          title: 'Script Room',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="doc.text.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="slate"
         options={{
           title: 'Slate',
@@ -45,24 +38,41 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="script-room"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="distribution"
         options={{
-          title: 'Distribution',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.line.uptrend.xyaxis" color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="box-office"
         options={{
-          title: 'Box Office',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="ticket.fill" color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="inbox"
         options={{
-          title: 'Inbox',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="tray.full.fill" color={color} />,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="talent"
+        options={{
+          title: 'Talent',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="person.2.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="financials"
+        options={{
+          title: 'Financials',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="dollarsign.circle.fill" color={color} />,
         }}
       />
     </Tabs>

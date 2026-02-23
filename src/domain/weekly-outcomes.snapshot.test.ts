@@ -23,7 +23,12 @@ function captureCoreState(manager: StudioManager) {
 
 describe('weekly outcome snapshots', () => {
   it('keeps a stable 4-week baseline when no crises trigger', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      eventRng: () => 0.4,
+      rivalRng: () => 0.6,
+      negotiationRng: () => 0.4,
+    });
     const timeline = [];
 
     for (let i = 0; i < 4; i += 1) {
@@ -146,7 +151,12 @@ describe('weekly outcome snapshots', () => {
   });
 
   it('captures stable crisis-lock flow when crises always trigger', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.0 });
+    const manager = new StudioManager({
+      crisisRng: () => 0.0,
+      eventRng: () => 0.4,
+      rivalRng: () => 0.6,
+      negotiationRng: () => 0.4,
+    });
     const timeline = [];
 
     for (let i = 0; i < 3; i += 1) {

@@ -615,7 +615,7 @@ export class StudioManager {
     const weighted = this.eventDeck
       .filter((event) => {
         if (this.currentWeek < event.minWeek) return false;
-        if (queuedTitles.has(event.buildDecision({ idFactory: id, projectId: null }).title)) return false;
+        if (queuedTitles.has(event.decisionTitle)) return false;
         const lastWeek = this.lastEventWeek.get(event.id);
         if (lastWeek !== undefined && this.currentWeek - lastWeek < event.cooldownWeeks) return false;
         return true;
