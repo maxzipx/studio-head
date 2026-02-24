@@ -201,6 +201,8 @@ export class StudioManager {
     holdLineCount: number;
     chance: number;
     signal: string;
+    pressurePoint: 'salary' | 'backend' | 'perks';
+    roundsRemaining: number;
     demandSalaryMultiplier: number;
     demandBackendPoints: number;
     demandPerksBudget: number;
@@ -212,7 +214,7 @@ export class StudioManager {
 
     const normalized = this.normalizeNegotiation(negotiation, talent);
     const evaluation = this.evaluateNegotiation(normalized, talent);
-    const signal = this.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0);
+    const signal = normalized.lastResponse ?? this.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
 
     return {
       salaryMultiplier: normalized.offerSalaryMultiplier ?? 1,
@@ -222,6 +224,8 @@ export class StudioManager {
       holdLineCount: normalized.holdLineCount ?? 0,
       chance: evaluation.chance,
       signal,
+      pressurePoint: this.negotiationPressurePoint(evaluation),
+      roundsRemaining: Math.max(0, 4 - (normalized.rounds ?? 0)),
       demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
       demandBackendPoints: evaluation.demand.backendPoints,
       demandPerksBudget: evaluation.demand.perksBudget,
@@ -267,10 +271,9 @@ export class StudioManager {
     normalized.rounds = rounds + 1;
     const evaluation = this.evaluateNegotiation(normalized, talent);
     normalized.lastComputedChance = evaluation.chance;
-    normalized.lastResponse = this.composeNegotiationSignal(
+    normalized.lastResponse = this.composeNegotiationPreview(
       talent.name,
       evaluation,
-      action !== 'holdFirm',
       normalized.holdLineCount ?? 0
     );
 
@@ -378,7 +381,10 @@ export class StudioManager {
 
     const talent = this.talentPool.find((item) => item.id === talentId);
     if (!talent) return { success: false, message: 'Talent not found.' };
-    if (talent.availability !== 'available') return { success: false, message: `${talent.name} is unavailable.` };
+    if (talent.availability !== 'available') {
+      const returns = talent.unavailableUntilWeek ? ` (returns week ${talent.unavailableUntilWeek})` : '';
+      return { success: false, message: `${talent.name} is unavailable${returns}.` };
+    }
     if (this.playerNegotiations.some((item) => item.talentId === talentId)) {
       return { success: false, message: `${talent.name} is already in negotiation.` };
     }
@@ -490,7 +496,10 @@ export class StudioManager {
 
     const talent = this.talentPool.find((item) => item.id === talentId);
     if (!talent) return { success: false, message: 'Talent not found.' };
-    if (talent.availability !== 'available') return { success: false, message: `${talent.name} is unavailable.` };
+    if (talent.availability !== 'available') {
+      const returns = talent.unavailableUntilWeek ? ` (returns week ${talent.unavailableUntilWeek})` : '';
+      return { success: false, message: `${talent.name} is unavailable${returns}.` };
+    }
 
     const quickTerms = this.buildQuickCloseTerms(talent);
     const chance = this.evaluateNegotiation(
@@ -508,8 +517,21 @@ export class StudioManager {
       0.72
     ).chance;
     const retainer = this.computeDealMemoCost(talent, quickTerms);
-    if (this.cash < retainer) return { success: false, message: 'Insufficient funds for deal memo retainer.' };
-    if (this.negotiationRng() > chance) return { success: false, message: `${talent.name}'s reps declined current terms.` };
+    const attemptFee = this.computeQuickCloseAttemptFee(talent, quickTerms);
+    if (this.cash < retainer + attemptFee) {
+      return { success: false, message: 'Insufficient funds for quick-close attempt and deal memo retainer.' };
+    }
+
+    this.cash -= attemptFee;
+    if (this.negotiationRng() > chance) {
+      this.setNegotiationCooldown(talent, 1);
+      return {
+        success: false,
+        message: `${talent.name}'s reps declined quick-close terms. Attempt cost ${Math.round(
+          attemptFee / 1000
+        )}K burned. Re-open next week.`,
+      };
+    }
     if (!this.finalizeTalentAttachment(project, talent, quickTerms)) {
       return { success: false, message: `Deal memo failed for ${talent.name}; cash is below retainer.` };
     }
@@ -643,7 +665,10 @@ export class StudioManager {
     const removed = this.distributionOffers.filter((item) => item.projectId === projectId).length;
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
     this.studioHeat = clamp(this.studioHeat - 2, 0, 100);
-    return { success: true, message: `Walked away from ${removed} offer(s). Studio heat -2.` };
+    return {
+      success: true,
+      message: `Walked away from ${removed} offer(s). Studio heat -2. Fresh offers can regenerate next End Week if no window is selected.`,
+    };
   }
 
   resolveCrisis(crisisId: string, optionId: string): void {
@@ -1494,10 +1519,11 @@ export class StudioManager {
         if (this.finalizeTalentAttachment(project, talent, this.readNegotiationTerms(normalized, talent))) {
           events.push(this.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0));
         } else {
+          this.setNegotiationCooldown(talent, 1);
           events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);
         }
       } else {
-        talent.availability = 'available';
+        this.setNegotiationCooldown(talent, 1);
         events.push(this.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
       }
       resolved.push(negotiation.talentId);
@@ -1965,11 +1991,35 @@ export class StudioManager {
     const rounds = negotiation.rounds ?? 0;
     const hardline = negotiation.holdLineCount ?? 0;
     const termsBoost = (termsScore - 0.72) * 0.34;
-    const fatiguePenalty = Math.max(0, rounds - 2) * 0.045;
+    const fatiguePenalty = Math.max(0, rounds - 1) * 0.055;
     const hardlinePenalty = hardline * 0.05;
     const chance = clamp(this.talentDealChance(talent, baseChance) + termsBoost - fatiguePenalty - hardlinePenalty, 0.05, 0.97);
 
     return { chance, salaryFit, backendFit, perksFit, termsScore, demand };
+  }
+
+  private negotiationPressurePoint(evaluation: NegotiationEvaluation): 'salary' | 'backend' | 'perks' {
+    if (evaluation.salaryFit <= evaluation.backendFit && evaluation.salaryFit <= evaluation.perksFit) return 'salary';
+    if (evaluation.backendFit <= evaluation.salaryFit && evaluation.backendFit <= evaluation.perksFit) return 'backend';
+    return 'perks';
+  }
+
+  private composeNegotiationPreview(
+    talentName: string,
+    evaluation: NegotiationEvaluation,
+    holdLineCount: number
+  ): string {
+    if (holdLineCount >= 2) {
+      return `${talentName}'s reps are signaling standoff risk after repeated hardline rounds.`;
+    }
+    const pressurePoint = this.negotiationPressurePoint(evaluation);
+    if (pressurePoint === 'salary') {
+      return `${talentName}'s reps say salary is the primary gap in the package.`;
+    }
+    if (pressurePoint === 'backend') {
+      return `${talentName}'s reps are pushing hardest on backend participation.`;
+    }
+    return `${talentName}'s reps want stronger perks and support terms.`;
   }
 
   private composeNegotiationSignal(
@@ -2010,6 +2060,17 @@ export class StudioManager {
     const salaryRetainer = talent.salary.base * 0.08 * terms.salaryMultiplier;
     const perksHold = terms.perksBudget * 0.2;
     return salaryRetainer + perksHold;
+  }
+
+  private computeQuickCloseAttemptFee(talent: Talent, terms: NegotiationTerms): number {
+    const memoCost = this.computeDealMemoCost(talent, terms);
+    return clamp(memoCost * 0.2, 25_000, 240_000);
+  }
+
+  private setNegotiationCooldown(talent: Talent, weeks: number): void {
+    talent.availability = 'unavailable';
+    talent.unavailableUntilWeek = this.currentWeek + Math.max(1, Math.round(weeks));
+    talent.attachedProjectId = null;
   }
 
   private talentDealChance(talent: Talent, base: number): number {

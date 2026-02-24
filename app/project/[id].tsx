@@ -175,7 +175,7 @@ export default function ProjectDetailScreen() {
             </Pressable>
           </View>
         ) : (
-          <Text style={styles.muted}>No active distribution offers for this project.</Text>
+          <Text style={styles.muted}>No active distribution offers. End Week to refresh offer flow if no window is selected.</Text>
         )}
       </View>
 

@@ -118,9 +118,16 @@ export default function TalentScreen() {
               {snapshot ? (
                 <>
                   <Text style={styles.muted}>
+                    Rounds: {snapshot.rounds}/4 ({snapshot.roundsRemaining} left) | Pressure point: {snapshot.pressurePoint}
+                  </Text>
+                  <Text style={styles.muted}>
                     Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks ${Math.round(
                       snapshot.perksBudget
                     ).toLocaleString()}
+                  </Text>
+                  <Text style={styles.muted}>
+                    Ask: Salary {snapshot.demandSalaryMultiplier.toFixed(2)}x | Backend {snapshot.demandBackendPoints.toFixed(1)}pts | Perks $
+                    {Math.round(snapshot.demandPerksBudget).toLocaleString()}
                   </Text>
                   <Text style={styles.signal}>{snapshot.signal}</Text>
                   <View style={styles.actions}>

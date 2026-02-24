@@ -49,6 +49,9 @@ export default function ScriptRoomScreen() {
                   {snapshot ? (
                     <>
                       <Text style={styles.muted}>
+                        Rounds: {snapshot.rounds}/4 ({snapshot.roundsRemaining} left) | Pressure point: {snapshot.pressurePoint}
+                      </Text>
+                      <Text style={styles.muted}>
                         Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks{' '}
                         {money(snapshot.perksBudget)}
                       </Text>

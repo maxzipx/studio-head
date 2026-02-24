@@ -194,7 +194,8 @@ describe('StudioManager', () => {
     const summary = manager.endWeek();
     expect(summary.events.some((entry) => entry.includes('accepted in principle'))).toBe(true);
     expect(summary.events.some((entry) => entry.includes('accepted terms with'))).toBe(false);
-    expect(director!.availability).toBe('available');
+    expect(director!.availability).toBe('unavailable');
+    expect(director!.unavailableUntilWeek).toBe(manager.currentWeek - 1 + 1);
     expect(project!.directorId).not.toBe(director!.id);
   });
 
@@ -245,6 +246,39 @@ describe('StudioManager', () => {
     manager.endWeek();
     const summary = manager.endWeek();
     expect(summary.events.some((entry) => entry.includes('hardline rounds'))).toBe(true);
+    expect(lead!.availability).toBe('unavailable');
+  });
+
+  it('shows preview signal before negotiation resolves', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.startTalentNegotiation(project!.id, lead!.id);
+    const snapshot = manager.getNegotiationSnapshot(project!.id, lead!.id);
+    expect(snapshot).toBeTruthy();
+    expect(snapshot?.signal.includes('accepted')).toBe(false);
+  });
+
+  it('applies quick-close attempt cost and cooldown on decline', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const cashBefore = manager.cash;
+    const result = manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Attempt cost');
+    expect(manager.cash).toBeLessThan(cashBefore);
+    expect(lead!.availability).toBe('unavailable');
+
+    const retry = manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    expect(retry.success).toBe(false);
+    expect(retry.message).toContain('unavailable');
   });
 
   it('cancels open negotiation if project leaves development before resolution', () => {
