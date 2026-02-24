@@ -29,6 +29,7 @@ export default function RootLayout() {
       <GameProvider>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="project/[id]" options={{ title: 'Project Detail' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
       </GameProvider>

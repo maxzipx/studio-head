@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
@@ -18,6 +19,7 @@ function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): strin
 }
 
 export default function SlateScreen() {
+  const router = useRouter();
   const { manager, acquireScript, advancePhase, passScript, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, lastMessage } =
     useGame();
 
@@ -129,6 +131,16 @@ export default function SlateScreen() {
                   Projection: Critic {projection.critical.toFixed(0)} | Opening {money(projection.openingLow)} - {money(projection.openingHigh)}
                 </Text>
               ) : null}
+              <Pressable
+                style={styles.detailButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/project/[id]',
+                    params: { id: project.id },
+                  })
+                }>
+                <Text style={styles.detailButtonText}>Open Project Detail</Text>
+              </Pressable>
               <Pressable style={styles.button} onPress={() => advancePhase(project.id)}>
                 <Text style={styles.buttonText}>Advance Phase</Text>
               </Pressable>
@@ -165,6 +177,16 @@ export default function SlateScreen() {
               </View>
               <Pressable style={styles.releaseButton} onPress={() => advancePhase(project.id)}>
                 <Text style={styles.releaseButtonText}>Advance To Release</Text>
+              </Pressable>
+              <Pressable
+                style={styles.detailButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/project/[id]',
+                    params: { id: project.id },
+                  })
+                }>
+                <Text style={styles.detailButtonText}>Open Project Detail</Text>
               </Pressable>
               {offers.map((offer) => (
                 <View key={offer.id} style={styles.offerCard}>
@@ -255,6 +277,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  detailButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  detailButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 12 },
   buttonDisabled: { opacity: 0.45 },
   buttonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
   walkButton: {
