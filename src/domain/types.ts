@@ -111,6 +111,10 @@ export interface DecisionOption {
   scriptQualityDelta: number;
   hypeDelta: number;
   studioHeatDelta?: number;
+  criticsDelta?: number;
+  talentRepDelta?: number;
+  distributorRepDelta?: number;
+  audienceDelta?: number;
   scheduleDelta?: number;
   releaseWeekShift?: number;
   marketingDelta?: number;
@@ -197,6 +201,10 @@ export interface MovieProject {
   finalBoxOffice: number | null;
   criticalScore: number | null;
   audienceScore: number | null;
+  prestige: number;
+  commercialAppeal: number;
+  originality: number;
+  controversy: number;
 }
 
 export interface PlayerNegotiation {
@@ -233,6 +241,28 @@ export interface WeekSummary {
   hasPendingCrises: boolean;
   decisionQueueCount: number;
 }
+
+export interface StudioReputation {
+  critics: number;
+  talent: number;
+  distributor: number;
+  audience: number;
+}
+
+export type StudioTier =
+  | 'indieStudio'
+  | 'establishedIndie'
+  | 'midTier'
+  | 'majorStudio'
+  | 'globalPowerhouse';
+
+export const STUDIO_TIER_LABELS: Record<StudioTier, string> = {
+  indieStudio: 'Indie Studio',
+  establishedIndie: 'Established Indie',
+  midTier: 'Mid-Tier Studio',
+  majorStudio: 'Major Studio',
+  globalPowerhouse: 'Global Powerhouse',
+};
 
 export type RivalPersonality =
   | 'prestigeHunter'

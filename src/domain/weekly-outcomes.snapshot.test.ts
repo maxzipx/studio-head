@@ -94,8 +94,8 @@ describe('weekly outcome snapshots', () => {
         },
         {
           "cash": 48740000,
-          "decisionQueue": 2,
-          "heat": 10,
+          "decisionQueue": 3,
+          "heat": 11,
           "pendingCrises": 0,
           "projects": [
             {
@@ -224,8 +224,8 @@ describe('weekly outcome snapshots', () => {
         },
         {
           "cash": 47390000,
-          "decisionQueue": 2,
-          "heat": 10,
+          "decisionQueue": 3,
+          "heat": 11,
           "pendingCrises": 0,
           "projects": [
             {

@@ -98,6 +98,36 @@ export function projectedROI(input: {
   return netRevenue / Math.max(1, input.totalCost);
 }
 
+export function reputationDeltasFromRelease(input: {
+  criticalScore: number;
+  roi: number;
+  awardsNominations: number;
+  awardsWins: number;
+  controversyPenalty: number;
+}): { critics: number; audience: number } {
+  let criticsDelta = 0;
+  let audienceDelta = 0;
+  const critical = input.criticalScore;
+
+  if (critical > 90) criticsDelta += 15;
+  else if (critical > 80) criticsDelta += 8;
+  else if (critical < 40) criticsDelta -= 10;
+
+  criticsDelta += input.awardsNominations * 3 + input.awardsWins * 8;
+
+  if (input.roi > 3) audienceDelta += 12;
+  else if (input.roi > 2) audienceDelta += 6;
+  else if (input.roi < 1) audienceDelta -= 8;
+
+  criticsDelta -= input.controversyPenalty * 0.6;
+  audienceDelta -= input.controversyPenalty * 0.4;
+
+  return {
+    critics: clamp(criticsDelta, -15, 20),
+    audience: clamp(audienceDelta, -12, 15),
+  };
+}
+
 export function heatDeltaFromRelease(input: {
   currentHeat: number;
   criticalScore: number;
@@ -106,19 +136,8 @@ export function heatDeltaFromRelease(input: {
   awardsWins: number;
   controversyPenalty: number;
 }): number {
-  let delta = 0;
-  const critical = input.criticalScore;
-  if (critical > 90) delta += 15;
-  else if (critical > 80) delta += 8;
-  else if (critical < 40) delta -= 10;
-
-  if (input.roi > 3) delta += 12;
-  else if (input.roi > 2) delta += 6;
-  else if (input.roi < 1) delta -= 8;
-
-  delta += input.awardsNominations * 3 + input.awardsWins * 8;
-  delta -= input.controversyPenalty;
-
-  const nextHeat = clamp(input.currentHeat + delta, 0, 100);
+  const deltas = reputationDeltasFromRelease(input);
+  const averageDelta = (deltas.critics + deltas.audience) / 2;
+  const nextHeat = clamp(input.currentHeat + averageDelta, 0, 100);
   return nextHeat - input.currentHeat;
 }

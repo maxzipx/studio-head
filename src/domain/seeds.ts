@@ -95,6 +95,10 @@ export function createSeedProjects(): MovieProject[] {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      prestige: 42,
+      commercialAppeal: 68,
+      originality: 57,
+      controversy: 28,
     },
     {
       id: id('project'),
@@ -132,6 +136,10 @@ export function createSeedProjects(): MovieProject[] {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      prestige: 72,
+      commercialAppeal: 37,
+      originality: 64,
+      controversy: 14,
     },
   ];
 }
@@ -141,22 +149,24 @@ export function createOpeningDecisions(): DecisionItem[] {
     {
       id: id('decision'),
       projectId: null,
-      title: 'Development Sprint Proposal',
-      body: 'A top script doctor can run a two-week polish sprint on your lead project for $360K.',
-      weeksUntilExpiry: 2,
+      title: 'First Call: Script Doctor on Night Ledger',
+      body: 'Welcome to the chair. Night Ledger is your flagship thriller already in production, with script quality at 7.4. A script doctor is offering a two-week polish sprint for $360K that could push quality to 8.2 and improve awards and critic upside. Decisions like this expire if you advance too many weeks without resolving them.',
+      weeksUntilExpiry: 3,
+      category: 'creative',
       options: [
         {
           id: id('option'),
-          label: 'Fund Sprint',
-          preview: 'Improve your current lead project script quality this week.',
+          label: 'Fund the Sprint',
+          preview: 'Script quality +0.8 - brings Night Ledger to 8.2, a strong prestige threshold.',
           cashDelta: -360_000,
           scriptQualityDelta: 0.8,
-          hypeDelta: 0,
+          hypeDelta: 2,
+          criticsDelta: 1,
         },
         {
           id: id('option'),
-          label: 'Pass',
-          preview: 'No spend this week and no uplift to project quality.',
+          label: 'Pass for Now',
+          preview: 'Save $360K. Night Ledger stays at current quality.',
           cashDelta: 0,
           scriptQualityDelta: 0,
           hypeDelta: -1,
@@ -250,3 +260,4 @@ export function createSeedRivals(): RivalStudio[] {
     },
   ];
 }
+

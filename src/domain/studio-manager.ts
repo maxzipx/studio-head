@@ -1,5 +1,5 @@
 import {
-  heatDeltaFromRelease,
+  reputationDeltasFromRelease,
   projectedCriticalScore,
   projectedOpeningWeekendRange,
   projectedROI,
@@ -78,6 +78,8 @@ import type {
   RivalStudio,
   ScriptPitch,
   StoryArcState,
+  StudioReputation,
+  StudioTier,
   Talent,
   TalentRole,
   WeekSummary,
@@ -166,7 +168,9 @@ export class StudioManager {
 
   studioName = 'Project Greenlight';
   cash = 50_000_000;
-  studioHeat = 12;
+  reputation: StudioReputation = { critics: 12, talent: 12, distributor: 12, audience: 12 };
+  consecutiveLowCashWeeks = 0;
+  firstSessionComplete = false;
   currentWeek = 1;
   turnLengthWeeks: 1 | 2 = 1;
   pendingCrises: CrisisEvent[] = [];
@@ -184,6 +188,40 @@ export class StudioManager {
   recentDecisionCategories: DecisionCategory[] = [];
   lastWeekSummary: WeekSummary | null = null;
 
+  get studioHeat(): number {
+    return Math.round(
+      (this.reputation.critics + this.reputation.talent + this.reputation.distributor + this.reputation.audience) / 4
+    );
+  }
+
+  get studioTier(): StudioTier {
+    const heat = this.studioHeat;
+    const releasedCount = this.activeProjects.filter((p) => p.phase === 'released').length;
+    if (heat >= 80 && releasedCount >= 10) return 'globalPowerhouse';
+    if (heat >= 65 && releasedCount >= 6) return 'majorStudio';
+    if (heat >= 45 && releasedCount >= 3) return 'midTier';
+    if (heat >= 25 && releasedCount >= 1) return 'establishedIndie';
+    return 'indieStudio';
+  }
+
+  get legacyScore(): number {
+    const releasedCount = this.activeProjects.filter((p) => p.phase === 'released').length;
+    const cashScore = clamp(this.cash / 50_000_000 * 20, 0, 20);
+    const filmScore = Math.min(releasedCount * 4, 30);
+    return clamp(Math.round(this.studioHeat * 0.5 + cashScore + filmScore), 0, 100);
+  }
+
+  adjustReputation(delta: number, pillar: keyof StudioReputation | 'all' = 'all'): void {
+    if (pillar === 'all') {
+      this.reputation.critics = clamp(this.reputation.critics + delta, 0, 100);
+      this.reputation.talent = clamp(this.reputation.talent + delta, 0, 100);
+      this.reputation.distributor = clamp(this.reputation.distributor + delta, 0, 100);
+      this.reputation.audience = clamp(this.reputation.audience + delta, 0, 100);
+    } else {
+      this.reputation[pillar] = clamp(this.reputation[pillar] + delta, 0, 100);
+    }
+  }
+
   constructor(input?: {
     crisisRng?: () => number;
     eventRng?: () => number;
@@ -194,6 +232,7 @@ export class StudioManager {
     this.eventRng = input?.eventRng ?? Math.random;
     this.negotiationRng = input?.negotiationRng ?? Math.random;
     this.rivalRng = input?.rivalRng ?? Math.random;
+    this.bindOpeningDecisionToLeadProject();
   }
 
   get canEndWeek(): boolean {
@@ -391,7 +430,7 @@ export class StudioManager {
     if (project.phase === 'released') return { success: false, message: 'Released projects cannot be abandoned.' };
     const writeDown = Math.round(project.budget.actualSpend * 0.2);
     this.cash -= writeDown;
-    this.studioHeat = clamp(this.studioHeat - 4, 0, 100);
+    this.adjustReputation(-4, 'talent');
     this.releaseTalent(projectId);
     this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
@@ -399,7 +438,7 @@ export class StudioManager {
     this.decisionQueue = this.decisionQueue.filter((item) => item.projectId !== projectId);
     return {
       success: true,
-      message: `${project.title} abandoned. $${Math.round(writeDown / 1000)}K write-down charged. Studio heat -4.`,
+      message: `${project.title} abandoned. $${Math.round(writeDown / 1000)}K write-down charged. Talent rep -4.`,
     };
   }
 
@@ -470,6 +509,19 @@ export class StudioManager {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      prestige: clamp(
+        Math.round(pitch.scriptQuality * 7 + (pitch.genre === 'drama' || pitch.genre === 'documentary' ? 18 : 0)),
+        0, 100
+      ),
+      commercialAppeal: clamp(
+        Math.round(
+          (pitch.genre === 'action' ? 68 : pitch.genre === 'sciFi' ? 62 : pitch.genre === 'animation' ? 60
+            : pitch.genre === 'drama' ? 32 : pitch.genre === 'documentary' ? 18 : 48) +
+          pitch.conceptStrength * 3
+        ), 0, 100
+      ),
+      originality: clamp(Math.round(pitch.conceptStrength * 8 + 10), 0, 100),
+      controversy: pitch.genre === 'horror' ? 35 : pitch.genre === 'thriller' ? 28 : pitch.genre === 'action' ? 22 : 15,
     };
     this.activeProjects.push(project);
     return { success: true, message: `Acquired "${pitch.title}".`, projectId: project.id };
@@ -555,7 +607,11 @@ export class StudioManager {
     }
 
     this.cash += option.cashDelta;
-    this.studioHeat = clamp(this.studioHeat + (option.studioHeatDelta ?? 0), 0, 100);
+    if (option.studioHeatDelta) this.adjustReputation(option.studioHeatDelta, 'all');
+    if (option.criticsDelta) this.adjustReputation(option.criticsDelta, 'critics');
+    if (option.talentRepDelta) this.adjustReputation(option.talentRepDelta, 'talent');
+    if (option.distributorRepDelta) this.adjustReputation(option.distributorRepDelta, 'distributor');
+    if (option.audienceDelta) this.adjustReputation(option.audienceDelta, 'audience');
     this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
     if (decision.arcId) {
       this.applyArcMutation(decision.arcId, option);
@@ -593,6 +649,16 @@ export class StudioManager {
     this.projectOutcomes();
 
     this.currentWeek += 1;
+
+    if (this.cash < 1_000_000) {
+      this.consecutiveLowCashWeeks += 1;
+    } else {
+      this.consecutiveLowCashWeeks = 0;
+    }
+
+    if (!this.firstSessionComplete && this.currentWeek > 5) {
+      this.firstSessionComplete = true;
+    }
 
     const summary: WeekSummary = {
       week: this.currentWeek,
@@ -846,19 +912,20 @@ export class StudioManager {
         const totalCost = project.budget.ceiling + project.marketingBudget;
         const netRevenue = project.finalBoxOffice * project.studioRevenueShare;
         project.projectedROI = netRevenue / Math.max(1, totalCost);
-        const heatDelta = heatDeltaFromRelease({
-          currentHeat: this.studioHeat,
+        const repDeltas = reputationDeltasFromRelease({
           criticalScore: project.criticalScore ?? 50,
           roi: project.projectedROI,
           awardsNominations: 0,
           awardsWins: 0,
-          controversyPenalty: 0,
+          controversyPenalty: project.controversy ?? 0,
         });
-        const adjustedHeatDelta = heatDelta + modifiers.releaseHeatMomentum;
-        this.studioHeat = clamp(this.studioHeat + adjustedHeatDelta, 0, 100);
+        const criticsDelta = repDeltas.critics + modifiers.releaseHeatMomentum;
+        const audienceDelta = repDeltas.audience + modifiers.releaseHeatMomentum;
+        this.adjustReputation(criticsDelta, 'critics');
+        this.adjustReputation(audienceDelta, 'audience');
         project.releaseResolved = true;
         events.push(
-          `${project.title} completed theatrical run. Heat ${adjustedHeatDelta >= 0 ? '+' : ''}${adjustedHeatDelta.toFixed(0)}.`
+          `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
         );
         this.checkRivalReleaseResponses(project, events);
       }
@@ -1067,7 +1134,7 @@ export class StudioManager {
   private talentDealChance(talent: Talent, base: number): number {
     const arcLeverage = this.getArcOutcomeModifiers().talentLeverage;
     const relationshipBoost = clamp((talent.studioRelationship - 0.5) * 0.24, -0.12, 0.12);
-    const heatBoost = clamp((this.studioHeat - 10) / 260, -0.08, 0.16);
+    const heatBoost = clamp((this.reputation.talent - 10) / 260, -0.08, 0.16);
     const reputationPenalty = clamp((talent.starPower - 5) * 0.015 + (talent.craftScore - 5) * 0.01, 0, 0.16);
     const egoPenalty = clamp((talent.egoLevel - 5) * 0.018, -0.04, 0.16);
     const agentPenalty = clamp((AGENT_DIFFICULTY[talent.agentTier] - 1) * 0.2, 0, 0.12);
@@ -1108,7 +1175,7 @@ export class StudioManager {
       const premium = option.premiumMultiplier ?? 1.25;
       const cost = talent.salary.base * 0.2 * premium;
       const retainer = this.computeDealMemoCost(talent, this.defaultNegotiationTerms(talent));
-      const chance = clamp(0.55 + this.studioHeat / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
+      const chance = clamp(0.55 + this.reputation.talent / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
       if (this.cash >= cost + retainer && this.negotiationRng() <= chance) {
         this.cash -= cost;
         if (rival) {
@@ -1237,5 +1304,15 @@ export class StudioManager {
         talent.availability = 'available';
       }
     }
+  }
+
+  private bindOpeningDecisionToLeadProject(): void {
+    const openingDecision = this.decisionQueue.find((item) => item.title.startsWith('First Call: Script Doctor'));
+    if (!openingDecision || openingDecision.projectId) return;
+    const leadProject =
+      this.activeProjects.find((project) => project.title === 'Night Ledger') ??
+      this.activeProjects.find((project) => project.phase !== 'released');
+    if (!leadProject) return;
+    openingDecision.projectId = leadProject.id;
   }
 }

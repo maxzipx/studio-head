@@ -34,7 +34,7 @@ export function tickDecisionExpiryForManager(manager: any, events: string[]): vo
     }
     manager.decisionQueue = manager.decisionQueue.filter((item: any) => item.weeksUntilExpiry >= 0);
     events.push(`${expired.length} decision item(s) expired.`);
-    manager.studioHeat = clamp(manager.studioHeat - expired.length, 0, 100);
+    manager.adjustReputation(-expired.length, 'all');
   }
 }
 

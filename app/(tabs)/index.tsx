@@ -12,6 +12,22 @@ function signedMoney(amount: number): string {
   return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
 }
 
+const TIER_LABELS: Record<string, string> = {
+  indieStudio: 'Indie Studio',
+  establishedIndie: 'Established Indie',
+  midTier: 'Mid-Tier Studio',
+  majorStudio: 'Major Studio',
+  globalPowerhouse: 'Global Powerhouse',
+};
+
+const TIER_NEXT_GOAL: Record<string, string> = {
+  indieStudio: 'Release 1 film and reach Heat 25 to advance',
+  establishedIndie: 'Release 3 films and reach Heat 45 to advance',
+  midTier: 'Release 6 films and reach Heat 65 to advance',
+  majorStudio: 'Release 10 films and reach Heat 80 to advance',
+  globalPowerhouse: 'You have reached the summit.',
+};
+
 const ARC_LABELS: Record<string, string> = {
   'awards-circuit': 'Awards Run',
   'exhibitor-war': 'Theater Access Battle',
@@ -96,6 +112,49 @@ export default function HQScreen() {
         <Text style={styles.body}>Inbox Items: {manager.decisionQueue.length}</Text>
         <Text style={styles.body}>Active Projects: {manager.activeProjects.length}</Text>
         {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text> : null}
+        {manager.consecutiveLowCashWeeks >= 2 ? (
+          <Text style={styles.alert}>
+            Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
+            {manager.consecutiveLowCashWeeks >= 4 ? ' Emergency action required.' : ''}
+          </Text>
+        ) : null}
+      </View>
+
+      {!manager.firstSessionComplete ? (
+        <View style={[styles.card, styles.tutorialCard]}>
+          <Text style={styles.label}>Getting Started</Text>
+          <Text style={styles.tutorialTip}>Inbox decisions expire - resolve them within the listed weeks or lose the opportunity and take a reputation hit.</Text>
+          <Text style={styles.tutorialTip}>Projects need a director + lead actor + script quality {'>='} 6.0 to move from Development to Pre-Production.</Text>
+          <Text style={styles.tutorialTip}>End Turn advances time. Crises must be cleared first. Each turn costs cash from active production burn.</Text>
+          <Text style={styles.tutorialTip}>Your reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently by your decisions.</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Studio Standing</Text>
+        <View style={styles.rowLine}>
+          <Text style={styles.bodyStrong}>{TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
+          <Text style={styles.legacyScore}>Legacy {manager.legacyScore}</Text>
+        </View>
+        <Text style={styles.mutedBody}>{TIER_NEXT_GOAL[manager.studioTier]}</Text>
+        <View style={styles.repGrid}>
+          <View style={styles.repPillar}>
+            <Text style={styles.repLabel}>Critics</Text>
+            <Text style={styles.repValue}>{manager.reputation.critics.toFixed(0)}</Text>
+          </View>
+          <View style={styles.repPillar}>
+            <Text style={styles.repLabel}>Talent</Text>
+            <Text style={styles.repValue}>{manager.reputation.talent.toFixed(0)}</Text>
+          </View>
+          <View style={styles.repPillar}>
+            <Text style={styles.repLabel}>Distributor</Text>
+            <Text style={styles.repValue}>{manager.reputation.distributor.toFixed(0)}</Text>
+          </View>
+          <View style={styles.repPillar}>
+            <Text style={styles.repLabel}>Audience</Text>
+            <Text style={styles.repValue}>{manager.reputation.audience.toFixed(0)}</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -531,5 +590,46 @@ const styles = StyleSheet.create({
     color: '#241B0D',
     fontSize: 14,
     fontWeight: '700',
+  },
+  tutorialCard: {
+    borderColor: tokens.accentTeal,
+    backgroundColor: '#0A1F1E',
+  },
+  tutorialTip: {
+    color: tokens.accentTeal,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  repGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  repPillar: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 8,
+    alignItems: 'center',
+    gap: 2,
+  },
+  repLabel: {
+    color: tokens.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  repValue: {
+    color: tokens.accentGold,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  legacyScore: {
+    color: tokens.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

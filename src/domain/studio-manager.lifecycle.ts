@@ -138,7 +138,7 @@ export function counterDistributionOfferForManager(
     return { success: false, message: `${offer.partner} will not entertain another counter.` };
   }
   offer.counterAttempts = attempts + 1;
-  const successChance = clamp(0.53 + manager.studioHeat / 220, 0.25, 0.9);
+  const successChance = clamp(0.53 + manager.reputation.distributor / 220, 0.25, 0.9);
   if (manager.negotiationRng() > successChance) {
     return { success: false, message: `${offer.partner} declined the counter.` };
   }
@@ -155,10 +155,10 @@ export function walkAwayDistributionForManager(manager: any, projectId: string):
   }
   const removed = manager.distributionOffers.filter((item: any) => item.projectId === projectId).length;
   manager.distributionOffers = manager.distributionOffers.filter((item: any) => item.projectId !== projectId);
-  manager.studioHeat = clamp(manager.studioHeat - 2, 0, 100);
+  manager.adjustReputation(-2, 'distributor');
   return {
     success: true,
-    message: `Walked away from ${removed} offer(s). Studio heat -2. Fresh offers can regenerate next End Turn if no window is selected.`,
+    message: `Walked away from ${removed} offer(s). Distributor rep -2. Fresh offers can regenerate next End Turn if no window is selected.`,
   };
 }
 

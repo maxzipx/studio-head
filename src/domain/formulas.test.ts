@@ -61,6 +61,8 @@ describe('formulas', () => {
       controversyPenalty: 0,
     });
 
-    expect(delta).toBe(17);
+    // criticalScore 88 -> critics +8, awardsNominations 1 -> critics +3, roi 2.5 -> audience +6
+    // average of critics(11) and audience(6) -> 8.5
+    expect(delta).toBe(8.5);
   });
 });

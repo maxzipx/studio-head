@@ -211,7 +211,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
     }
 
     if (rival.personality === 'prestigeHunter') {
-      manager.studioHeat = clamp(manager.studioHeat - 1.5, 0, 100);
+      manager.adjustReputation(-1.5, 'critics');
       const hadFlag = manager.hasStoryFlag('awards_headwind');
       manager.storyFlags.awards_headwind = (manager.storyFlags.awards_headwind ?? 0) + 1;
       if (!hadFlag) {
@@ -389,7 +389,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
           .sort((a: any, b: any) => b.hypeScore - a.hypeScore)[0];
       if (!targetProject) continue;
       targetProject.hypeScore = clamp(targetProject.hypeScore - 3, 0, 100);
-      manager.studioHeat = clamp(manager.studioHeat - 1, 0, 100);
+      manager.adjustReputation(-1, 'audience');
       events.push(`${rival.name} launched a counter-campaign against ${targetProject.title}. Hype -3.`);
     }
   }

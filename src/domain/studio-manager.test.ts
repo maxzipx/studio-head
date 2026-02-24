@@ -116,10 +116,19 @@ describe('StudioManager', () => {
   it('keeps opening decision copy aligned with project-level effects', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const opening = manager.decisionQueue[0];
+    const targetProject = opening.projectId
+      ? manager.activeProjects.find((project) => project.id === opening.projectId)
+      : null;
 
-    expect(opening.title).toContain('Development Sprint');
-    expect(opening.options[0].label).toBe('Fund Sprint');
-    expect(opening.options[0].preview).toContain('lead project');
+    expect(opening.title).toContain('Script Doctor');
+    expect(opening.options[0].label).toBe('Fund the Sprint');
+    expect(opening.options[0].preview).toContain('Night Ledger');
+    expect(opening.projectId).toBeTruthy();
+    expect(targetProject).toBeTruthy();
+
+    const baselineScript = targetProject!.scriptQuality;
+    manager.resolveDecision(opening.id, opening.options[0].id);
+    expect(targetProject!.scriptQuality).toBeGreaterThan(baselineScript);
   });
 
   it('applies extended decision effects to project, heat, and story flags', () => {

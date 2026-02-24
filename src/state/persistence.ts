@@ -26,8 +26,19 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     manager.studioName = defaults.studioName;
   }
   if (!Number.isFinite(manager.cash)) manager.cash = defaults.cash;
-  if (!Number.isFinite(manager.studioHeat)) manager.studioHeat = defaults.studioHeat;
-  manager.studioHeat = Math.min(100, Math.max(0, manager.studioHeat));
+  if (!Number.isFinite(manager.consecutiveLowCashWeeks)) manager.consecutiveLowCashWeeks = 0;
+  if (typeof manager.firstSessionComplete !== 'boolean') manager.firstSessionComplete = false;
+
+  if (!isRecord(manager.reputation)) {
+    manager.reputation = { critics: 12, talent: 12, distributor: 12, audience: 12 };
+  } else {
+    const rep = manager.reputation as Record<string, unknown>;
+    for (const field of ['critics', 'talent', 'distributor', 'audience']) {
+      if (!Number.isFinite(rep[field])) rep[field] = 12;
+      rep[field] = Math.min(100, Math.max(0, rep[field] as number));
+    }
+  }
+
   if (!Number.isFinite(manager.currentWeek) || manager.currentWeek < 1) {
     manager.currentWeek = defaults.currentWeek;
   }
@@ -73,6 +84,9 @@ const SERIALIZE_BLOCKED_KEYS = new Set([
   'rivalRng',
   'eventDeck',
   'lastEventWeek',
+  'studioHeat',
+  'studioTier',
+  'legacyScore',
 ]);
 
 export function serializeStudioManager(manager: StudioManager): StoredManager {
@@ -98,6 +112,13 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
     if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
     (manager as unknown as Record<string, unknown>)[key] = value;
   }
+
+  // Migrate old saves that had studioHeat but no reputation
+  if (!('reputation' in input) && typeof input.studioHeat === 'number') {
+    const legacyHeat = Math.min(100, Math.max(0, input.studioHeat));
+    manager.reputation = { critics: legacyHeat, talent: legacyHeat, distributor: legacyHeat, audience: legacyHeat };
+  }
+
   sanitizeRestoredManager(manager);
 
   const sourceLastEventWeek = input.lastEventWeek;
