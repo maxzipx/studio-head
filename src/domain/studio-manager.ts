@@ -14,6 +14,26 @@ import {
   startTalentNegotiationForManager,
   type NegotiationSnapshot,
 } from './studio-manager.negotiation';
+import {
+  applyArcMutationForManager,
+  applyStoryFlagMutationsForManager,
+  buildOperationalCrisisForManager,
+  chooseProjectForEventForManager,
+  ensureArcStateForManager,
+  eventWeightForManager,
+  generateEventDecisionsForManager,
+  getArcPressureFromRivalsForManager,
+  getDecisionTargetProjectForManager,
+  getEventArcIdForManager,
+  getEventProjectCandidatesForManager,
+  hasStoryFlagForManager,
+  matchesArcRequirementForManager,
+  pickWeightedEventForManager,
+  refillScriptMarketForManager,
+  rollForCrisesForManager,
+  tickDecisionExpiryForManager,
+  tickScriptMarketExpiryForManager,
+} from './studio-manager.events';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -741,215 +761,51 @@ export class StudioManager {
   }
 
   private tickDecisionExpiry(events: string[]): void {
-    for (const item of this.decisionQueue) {
-      item.weeksUntilExpiry -= 1;
-    }
-    const expired = this.decisionQueue.filter((item) => item.weeksUntilExpiry < 0);
-    if (expired.length > 0) {
-      for (const item of expired) {
-        const flag = item.onExpireClearFlag;
-        if (!flag) continue;
-        const current = this.storyFlags[flag] ?? 0;
-        if (current <= 1) {
-          delete this.storyFlags[flag];
-        } else {
-          this.storyFlags[flag] = current - 1;
-        }
-      }
-      this.decisionQueue = this.decisionQueue.filter((item) => item.weeksUntilExpiry >= 0);
-      events.push(`${expired.length} decision item(s) expired.`);
-      this.studioHeat = clamp(this.studioHeat - expired.length, 0, 100);
-    }
+    tickDecisionExpiryForManager(this, events);
   }
 
   private tickScriptMarketExpiry(events: string[]): void {
-    for (const item of this.scriptMarket) {
-      item.expiresInWeeks -= 1;
-    }
-    const expired = this.scriptMarket.filter((item) => item.expiresInWeeks < 0);
-    if (expired.length > 0) {
-      this.scriptMarket = this.scriptMarket.filter((item) => item.expiresInWeeks >= 0);
-      events.push(`${expired.length} script offer(s) expired from market.`);
-    }
+    tickScriptMarketExpiryForManager(this, events);
   }
 
   private refillScriptMarket(events: string[]): void {
-    const targetOffers = 4;
-    if (this.scriptMarket.length >= targetOffers) return;
-
-    const catalog = createSeedScriptMarket();
-    const existingTitles = new Set(this.scriptMarket.map((item) => item.title));
-    let added = 0;
-
-    while (this.scriptMarket.length < targetOffers) {
-      const uniquePool = catalog.filter((item) => !existingTitles.has(item.title));
-      const pool = uniquePool.length > 0 ? uniquePool : catalog;
-      const source = pool[Math.floor(this.eventRng() * pool.length)];
-      if (!source) break;
-
-      const qualityJitter = (this.eventRng() - 0.5) * 0.6;
-      const conceptJitter = (this.eventRng() - 0.5) * 0.6;
-      const priceMultiplier = 0.88 + this.eventRng() * 0.28;
-      const refreshed: ScriptPitch = {
-        ...source,
-        id: id('script'),
-        askingPrice: Math.max(300_000, Math.round(source.askingPrice * priceMultiplier)),
-        scriptQuality: clamp(source.scriptQuality + qualityJitter, 1, 10),
-        conceptStrength: clamp(source.conceptStrength + conceptJitter, 1, 10),
-        expiresInWeeks: 3 + Math.floor(this.eventRng() * 4),
-      };
-
-      this.scriptMarket.push(refreshed);
-      existingTitles.add(refreshed.title);
-      added += 1;
-      if (added > 12) break;
-    }
-
-    if (added > 0) {
-      events.push(`${added} new script offer(s) entered the market.`);
-    }
+    refillScriptMarketForManager(this, events);
   }
 
   private rollForCrises(events: string[]): void {
-    const generated: CrisisEvent[] = [];
-    for (const project of this.activeProjects) {
-      if (!['preProduction', 'production', 'postProduction'].includes(project.phase)) continue;
-      const riskBoost = project.budget.overrunRisk * 0.2;
-      const baseThreshold =
-        project.phase === 'production' ? 0.16 : project.phase === 'postProduction' ? 0.1 : 0.08;
-      const rollThreshold = baseThreshold + riskBoost;
-      if (this.crisisRng() > rollThreshold) continue;
-
-      const crisis = this.buildOperationalCrisis(project);
-      generated.push(crisis);
-      project.productionStatus = 'inCrisis';
-    }
-
-    if (generated.length > 0) {
-      this.pendingCrises.push(...generated);
-      events.push(`${generated.length} crisis event(s) triggered.`);
-    }
+    rollForCrisesForManager(this, events);
   }
 
   private generateEventDecisions(events: string[]): void {
-    if (this.decisionQueue.length >= 4) return;
-
-    const nextEvent = this.pickWeightedEvent();
-    if (!nextEvent) return;
-
-    const project = this.chooseProjectForEvent(nextEvent);
-    if (nextEvent.scope === 'project' && !project) return;
-    const decision = nextEvent.buildDecision({
-      idFactory: id,
-      projectId: project?.id ?? null,
-      projectTitle: project?.title ?? null,
-      currentWeek: this.currentWeek,
-    });
-    decision.category ??= nextEvent.category;
-    decision.sourceEventId ??= nextEvent.id;
-    this.decisionQueue.push(decision);
-    this.lastEventWeek.set(nextEvent.id, this.currentWeek);
-    this.recentDecisionCategories.unshift(nextEvent.category);
-    this.recentDecisionCategories = this.recentDecisionCategories.slice(0, 5);
-    events.push(`New event: ${nextEvent.title}.`);
+    generateEventDecisionsForManager(this, events);
   }
 
   private pickWeightedEvent(): EventTemplate | null {
-    const queuedTitles = new Set(this.decisionQueue.map((item) => item.title));
-    const weighted = this.eventDeck
-      .filter((event) => {
-        if (this.currentWeek < event.minWeek) return false;
-        if (queuedTitles.has(event.decisionTitle)) return false;
-        if (event.requiresFlag && !this.hasStoryFlag(event.requiresFlag)) return false;
-        if (event.blocksFlag && this.hasStoryFlag(event.blocksFlag)) return false;
-        if (event.requiresArc && !this.matchesArcRequirement(event.requiresArc)) return false;
-        if (event.blocksArc && this.matchesArcRequirement(event.blocksArc)) return false;
-        const lastWeek = this.lastEventWeek.get(event.id);
-        if (lastWeek !== undefined && this.currentWeek - lastWeek < event.cooldownWeeks) return false;
-        return true;
-      })
-      .map((event) => ({ event, weight: this.eventWeight(event) }))
-      .filter((entry) => entry.weight > 0);
-
-    if (weighted.length === 0) return null;
-
-    const total = weighted.reduce((sum, item) => sum + item.weight, 0);
-    let roll = this.eventRng() * total;
-    for (const entry of weighted) {
-      roll -= entry.weight;
-      if (roll <= 0) return entry.event;
-    }
-    return weighted[weighted.length - 1].event;
+    return pickWeightedEventForManager(this);
   }
 
   private eventWeight(event: EventTemplate): number {
-    let weight = event.baseWeight;
-    const modifiers = this.getArcOutcomeModifiers();
-    const candidates = this.getEventProjectCandidates(event);
-    if (event.scope === 'project' && candidates.length === 0) return 0;
-
-    if (event.scope === 'project') {
-      weight += Math.min(1.3, candidates.length * 0.32);
-    }
-
-    if (event.category === 'finance' && this.cash < 25_000_000) {
-      weight += 0.45;
-    }
-    if (event.category === 'marketing' && this.studioHeat < 25) {
-      weight += 0.35;
-    }
-    if (event.category === 'operations' && this.pendingCrises.length > 0) {
-      weight *= 0.75;
-    }
-    weight += modifiers.categoryBias[event.category] ?? 0;
-
-    const arcId = this.getEventArcId(event);
-    if (arcId) {
-      weight += this.getArcPressureFromRivals(arcId);
-    }
-
-    if (this.recentDecisionCategories[0] === event.category) {
-      weight *= 0.7;
-    }
-    if (this.recentDecisionCategories[0] === event.category && this.recentDecisionCategories[1] === event.category) {
-      weight *= 0.55;
-    }
-
-    return weight;
+    return eventWeightForManager(this, event);
   }
 
   private getEventArcId(event: EventTemplate): string | null {
-    return event.requiresArc?.id ?? event.blocksArc?.id ?? null;
+    return getEventArcIdForManager(this, event);
   }
 
   private getArcPressureFromRivals(arcId: string): number {
-    let pressure = 0;
-    for (const rival of this.rivals) {
-      const profile = this.getRivalBehaviorProfile(rival);
-      pressure += profile.arcPressure[arcId] ?? 0;
-    }
-    return clamp(pressure / Math.max(1, this.rivals.length), 0, 0.7);
+    return getArcPressureFromRivalsForManager(this, arcId);
   }
 
   private getEventProjectCandidates(event: EventTemplate): MovieProject[] {
-    if (event.scope !== 'project') return [];
-    if (!event.targetPhases || event.targetPhases.length === 0) {
-      return this.activeProjects.filter((project) => project.phase !== 'released');
-    }
-    return this.activeProjects.filter((project) => event.targetPhases?.includes(project.phase));
+    return getEventProjectCandidatesForManager(this, event);
   }
 
   private chooseProjectForEvent(event: EventTemplate): MovieProject | null {
-    const candidates = this.getEventProjectCandidates(event);
-    if (candidates.length === 0) return null;
-    const ranked = [...candidates].sort((a, b) => b.hypeScore - a.hypeScore);
-    const selectionPool = ranked.slice(0, Math.min(3, ranked.length));
-    const index = Math.floor(this.eventRng() * selectionPool.length);
-    return selectionPool[index] ?? selectionPool[0] ?? null;
+    return chooseProjectForEventForManager(this, event);
   }
 
   private hasStoryFlag(flag: string): boolean {
-    return (this.storyFlags[flag] ?? 0) > 0;
+    return hasStoryFlagForManager(this, flag);
   }
 
   private matchesArcRequirement(input: {
@@ -958,249 +814,27 @@ export class StudioManager {
     maxStage?: number;
     status?: 'active' | 'resolved' | 'failed';
   }): boolean {
-    const arc = this.storyArcs[input.id];
-    if (!arc) return false;
-    if (input.status && arc.status !== input.status) return false;
-    if (typeof input.minStage === 'number' && arc.stage < input.minStage) return false;
-    if (typeof input.maxStage === 'number' && arc.stage > input.maxStage) return false;
-    return true;
+    return matchesArcRequirementForManager(this, input);
   }
 
   private ensureArcState(arcId: string): StoryArcState {
-    if (!this.storyArcs[arcId]) {
-      this.storyArcs[arcId] = {
-        stage: 0,
-        status: 'active',
-        lastUpdatedWeek: this.currentWeek,
-      };
-    }
-    return this.storyArcs[arcId];
+    return ensureArcStateForManager(this, arcId);
   }
 
   private applyArcMutation(arcId: string, option: DecisionItem['options'][number]): void {
-    const arc = this.ensureArcState(arcId);
-    if (typeof option.setArcStage === 'number') {
-      arc.stage = Math.max(0, option.setArcStage);
-    }
-    if (typeof option.advanceArcBy === 'number') {
-      arc.stage = Math.max(0, arc.stage + option.advanceArcBy);
-    }
-    if (option.resolveArc) {
-      arc.status = 'resolved';
-    } else if (option.failArc) {
-      arc.status = 'failed';
-    } else {
-      arc.status = 'active';
-    }
-    arc.lastUpdatedWeek = this.currentWeek;
+    applyArcMutationForManager(this, arcId, option);
   }
 
   private applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {
-    if (setFlag) {
-      this.storyFlags[setFlag] = (this.storyFlags[setFlag] ?? 0) + 1;
-    }
-    if (clearFlag) {
-      delete this.storyFlags[clearFlag];
-    }
+    applyStoryFlagMutationsForManager(this, setFlag, clearFlag);
   }
 
   private getDecisionTargetProject(decision: DecisionItem): MovieProject | null {
-    if (decision.projectId) {
-      return this.activeProjects.find((item) => item.id === decision.projectId) ?? null;
-    }
-    const ranked = this.activeProjects
-      .filter((project) => project.phase !== 'released')
-      .sort((a, b) => b.hypeScore - a.hypeScore);
-    return ranked[0] ?? this.activeProjects[0] ?? null;
+    return getDecisionTargetProjectForManager(this, decision);
   }
 
   private buildOperationalCrisis(project: MovieProject): CrisisEvent {
-    const phaseTemplates: {
-      title: string;
-      body: string;
-      severity: CrisisEvent['severity'];
-      options: CrisisEvent['options'];
-    }[] =
-      project.phase === 'preProduction'
-        ? [
-            {
-              title: 'Location Permit Reversal',
-              body: 'Primary location permits were rescinded. Prep schedule is at risk.',
-              severity: 'orange',
-              options: [
-                {
-                  id: id('c-opt'),
-                  label: 'Pay Fast-Track Permit Counsel',
-                  preview: '-$260K now, keep prep moving.',
-                  cashDelta: -260_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 0,
-                },
-                {
-                  id: id('c-opt'),
-                  label: 'Re-scout Alternate Locations',
-                  preview: 'Lower spend, but schedule slips one week.',
-                  cashDelta: -80_000,
-                  scheduleDelta: 1,
-                  hypeDelta: -1,
-                },
-              ],
-            },
-            {
-              title: 'Department Head Walkout Threat',
-              body: 'A key department requests contract revisions before lock.',
-              severity: 'orange',
-              options: [
-                {
-                  id: id('c-opt'),
-                  label: 'Approve Contract Bump',
-                  preview: '-$220K now, no delay.',
-                  cashDelta: -220_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 0,
-                },
-                {
-                  id: id('c-opt'),
-                  label: 'Re-negotiate Through Delay',
-                  preview: 'Save cash but lose one prep week and confidence.',
-                  cashDelta: -40_000,
-                  scheduleDelta: 1,
-                  hypeDelta: -2,
-                },
-              ],
-            },
-          ]
-        : project.phase === 'postProduction'
-          ? [
-              {
-                title: 'VFX Vendor Capacity Crunch',
-                body: 'Your primary vendor lost capacity to a tentpole competitor.',
-                severity: 'orange',
-                options: [
-                  {
-                    id: id('c-opt'),
-                    label: 'Pay For Priority Lane',
-                    preview: '-$300K now, lock delivery date.',
-                    cashDelta: -300_000,
-                    scheduleDelta: 0,
-                    hypeDelta: 0,
-                  },
-                  {
-                    id: id('c-opt'),
-                    label: 'Delay Final Deliverables',
-                    preview: 'Smaller immediate cost, but post slips by one week.',
-                    cashDelta: -70_000,
-                    scheduleDelta: 1,
-                    hypeDelta: -2,
-                  },
-                ],
-              },
-              {
-                title: 'Score Recording Overrun',
-                body: 'Orchestral sessions are exceeding booked stage time.',
-                severity: 'yellow',
-                options: [
-                  {
-                    id: id('c-opt'),
-                    label: 'Extend Sessions',
-                    preview: '-$180K now, preserve score quality.',
-                    cashDelta: -180_000,
-                    scheduleDelta: 0,
-                    hypeDelta: 1,
-                  },
-                  {
-                    id: id('c-opt'),
-                    label: 'Scale Back Arrangement',
-                    preview: 'Save cash, but lose some polish and buzz.',
-                    cashDelta: -40_000,
-                    scheduleDelta: 0,
-                    hypeDelta: -2,
-                  },
-                ],
-              },
-            ]
-          : [
-              {
-                title: 'Lead Actor Scheduling Conflict',
-                body: 'A hard conflict puts next week shooting at risk.',
-                severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
-                options: [
-                  {
-                    id: id('c-opt'),
-                    label: 'Pay Overtime to Keep Schedule',
-                    preview: '-$450K now, no schedule slip.',
-                    cashDelta: -450_000,
-                    scheduleDelta: 0,
-                    hypeDelta: 0,
-                  },
-                  {
-                    id: id('c-opt'),
-                    label: 'Delay One Week',
-                    preview: 'Save cash, but schedule slips and press chatter starts.',
-                    cashDelta: -50_000,
-                    scheduleDelta: 1,
-                    hypeDelta: -3,
-                  },
-                ],
-              },
-              {
-                title: 'Set Build Failure',
-                body: 'A key practical set failed safety checks before principal photography.',
-                severity: 'orange',
-                options: [
-                  {
-                    id: id('c-opt'),
-                    label: 'Rebuild Immediately',
-                    preview: '-$380K now, schedule protected.',
-                    cashDelta: -380_000,
-                    scheduleDelta: 0,
-                    hypeDelta: 0,
-                  },
-                  {
-                    id: id('c-opt'),
-                    label: 'Rewrite Around Set',
-                    preview: 'Save cash, but lose one week and some excitement.',
-                    cashDelta: -90_000,
-                    scheduleDelta: 1,
-                    hypeDelta: -2,
-                  },
-                ],
-              },
-              {
-                title: 'Second Unit Incident',
-                body: 'A second unit incident pauses action coverage for safety review.',
-                severity: 'red',
-                options: [
-                  {
-                    id: id('c-opt'),
-                    label: 'Bring In Replacement Unit',
-                    preview: '-$520K now to hold momentum.',
-                    cashDelta: -520_000,
-                    scheduleDelta: 0,
-                    hypeDelta: -1,
-                  },
-                  {
-                    id: id('c-opt'),
-                    label: 'Hold For Safety Reset',
-                    preview: 'Lower immediate spend, but lose two shooting weeks.',
-                    cashDelta: -120_000,
-                    scheduleDelta: 2,
-                    hypeDelta: -3,
-                  },
-                ],
-              },
-            ];
-
-    const selected = phaseTemplates[Math.floor(this.crisisRng() * phaseTemplates.length)] ?? phaseTemplates[0];
-    return {
-      id: id('crisis'),
-      projectId: project.id,
-      kind: 'production',
-      title: `${project.title}: ${selected.title}`,
-      severity: selected.severity,
-      body: `${project.title} is affected. ${selected.body}`,
-      options: selected.options,
-    };
+    return buildOperationalCrisisForManager(this, project);
   }
 
   private projectOutcomes(): void {
