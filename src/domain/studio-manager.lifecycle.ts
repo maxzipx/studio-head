@@ -115,7 +115,7 @@ export function acceptDistributionOfferForManager(
 
   project.releaseWindow = offer.releaseWindow;
   project.distributionPartner = offer.partner;
-  project.studioRevenueShare = offer.revenueShareToStudio;
+  project.studioRevenueShare = Math.min(offer.revenueShareToStudio, project.studioRevenueShare);
   if (!project.releaseWeek) {
     project.releaseWeek = manager.currentWeek + 4;
   }

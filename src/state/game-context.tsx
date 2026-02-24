@@ -29,6 +29,8 @@ interface GameContextValue {
   walkAwayOffer: (projectId: string) => void;
   dismissReleaseReveal: (projectId: string) => void;
   runMarketingPush: (projectId: string) => void;
+  runScriptSprint: (projectId: string) => void;
+  runPostPolishPass: (projectId: string) => void;
   abandonProject: (projectId: string) => void;
 }
 
@@ -206,6 +208,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       runMarketingPush: (projectId: string) => {
         runWhenHydrated(() => {
           const result = manager.runMarketingPushOnProject(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runScriptSprint: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runScriptDevelopmentSprint(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runPostPolishPass: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runPostProductionPolishPass(projectId);
           saveAndTick(result.message);
         });
       },

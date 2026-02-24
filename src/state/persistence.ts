@@ -41,6 +41,12 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Array.isArray(manager.pendingReleaseReveals)) manager.pendingReleaseReveals = [];
   if (!Array.isArray(manager.decisionQueue)) manager.decisionQueue = defaults.decisionQueue;
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
+  for (const project of manager.activeProjects) {
+    if (!Number.isFinite(project.editorialScore)) project.editorialScore = 5;
+    project.editorialScore = Math.min(10, Math.max(0, project.editorialScore));
+    if (!Number.isFinite(project.postPolishPasses)) project.postPolishPasses = 0;
+    project.postPolishPasses = Math.min(2, Math.max(0, Math.round(project.postPolishPasses)));
+  }
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
   if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;

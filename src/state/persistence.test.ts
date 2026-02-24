@@ -55,4 +55,18 @@ describe('persistence restore', () => {
     const invalidRestored = restoreStudioManager(invalidSnapshot);
     expect(invalidRestored.turnLengthWeeks).toBe(1);
   });
+
+  it('backfills and normalizes editorial fields on restored projects', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+
+    const firstProject = (snapshot.activeProjects as Record<string, unknown>[])[0];
+    delete firstProject.editorialScore;
+    firstProject.postPolishPasses = 9;
+
+    const restored = restoreStudioManager(snapshot);
+    const project = restored.activeProjects[0];
+    expect(project.editorialScore).toBe(5);
+    expect(project.postPolishPasses).toBe(2);
+  });
 });

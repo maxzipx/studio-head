@@ -336,7 +336,7 @@ describe('StudioManager', () => {
     expect(project!.castIds.includes(lead!.id)).toBe(false);
   });
 
-  it('gates optional action on cash and applies to highest-hype active project', () => {
+  it('gates optional action on cash and applies to lowest-marketing active project', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const [projectA, projectB] = manager.activeProjects;
     expect(projectA).toBeTruthy();
@@ -344,6 +344,8 @@ describe('StudioManager', () => {
 
     projectA.hypeScore = 12;
     projectB.hypeScore = 48;
+    projectA.marketingBudget = 900_000;
+    projectB.marketingBudget = 0;
     const projectBMarketingBefore = projectB.marketingBudget;
     const projectAMarketingBefore = projectA.marketingBudget;
 
@@ -358,6 +360,41 @@ describe('StudioManager', () => {
     expect(success.message).toContain(projectB.title);
     expect(projectB.marketingBudget).toBe(projectBMarketingBefore + 180_000);
     expect(projectA.marketingBudget).toBe(projectAMarketingBefore);
+  });
+
+  it('runs script sprint only in development and caps quality at 8.5', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    expect(project).toBeTruthy();
+
+    manager.cash = 500_000;
+    project!.scriptQuality = 8.3;
+    const first = manager.runScriptDevelopmentSprint(project!.id);
+    const second = manager.runScriptDevelopmentSprint(project!.id);
+
+    expect(first.success).toBe(true);
+    expect(project!.scriptQuality).toBe(8.5);
+    expect(second.success).toBe(false);
+    expect(second.message).toContain('max sprint quality');
+  });
+
+  it('runs post-production polish pass with 2-use cap and editorial ceiling', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'postProduction';
+    project.editorialScore = 5;
+    project.postPolishPasses = 0;
+    manager.cash = 1_000_000;
+
+    const first = manager.runPostProductionPolishPass(project.id);
+    const second = manager.runPostProductionPolishPass(project.id);
+    const third = manager.runPostProductionPolishPass(project.id);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(project.editorialScore).toBe(9);
+    expect(project.postPolishPasses).toBe(2);
+    expect(third.success).toBe(false);
   });
 
   it('enforces phase progression gates and advances when requirements are met', () => {
@@ -603,6 +640,35 @@ describe('StudioManager', () => {
     expect(manager.getOffersForProject(project!.id).length).toBe(0);
   });
 
+  it('preserves backend share reductions when accepting distribution offers', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    const offer = manager.getOffersForProject(project!.id)[0];
+    expect(offer).toBeTruthy();
+    const beforeShare = project!.studioRevenueShare;
+    manager.acceptDistributionOffer(project!.id, offer.id);
+
+    expect(project!.studioRevenueShare).toBe(Math.min(beforeShare, offer.revenueShareToStudio));
+  });
+
   it('prevents release before selected release week', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const project = manager.activeProjects[0];
@@ -764,6 +830,79 @@ describe('StudioManager', () => {
     for (let i = 1; i < board.length; i += 1) {
       expect(board[i - 1].heat).toBeGreaterThanOrEqual(board[i].heat);
     }
+  });
+
+  it('limits prestige rival poaches to directors', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-prestige',
+        name: 'Prestige Test',
+        personality: 'prestigeHunter',
+        studioHeat: 65,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalTalentAcquisitions: (events: string[]) => void }).processRivalTalentAcquisitions(events);
+
+    const lockedId = manager.rivals[0].lockedTalentIds[0];
+    expect(lockedId).toBeTruthy();
+    const lockedTalent = manager.talentPool.find((talent) => talent.id === lockedId);
+    expect(lockedTalent?.role).toBe('director');
+  });
+
+  it('targets player release weeks for blockbuster calendar moves', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-blockbuster',
+        name: 'Blockbuster Test',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWeek = manager.currentWeek + 6;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+
+    expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
+    expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(project.releaseWeek);
+  });
+
+  it('queues streaming output-deal response after release resolution', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-stream',
+        name: 'Stream Rival',
+        personality: 'streamingFirst',
+        studioHeat: 50,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+      },
+    ];
+    const releasedProject = manager.activeProjects[0];
+    releasedProject.phase = 'released';
+    releasedProject.releaseResolved = true;
+
+    const events: string[] = [];
+    (manager as unknown as { checkRivalReleaseResponses: (project: unknown, events: string[]) => void }).checkRivalReleaseResponses(
+      releasedProject,
+      events
+    );
+
+    expect(manager.decisionQueue.some((item) => item.title.includes('Output Deal'))).toBe(true);
   });
 
   it('creates talent poach interrupt when rival closes during player negotiation', () => {

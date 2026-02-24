@@ -33,9 +33,12 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
   for (const rival of manager.rivals) {
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.talentPoachChance) continue;
-    const candidates = manager.talentPool.filter(
+    let candidates = manager.talentPool.filter(
       (talent: Talent) => talent.availability === 'available' || talent.availability === 'inNegotiation'
     );
+    if (rival.personality === 'prestigeHunter') {
+      candidates = candidates.filter((talent: Talent) => talent.role === 'director');
+    }
     if (candidates.length === 0) continue;
 
     const picked = pickTalentForRivalForManager(manager, rival, candidates);
@@ -103,8 +106,12 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.calendarMoveChance) continue;
 
-    const target = playerDistribution[Math.floor(manager.rivalRng() * Math.max(1, playerDistribution.length))];
-    const forceConflict = !!target && manager.rivalRng() < profile.conflictPush;
+    const target =
+      rival.personality === 'blockbusterFactory'
+        ? [...playerDistribution].sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0]
+        : playerDistribution[Math.floor(manager.rivalRng() * Math.max(1, playerDistribution.length))];
+    const forceConflict =
+      !!target && (rival.personality === 'blockbusterFactory' || manager.rivalRng() < profile.conflictPush);
     const week =
       forceConflict && target.releaseWeek ? target.releaseWeek : manager.currentWeek + 2 + Math.floor(manager.rivalRng() * 14);
     const genre: MovieGenre = (
@@ -235,16 +242,21 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
     }
 
     if (rival.personality === 'streamingFirst') {
-      const project = manager.activeProjects.find((item: any) => item.phase === 'distribution');
+      const project = manager.activeProjects
+        .filter((item: any) => item.phase === 'distribution')
+        .sort((a: any, b: any) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
       if (project) {
+        manager.distributionOffers = manager.distributionOffers.filter(
+          (item: any) => !(item.projectId === project.id && item.partner === `${rival.name} Stream+`)
+        );
         manager.distributionOffers.push({
           id: id('deal'),
           projectId: project.id,
           partner: `${rival.name} Stream+`,
           releaseWindow: 'streamingExclusive',
-          minimumGuarantee: project.budget.ceiling * 0.4,
-          pAndACommitment: project.budget.ceiling * 0.05,
-          revenueShareToStudio: 0.66,
+          minimumGuarantee: project.budget.ceiling * 0.46,
+          pAndACommitment: project.budget.ceiling * 0.055,
+          revenueShareToStudio: 0.68,
           projectedOpeningOverride: 0.72,
           counterAttempts: 0,
         });
@@ -253,7 +265,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
         if (!hadFlag) {
           queueRivalCounterplayDecisionForManager(manager, 'streaming_pressure', rival.name, project.id);
         }
-        events.push(`${rival.name} floated an aggressive streaming pre-buy into your distribution stack.`);
+        events.push(`${rival.name} floated an aggressive competing streaming offer into your distribution stack.`);
       }
       continue;
     }
@@ -271,6 +283,114 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
         }
         events.push(`${rival.name} ran a guerrilla social blitz that clipped hype on ${targetProject.title}.`);
       }
+    }
+  }
+}
+
+export function checkRivalReleaseResponsesForManager(manager: any, releasedProject: any, events: string[]): void {
+  const nextDistributionProject = manager.activeProjects
+    .filter((project: any) => project.id !== releasedProject.id && project.phase === 'distribution' && project.releaseWeek !== null)
+    .sort((a: any, b: any) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
+  const nextPipelineProject = manager.activeProjects
+    .filter((project: any) => project.id !== releasedProject.id && project.phase !== 'released')
+    .sort((a: any, b: any) => {
+      const rank = (phase: string): number => {
+        if (phase === 'development') return 0;
+        if (phase === 'preProduction') return 1;
+        if (phase === 'production') return 2;
+        if (phase === 'postProduction') return 3;
+        if (phase === 'distribution') return 4;
+        return 5;
+      };
+      return rank(a.phase) - rank(b.phase);
+    })[0];
+
+  for (const rival of manager.rivals) {
+    if (rival.personality === 'blockbusterFactory') {
+      if (!nextDistributionProject?.releaseWeek) continue;
+      const movedFilm = rival.upcomingReleases.find((film: RivalFilm) => film.releaseWeek >= manager.currentWeek + 1);
+      if (movedFilm) {
+        movedFilm.releaseWeek = nextDistributionProject.releaseWeek;
+      } else {
+        rival.upcomingReleases.unshift({
+          id: id('r-film'),
+          title: `${rival.name.split(' ')[0]} Counterprogrammer`,
+          genre: 'action',
+          releaseWeek: nextDistributionProject.releaseWeek,
+          releaseWindow: 'wideTheatrical',
+          estimatedBudget: 120_000_000 + manager.rivalRng() * 60_000_000,
+          hypeScore: 70 + manager.rivalRng() * 20,
+          finalGross: null,
+          criticalScore: null,
+        });
+      }
+      events.push(`${rival.name} moved its next tentpole into week ${nextDistributionProject.releaseWeek} to pressure your upcoming release.`);
+      continue;
+    }
+
+    if (rival.personality === 'prestigeHunter') {
+      const director = manager.talentPool
+        .filter((talent: Talent) => talent.role === 'director' && (talent.availability === 'available' || talent.availability === 'inNegotiation'))
+        .sort((a: Talent, b: Talent) => b.craftScore - a.craftScore)[0];
+      if (!director) continue;
+      director.availability = 'unavailable';
+      director.unavailableUntilWeek = manager.currentWeek + 10 + Math.floor(manager.rivalRng() * 10);
+      director.attachedProjectId = null;
+      if (!rival.lockedTalentIds.includes(director.id)) {
+        rival.lockedTalentIds.push(director.id);
+      }
+      events.push(`${rival.name} responded by poaching director ${director.name} into a prestige package.`);
+      continue;
+    }
+
+    if (rival.personality === 'streamingFirst') {
+      if (!nextPipelineProject) continue;
+      const title = `Counterplay: ${rival.name} Output Deal (${nextPipelineProject.title})`;
+      if (manager.decisionQueue.length < 5 && !manager.decisionQueue.some((item: any) => item.title === title)) {
+        manager.decisionQueue.push({
+          id: id('decision'),
+          projectId: nextPipelineProject.id,
+          category: 'finance',
+          title,
+          body: `${rival.name} offered a streaming-first output deal for ${nextPipelineProject.title}.`,
+          weeksUntilExpiry: 1,
+          options: [
+            {
+              id: id('opt'),
+              label: 'Accept Output Deal',
+              preview: 'Immediate cash and marketing support, with lower theatrical upside.',
+              cashDelta: 320_000,
+              scriptQualityDelta: 0,
+              hypeDelta: 1,
+              marketingDelta: 180_000,
+              studioHeatDelta: -1,
+            },
+            {
+              id: id('opt'),
+              label: 'Decline Deal',
+              preview: 'Keep flexibility and hold for stronger distribution leverage.',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+              studioHeatDelta: 1,
+            },
+          ],
+        });
+        events.push(`${rival.name} put a streaming output deal on your next project.`);
+      }
+      continue;
+    }
+
+    if (rival.personality === 'scrappyUpstart') {
+      const targetProject =
+        nextPipelineProject ??
+        manager.activeProjects
+          .filter((project: any) => project.id !== releasedProject.id)
+          .sort((a: any, b: any) => b.hypeScore - a.hypeScore)[0];
+      if (!targetProject) continue;
+      targetProject.hypeScore = clamp(targetProject.hypeScore - 3, 0, 100);
+      manager.studioHeat = clamp(manager.studioHeat - 1, 0, 100);
+      events.push(`${rival.name} launched a counter-campaign against ${targetProject.title}. Hype -3.`);
     }
   }
 }

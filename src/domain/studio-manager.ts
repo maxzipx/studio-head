@@ -45,6 +45,7 @@ import {
   walkAwayDistributionForManager,
 } from './studio-manager.lifecycle';
 import {
+  checkRivalReleaseResponsesForManager,
   getRivalBehaviorProfileForManager,
   pickTalentForRivalForManager,
   processRivalCalendarMovesForManager,
@@ -318,7 +319,10 @@ export class StudioManager {
   runOptionalAction(): { success: boolean; message: string } {
     const project = this.activeProjects
       .filter((item) => item.phase !== 'released')
-      .sort((a, b) => b.hypeScore - a.hypeScore)[0];
+      .sort((a, b) => {
+        if (a.marketingBudget === b.marketingBudget) return b.hypeScore - a.hypeScore;
+        return a.marketingBudget - b.marketingBudget;
+      })[0];
     if (!project) return { success: false, message: 'No active project available for optional action.' };
     if (this.cash < 180_000) return { success: false, message: 'Insufficient cash for optional campaign action.' };
 
@@ -342,6 +346,43 @@ export class StudioManager {
     project.marketingBudget += 180_000;
     this.cash -= 180_000;
     return { success: true, message: `Marketing push on ${project.title}. Hype +5, marketing +$180K.` };
+  }
+
+  runScriptDevelopmentSprint(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'development') {
+      return { success: false, message: 'Script sprint is only available during development.' };
+    }
+    if (project.scriptQuality >= 8.5) {
+      return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
+    }
+    if (this.cash < 100_000) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
+    this.cash -= 100_000;
+    project.scriptQuality = clamp(project.scriptQuality + 0.5, 0, 8.5);
+    return {
+      success: true,
+      message: `Script sprint on ${project.title}. Script quality now ${project.scriptQuality.toFixed(1)}.`,
+    };
+  }
+
+  runPostProductionPolishPass(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'postProduction') {
+      return { success: false, message: 'Polish pass is only available during post-production.' };
+    }
+    if ((project.postPolishPasses ?? 0) >= 2 || project.editorialScore >= 9) {
+      return { success: false, message: `${project.title} has no polish passes remaining.` };
+    }
+    if (this.cash < 120_000) return { success: false, message: 'Insufficient cash for polish pass ($120K needed).' };
+    this.cash -= 120_000;
+    project.postPolishPasses = Math.min(2, (project.postPolishPasses ?? 0) + 1);
+    project.editorialScore = clamp(project.editorialScore + 2, 0, 9);
+    return {
+      success: true,
+      message: `Polish pass on ${project.title}. Editorial score now ${project.editorialScore.toFixed(1)}.`,
+    };
   }
 
   abandonProject(projectId: string): { success: boolean; message: string } {
@@ -409,6 +450,8 @@ export class StudioManager {
       },
       scriptQuality: pitch.scriptQuality,
       conceptStrength: pitch.conceptStrength,
+      editorialScore: 5,
+      postPolishPasses: 0,
       directorId: null,
       castIds: [],
       productionStatus: 'onTrack',
@@ -634,7 +677,7 @@ export class StudioManager {
       leadActorCraft: lead?.craftScore ?? 6,
       productionSpend: project.budget.actualSpend,
       conceptStrength: project.conceptStrength,
-      editorialCutChoice: 5,
+      editorialCutChoice: project.editorialScore,
       crisisPenalty: project.productionStatus === 'inCrisis' ? 8 : 0,
       chemistryPenalty: 0,
     });
@@ -817,6 +860,7 @@ export class StudioManager {
         events.push(
           `${project.title} completed theatrical run. Heat ${adjustedHeatDelta >= 0 ? '+' : ''}${adjustedHeatDelta.toFixed(0)}.`
         );
+        this.checkRivalReleaseResponses(project, events);
       }
     }
   }
@@ -843,6 +887,10 @@ export class StudioManager {
 
   private processRivalSignatureMoves(events: string[]): void {
     processRivalSignatureMovesForManager(this, events);
+  }
+
+  private checkRivalReleaseResponses(project: MovieProject, events: string[]): void {
+    checkRivalReleaseResponsesForManager(this, project, events);
   }
 
   private queueRivalCounterplayDecision(flag: string, rivalName: string, projectId?: string): void {
@@ -1036,7 +1084,7 @@ export class StudioManager {
     this.cash -= retainer;
     project.budget.actualSpend += retainer * 0.35;
     const backendPoints = normalizedTerms.backendPoints;
-    project.studioRevenueShare = clamp(project.studioRevenueShare - backendPoints * 0.002, 0.35, 0.8);
+    project.studioRevenueShare = clamp(project.studioRevenueShare - backendPoints * 0.004, 0.35, 0.8);
     talent.availability = 'attached';
     talent.unavailableUntilWeek = null;
     talent.attachedProjectId = project.id;

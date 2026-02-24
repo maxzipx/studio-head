@@ -177,6 +177,8 @@ export interface MovieProject {
   budget: BudgetObject;
   scriptQuality: number;
   conceptStrength: number;
+  editorialScore: number;
+  postPolishPasses: number;
   directorId: string | null;
   castIds: string[];
   productionStatus: ProductionHealth;

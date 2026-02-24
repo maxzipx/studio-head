@@ -48,7 +48,7 @@ function advanceBlockers(project: {
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const projectId = resolveParam(id);
-  const { manager, lastMessage, advancePhase, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, runMarketingPush, abandonProject } = useGame();
+  const { manager, lastMessage, advancePhase, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, runMarketingPush, runScriptSprint, runPostPolishPass, abandonProject } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
 
@@ -79,6 +79,8 @@ export default function ProjectDetailScreen() {
   const offers = manager.getOffersForProject(project.id);
   const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
   const canPush = project.phase !== 'released' && manager.cash >= 180_000;
+  const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
+  const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -94,10 +96,24 @@ export default function ProjectDetailScreen() {
         <Text style={styles.body}>
           Hype {project.hypeScore.toFixed(0)} | Script {project.scriptQuality.toFixed(1)}{project.phase === 'development' ? ' (min 6.0 to greenlight)' : ''} | Concept {project.conceptStrength.toFixed(1)} (drives critic score)
         </Text>
+        <Text style={styles.body}>Editorial score: {project.editorialScore.toFixed(1)} / 10</Text>
         {project.scheduledWeeksRemaining > 0 ? (
           <Text style={styles.body}>Weeks remaining in phase: {project.scheduledWeeksRemaining}</Text>
         ) : null}
       </View>
+
+      {project.phase === 'development' ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Script Development</Text>
+          <Text style={styles.body}>Script quality: {project.scriptQuality.toFixed(1)} / 8.5 sprint cap</Text>
+          <Pressable
+            style={[styles.button, !canScriptSprint ? styles.buttonDisabled : null]}
+            disabled={!canScriptSprint}
+            onPress={() => runScriptSprint(project.id)}>
+            <Text style={styles.buttonText}>Script Sprint $100K (+0.5 quality, max 8.5)</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Attachments</Text>
@@ -162,6 +178,7 @@ export default function ProjectDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Marketing</Text>
           <Text style={styles.body}>Budget: {money(project.marketingBudget)}</Text>
+          <Text style={styles.body}>Polish passes used: {project.postPolishPasses ?? 0} / 2</Text>
           {project.marketingBudget <= 0 ? (
             <Text style={styles.warning}>Marketing budget required before entering distribution.</Text>
           ) : null}
@@ -170,6 +187,12 @@ export default function ProjectDetailScreen() {
             disabled={!canPush}
             onPress={() => runMarketingPush(project.id)}>
             <Text style={styles.buttonText}>Marketing Push $180K (+$180K budget, +5 hype)</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.button, !canPolishPass ? styles.buttonDisabled : null]}
+            disabled={!canPolishPass}
+            onPress={() => runPostPolishPass(project.id)}>
+            <Text style={styles.buttonText}>Polish Pass $120K (+2 editorial, max 9, 2 uses)</Text>
           </Pressable>
         </View>
       ) : null}

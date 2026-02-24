@@ -176,7 +176,7 @@ export default function TalentScreen() {
           talent.availability === 'unavailable' && rival
             ? `In Production - ${rival.name} (returns W${talent.unavailableUntilWeek ?? '-'})`
             : talent.availability;
-        const topFit = Object.entries(talent.genreFit).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
+        const projectFit = activeProject ? talent.genreFit[activeProject.genre] ?? 0.5 : null;
         return (
           <View key={talent.id} style={styles.card}>
             <Text style={styles.cardTitle}>{talent.name}</Text>
@@ -186,9 +186,7 @@ export default function TalentScreen() {
             <Text style={styles.muted}>Status: {status}</Text>
             <Text style={styles.muted}>Agent: {talent.agentTier.toUpperCase()} | Ego {talent.egoLevel.toFixed(1)}</Text>
             <Text style={styles.muted}>Relationship: {talent.studioRelationship.toFixed(2)} | Reputation: {talent.reputation.toFixed(1)}</Text>
-            <Text style={styles.muted}>
-              Best fit: {topFit ? `${topFit[0]} (${pct(topFit[1] ?? 0)})` : 'Generalist'}
-            </Text>
+            {activeProject ? <Text style={styles.muted}>Fit to {activeProject.title}: {pct(projectFit ?? 0)}</Text> : null}
             {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
             {activeProject && talent.availability === 'available' ? (
               <View style={styles.actions}>
