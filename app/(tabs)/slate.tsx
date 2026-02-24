@@ -207,7 +207,7 @@ export default function SlateScreen() {
                 </View>
               ))}
               {offers.length === 0 ? (
-                <Text style={styles.muted}>No offers right now. New offers can regenerate on End Week.</Text>
+                <Text style={styles.muted}>No offers right now. New offers can regenerate on End Turn.</Text>
               ) : null}
               {offers.length > 0 ? (
                 <Pressable style={styles.walkButton} onPress={() => walkAwayOffer(project.id)}>

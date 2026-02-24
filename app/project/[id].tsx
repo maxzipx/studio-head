@@ -111,7 +111,7 @@ export default function ProjectDetailScreen() {
           Spend {money(project.budget.actualSpend)} / {money(project.budget.ceiling)} ({burnPct.toFixed(1)}%)
         </Text>
         {project.budget.overrunRisk > 0.2 ? (
-          <Text style={styles.warning}>Overrun risk: {pct(project.budget.overrunRisk)} — may add unplanned spend during production</Text>
+          <Text style={styles.warning}>Overrun risk: {pct(project.budget.overrunRisk)} - may add unplanned spend during production</Text>
         ) : null}
       </View>
 
@@ -132,7 +132,7 @@ export default function ProjectDetailScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Projection — what if release slips?</Text>
+        <Text style={styles.sectionLabel}>Projection - what if release slips?</Text>
         <Text style={styles.body}>Scenario week: {projectionWeek}</Text>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value - 1)}>
@@ -149,7 +149,7 @@ export default function ProjectDetailScreen() {
           <>
             <Text style={styles.body}>Critic forecast: {projection.critical.toFixed(0)}</Text>
             <Text style={styles.body}>
-              Opening: {money(projection.openingLow)} – {money(projection.openingHigh)}
+              Opening: {money(projection.openingLow)} - {money(projection.openingHigh)}
             </Text>
             <Text style={styles.body}>ROI forecast: {projection.roi.toFixed(2)}x</Text>
           </>
@@ -222,7 +222,7 @@ export default function ProjectDetailScreen() {
             </Pressable>
           </View>
         ) : (
-          <Text style={styles.muted}>No active distribution offers. End Week to refresh offer flow if no window is selected.</Text>
+          <Text style={styles.muted}>No active distribution offers. End Turn to refresh offer flow if no window is selected.</Text>
         )}
       </View>
 
@@ -232,7 +232,7 @@ export default function ProjectDetailScreen() {
           {blockers.length > 0 ? (
             blockers.map((b) => (
               <Text key={b} style={styles.blocker}>
-                • {b}
+                - {b}
               </Text>
             ))
           ) : (
@@ -242,7 +242,7 @@ export default function ProjectDetailScreen() {
             style={[styles.advanceButton, blockers.length > 0 ? styles.advanceButtonBlocked : null]}
             disabled={blockers.length > 0}
             onPress={() => advancePhase(project.id)}>
-            <Text style={styles.advanceButtonText}>Advance Phase →</Text>
+            <Text style={styles.advanceButtonText}>{'Advance Phase ->'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -263,7 +263,7 @@ export default function ProjectDetailScreen() {
           {confirmAbandon ? (
             <>
               <Text style={styles.abandonWarning}>
-                Abandon {project.title}? Costs 20% of actual spend ({money(Math.round(project.budget.actualSpend * 0.2))}) as a write-down and −4 studio heat. This cannot be undone.
+                Abandon {project.title}? Costs 20% of actual spend ({money(Math.round(project.budget.actualSpend * 0.2))}) as a write-down and -4 studio heat. This cannot be undone.
               </Text>
               <View style={styles.actions}>
                 <Pressable style={styles.walkButton} onPress={() => { setConfirmAbandon(false); abandonProject(project.id); }}>

@@ -22,7 +22,7 @@ const ARC_LABELS: Record<string, string> = {
 };
 
 export default function HQScreen() {
-  const { manager, dismissReleaseReveal, endWeek, resolveCrisis, resolveDecision, runOptionalAction, renameStudio, lastMessage } =
+  const { manager, dismissReleaseReveal, endWeek, setTurnLength, resolveCrisis, resolveDecision, runOptionalAction, renameStudio, lastMessage } =
     useGame();
   const reveal = manager.getNextReleaseReveal();
   const leaderboard = manager.getIndustryHeatLeaderboard();
@@ -95,7 +95,26 @@ export default function HQScreen() {
         <Text style={styles.body}>Crises: {manager.pendingCrises.length}</Text>
         <Text style={styles.body}>Inbox Items: {manager.decisionQueue.length}</Text>
         <Text style={styles.body}>Active Projects: {manager.activeProjects.length}</Text>
-        {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Week.</Text> : null}
+        {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text> : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Turn Length</Text>
+        <Text style={styles.mutedBody}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
+        <View style={styles.actionsRow}>
+          <Pressable
+            style={[styles.choiceButton, styles.turnChoiceButton, manager.turnLengthWeeks === 1 ? styles.choiceButtonActive : null]}
+            onPress={() => setTurnLength(1)}>
+            <Text style={styles.choiceTitle}>1 Week</Text>
+            <Text style={styles.choiceBody}>Safer pacing, more control</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.choiceButton, styles.turnChoiceButton, manager.turnLengthWeeks === 2 ? styles.choiceButtonActive : null]}
+            onPress={() => setTurnLength(2)}>
+            <Text style={styles.choiceTitle}>2 Weeks</Text>
+            <Text style={styles.choiceBody}>Faster flow, bigger swings</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -217,7 +236,9 @@ export default function HQScreen() {
         style={[styles.primaryButton, !manager.canEndWeek ? styles.disabledButton : null]}
         disabled={!manager.canEndWeek}
         onPress={endWeek}>
-        <Text style={styles.primaryButtonText}>{manager.canEndWeek ? 'End Week' : 'Resolve Crisis First'}</Text>
+        <Text style={styles.primaryButtonText}>
+          {manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
+        </Text>
       </Pressable>
 
       <Modal
@@ -404,6 +425,13 @@ const styles = StyleSheet.create({
     padding: 9,
     gap: 3,
   },
+  turnChoiceButton: {
+    flex: 1,
+  },
+  choiceButtonActive: {
+    borderColor: tokens.accentGold,
+    backgroundColor: '#3B2E14',
+  },
   choiceTitle: {
     color: tokens.textPrimary,
     fontSize: 13,
@@ -417,6 +445,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
   playerRow: {
     color: tokens.accentGold,

@@ -80,7 +80,7 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
       return { success: false, message: 'Select a distribution deal first.' };
     }
     if (project.releaseWeek && manager.currentWeek < project.releaseWeek) {
-      return { success: false, message: `${project.title} is scheduled for week ${project.releaseWeek}. End Week to reach release.` };
+      return { success: false, message: `${project.title} is scheduled for week ${project.releaseWeek}. End Turn to reach release.` };
     }
     const projection = manager.getProjectedForProject(project.id);
     if (!projection) return { success: false, message: 'Projection unavailable.' };
@@ -158,7 +158,7 @@ export function walkAwayDistributionForManager(manager: any, projectId: string):
   manager.studioHeat = clamp(manager.studioHeat - 2, 0, 100);
   return {
     success: true,
-    message: `Walked away from ${removed} offer(s). Studio heat -2. Fresh offers can regenerate next End Week if no window is selected.`,
+    message: `Walked away from ${removed} offer(s). Studio heat -2. Fresh offers can regenerate next End Turn if no window is selected.`,
   };
 }
 

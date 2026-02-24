@@ -44,7 +44,7 @@ export default function ScriptRoomScreen() {
                     {talent?.name ?? 'Talent'} for {project?.title ?? 'Project'}
                   </Text>
                   <Text style={styles.muted}>
-                    Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
+                    Opened week {entry.openedWeek} | resolves on next End Turn | close chance {chance !== null ? pct(chance) : '--'}
                   </Text>
                   {snapshot ? (
                     <>

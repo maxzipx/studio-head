@@ -25,7 +25,7 @@ export default function FinancialsScreen() {
       <View style={styles.card}>
         <Text style={styles.label}>Update Cadence</Text>
         <Text style={styles.muted}>
-          Cash and spend move instantly when you act. Weekly delta and most projections settle when you tap End Week.
+          Cash and spend move instantly when you act. Weekly delta and most projections settle when you tap End Turn.
         </Text>
       </View>
 

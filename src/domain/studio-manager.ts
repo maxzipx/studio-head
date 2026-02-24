@@ -167,6 +167,7 @@ export class StudioManager {
   cash = 50_000_000;
   studioHeat = 12;
   currentWeek = 1;
+  turnLengthWeeks: 1 | 2 = 1;
   pendingCrises: CrisisEvent[] = [];
   distributionOffers: DistributionOffer[] = [];
   pendingReleaseReveals: string[] = [];
@@ -196,6 +197,15 @@ export class StudioManager {
 
   get canEndWeek(): boolean {
     return this.pendingCrises.length === 0;
+  }
+
+  setTurnLengthWeeks(weeks: number): { success: boolean; message: string } {
+    const normalized = Math.round(weeks);
+    if (normalized !== 1 && normalized !== 2) {
+      return { success: false, message: 'Turn length must be 1 or 2 weeks.' };
+    }
+    this.turnLengthWeeks = normalized;
+    return { success: true, message: `Turn length set to ${normalized} week${normalized === 1 ? '' : 's'}.` };
   }
 
   setStudioName(name: string): { success: boolean; message: string } {
@@ -545,6 +555,35 @@ export class StudioManager {
       week: this.currentWeek,
       cashDelta: this.cash - cashBefore,
       events: events.length > 0 ? events : ['Stable week. No major surprises.'],
+      hasPendingCrises: this.pendingCrises.length > 0,
+      decisionQueueCount: this.decisionQueue.length,
+    };
+    this.lastWeekSummary = summary;
+    return summary;
+  }
+
+  endTurn(): WeekSummary {
+    if (!this.canEndWeek) {
+      throw new Error('Resolve all crises before ending the week.');
+    }
+
+    const targetWeeks = this.turnLengthWeeks;
+    const cashBefore = this.cash;
+    const combinedEvents: string[] = [];
+
+    for (let step = 0; step < targetWeeks; step += 1) {
+      if (!this.canEndWeek) {
+        combinedEvents.push('Turn paused: resolve crisis before advancing further.');
+        break;
+      }
+      const weekly = this.endWeek();
+      combinedEvents.push(...weekly.events);
+    }
+
+    const summary: WeekSummary = {
+      week: this.currentWeek,
+      cashDelta: this.cash - cashBefore,
+      events: combinedEvents.length > 0 ? combinedEvents : ['Stable week. No major surprises.'],
       hasPendingCrises: this.pendingCrises.length > 0,
       decisionQueueCount: this.decisionQueue.length,
     };

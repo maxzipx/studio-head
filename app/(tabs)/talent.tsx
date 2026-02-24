@@ -123,8 +123,8 @@ export default function TalentScreen() {
                 {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'}
               </Text>
               <Text style={styles.muted}>
-                Opened week {entry.openedWeek} | resolves on next End Week | close chance{' '}
-                {chance !== null ? `${pct(chance)} — ${chanceLabel(chance)}` : '--'}
+                Opened week {entry.openedWeek} | resolves on next End Turn | close chance{' '}
+                {chance !== null ? `${pct(chance)} - ${chanceLabel(chance)}` : '--'}
               </Text>
               {snapshot ? (
                 <>

@@ -32,6 +32,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     manager.currentWeek = defaults.currentWeek;
   }
   manager.currentWeek = Math.max(1, Math.round(manager.currentWeek));
+  if (manager.turnLengthWeeks !== 1 && manager.turnLengthWeeks !== 2) {
+    manager.turnLengthWeeks = defaults.turnLengthWeeks;
+  }
 
   if (!Array.isArray(manager.pendingCrises)) manager.pendingCrises = [];
   if (!Array.isArray(manager.distributionOffers)) manager.distributionOffers = [];

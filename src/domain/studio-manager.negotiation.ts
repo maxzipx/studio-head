@@ -92,7 +92,7 @@ export function adjustTalentNegotiationForManager(
   const normalized = manager.normalizeNegotiation(negotiation, talent);
   const rounds = normalized.rounds ?? 0;
   if (rounds >= 4) {
-    return { success: false, message: `Negotiation with ${talent.name} is out of rounds. Resolve it at End Week.` };
+    return { success: false, message: `Negotiation with ${talent.name} is out of rounds. Resolve it at End Turn.` };
   }
 
   if (action === 'sweetenSalary') {
@@ -165,7 +165,7 @@ export function startTalentNegotiationForManager(
     success: true,
     message: `Opened negotiation with ${talent.name}. Package starts at salary 1.00x, backend ${talent.salary.backendPoints.toFixed(
       1
-    )}, perks ${Math.round(talent.salary.perksCost / 1000)}K. Close chance ${Math.round(chance * 100)}% at next End Week.`,
+    )}, perks ${Math.round(talent.salary.perksCost / 1000)}K. Close chance ${Math.round(chance * 100)}% at next End Turn.`,
   };
 }
 

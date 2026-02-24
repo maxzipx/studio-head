@@ -8,6 +8,7 @@ interface GameContextValue {
   tick: number;
   lastMessage: string | null;
   endWeek: () => void;
+  setTurnLength: (weeks: 1 | 2) => void;
   resolveCrisis: (crisisId: string, optionId: string) => void;
   resolveDecision: (decisionId: string, optionId: string) => void;
   runOptionalAction: () => void;
@@ -93,8 +94,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       lastMessage,
       endWeek: () => {
         runWhenHydrated(() => {
-          manager.endWeek();
-          saveAndTick('Week advanced.');
+          const startWeek = manager.currentWeek;
+          const summary = manager.endTurn();
+          const advanced = summary.week - startWeek;
+          const paused = summary.hasPendingCrises && advanced < manager.turnLengthWeeks;
+          saveAndTick(
+            `Turn advanced ${advanced} week${advanced === 1 ? '' : 's'}.${paused ? ' Paused by a blocking crisis.' : ''}`
+          );
+        });
+      },
+      setTurnLength: (weeks: 1 | 2) => {
+        runWhenHydrated(() => {
+          const result = manager.setTurnLengthWeeks(weeks);
+          saveAndTick(result.message);
         });
       },
       resolveCrisis: (crisisId: string, optionId: string) => {
