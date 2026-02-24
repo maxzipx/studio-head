@@ -18,11 +18,39 @@ function resolveParam(value: string | string[] | undefined): string {
   return value ?? '';
 }
 
+function advanceBlockers(project: {
+  phase: string;
+  directorId: string | null;
+  castIds: string[];
+  scriptQuality: number;
+  scheduledWeeksRemaining: number;
+  marketingBudget: number;
+  releaseWindow: string | null;
+  releaseWeek: number | null;
+}, currentWeek: number, crisisCount: number): string[] {
+  const blockers: string[] = [];
+  if (project.phase === 'development') {
+    if (!project.directorId) blockers.push('Director not attached');
+    if (project.castIds.length < 1) blockers.push('No lead actor attached');
+    if (project.scriptQuality < 6) blockers.push(`Script quality too low (${project.scriptQuality.toFixed(1)} / min 6.0)`);
+  } else if (project.phase === 'preProduction' || project.phase === 'production' || project.phase === 'postProduction') {
+    if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w remaining in phase`);
+    if (project.phase === 'production' && crisisCount > 0) blockers.push(`${crisisCount} unresolved crisis`);
+    if (project.phase === 'postProduction' && project.marketingBudget <= 0) blockers.push('Marketing budget required (use push below)');
+  } else if (project.phase === 'distribution') {
+    if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w setup remaining`);
+    if (!project.releaseWindow) blockers.push('Distribution deal not selected');
+    if (project.releaseWeek && currentWeek < project.releaseWeek) blockers.push(`Release date is week ${project.releaseWeek} (now week ${currentWeek})`);
+  }
+  return blockers;
+}
+
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const projectId = resolveParam(id);
-  const { manager, lastMessage, advancePhase, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer } = useGame();
+  const { manager, lastMessage, advancePhase, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, runMarketingPush, abandonProject } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
 
   const project = manager.activeProjects.find((item) => item.id === projectId) ?? null;
   const projectionWeek = useMemo(() => {
@@ -49,6 +77,8 @@ export default function ProjectDetailScreen() {
   const projectCrises = manager.pendingCrises.filter((crisis) => crisis.projectId === project.id);
   const projectDecisions = manager.decisionQueue.filter((decision) => decision.projectId === project.id);
   const offers = manager.getOffersForProject(project.id);
+  const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
+  const canPush = project.phase !== 'released' && manager.cash >= 180_000;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -62,9 +92,11 @@ export default function ProjectDetailScreen() {
         <Text style={styles.sectionLabel}>Project State</Text>
         <Text style={styles.body}>Status: {project.productionStatus}</Text>
         <Text style={styles.body}>
-          Hype {project.hypeScore.toFixed(0)} | Script {project.scriptQuality.toFixed(1)} | Concept {project.conceptStrength.toFixed(1)}
+          Hype {project.hypeScore.toFixed(0)} | Script {project.scriptQuality.toFixed(1)}{project.phase === 'development' ? ' (min 6.0 to greenlight)' : ''} | Concept {project.conceptStrength.toFixed(1)} (drives critic score)
         </Text>
-        <Text style={styles.body}>Weeks Remaining in Phase: {project.scheduledWeeksRemaining}</Text>
+        {project.scheduledWeeksRemaining > 0 ? (
+          <Text style={styles.body}>Weeks remaining in phase: {project.scheduledWeeksRemaining}</Text>
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -78,10 +110,9 @@ export default function ProjectDetailScreen() {
         <Text style={styles.body}>
           Spend {money(project.budget.actualSpend)} / {money(project.budget.ceiling)} ({burnPct.toFixed(1)}%)
         </Text>
-        <Text style={styles.muted}>Above-the-line: {money(project.budget.aboveTheLine)}</Text>
-        <Text style={styles.muted}>Below-the-line: {money(project.budget.belowTheLine)}</Text>
-        <Text style={styles.muted}>Post: {money(project.budget.postProduction)} | Contingency: {money(project.budget.contingency)}</Text>
-        <Text style={styles.muted}>Overrun risk: {pct(project.budget.overrunRisk)}</Text>
+        {project.budget.overrunRisk > 0.2 ? (
+          <Text style={styles.warning}>Overrun risk: {pct(project.budget.overrunRisk)} — may add unplanned spend during production</Text>
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -101,14 +132,14 @@ export default function ProjectDetailScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Projection</Text>
+        <Text style={styles.sectionLabel}>Projection — what if release slips?</Text>
         <Text style={styles.body}>Scenario week: {projectionWeek}</Text>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value - 1)}>
-            <Text style={styles.buttonText}>Scenario -1w</Text>
+            <Text style={styles.buttonText}>-1w</Text>
           </Pressable>
           <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value + 1)}>
-            <Text style={styles.buttonText}>Scenario +1w</Text>
+            <Text style={styles.buttonText}>+1w</Text>
           </Pressable>
           <Pressable style={styles.button} onPress={() => setProjectionWeekShift(0)}>
             <Text style={styles.buttonText}>Reset</Text>
@@ -118,7 +149,7 @@ export default function ProjectDetailScreen() {
           <>
             <Text style={styles.body}>Critic forecast: {projection.critical.toFixed(0)}</Text>
             <Text style={styles.body}>
-              Opening: {money(projection.openingLow)} - {money(projection.openingHigh)}
+              Opening: {money(projection.openingLow)} – {money(projection.openingHigh)}
             </Text>
             <Text style={styles.body}>ROI forecast: {projection.roi.toFixed(2)}x</Text>
           </>
@@ -126,6 +157,22 @@ export default function ProjectDetailScreen() {
           <Text style={styles.muted}>Projection unavailable right now.</Text>
         )}
       </View>
+
+      {project.phase === 'postProduction' ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Marketing</Text>
+          <Text style={styles.body}>Budget: {money(project.marketingBudget)}</Text>
+          {project.marketingBudget <= 0 ? (
+            <Text style={styles.warning}>Marketing budget required before entering distribution.</Text>
+          ) : null}
+          <Pressable
+            style={[styles.button, !canPush ? styles.buttonDisabled : null]}
+            disabled={!canPush}
+            onPress={() => runMarketingPush(project.id)}>
+            <Text style={styles.buttonText}>Marketing Push $180K (+$180K budget, +5 hype)</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Release Plan</Text>
@@ -179,9 +226,26 @@ export default function ProjectDetailScreen() {
         )}
       </View>
 
-      <Pressable style={styles.advanceButton} onPress={() => advancePhase(project.id)}>
-        <Text style={styles.advanceButtonText}>Advance Phase</Text>
-      </Pressable>
+      {project.phase !== 'released' ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Advance Phase</Text>
+          {blockers.length > 0 ? (
+            blockers.map((b) => (
+              <Text key={b} style={styles.blocker}>
+                • {b}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.readyText}>Ready to advance</Text>
+          )}
+          <Pressable
+            style={[styles.advanceButton, blockers.length > 0 ? styles.advanceButtonBlocked : null]}
+            disabled={blockers.length > 0}
+            onPress={() => advancePhase(project.id)}>
+            <Text style={styles.advanceButtonText}>Advance Phase →</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {project.phase === 'released' ? (
         <View style={styles.card}>
@@ -191,6 +255,30 @@ export default function ProjectDetailScreen() {
           <Text style={styles.body}>Critics: {project.criticalScore?.toFixed(0) ?? '--'}</Text>
           <Text style={styles.body}>Audience: {project.audienceScore?.toFixed(0) ?? '--'}</Text>
           <Text style={styles.body}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
+        </View>
+      ) : null}
+
+      {project.phase !== 'released' ? (
+        <View style={styles.abandonWrap}>
+          {confirmAbandon ? (
+            <>
+              <Text style={styles.abandonWarning}>
+                Abandon {project.title}? Costs 20% of actual spend ({money(Math.round(project.budget.actualSpend * 0.2))}) as a write-down and −4 studio heat. This cannot be undone.
+              </Text>
+              <View style={styles.actions}>
+                <Pressable style={styles.walkButton} onPress={() => { setConfirmAbandon(false); abandonProject(project.id); }}>
+                  <Text style={styles.walkButtonText}>Confirm Abandon</Text>
+                </Pressable>
+                <Pressable style={styles.button} onPress={() => setConfirmAbandon(false)}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Pressable style={styles.abandonButton} onPress={() => setConfirmAbandon(true)}>
+              <Text style={styles.abandonButtonText}>Abandon Project</Text>
+            </Pressable>
+          )}
         </View>
       ) : null}
     </ScrollView>
@@ -221,6 +309,9 @@ const styles = StyleSheet.create({
   body: { color: tokens.textSecondary, fontSize: 14 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 14, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
+  warning: { color: tokens.accentGold, fontSize: 12 },
+  blocker: { color: tokens.accentGold, fontSize: 13 },
+  readyText: { color: tokens.accentTeal, fontSize: 13 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
   button: {
     borderRadius: 10,
@@ -250,14 +341,30 @@ const styles = StyleSheet.create({
   },
   walkButtonText: { color: tokens.accentRed, fontWeight: '700', fontSize: 12 },
   advanceButton: {
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: tokens.accentGold,
     backgroundColor: '#6A5222',
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
+    marginTop: 4,
+  },
+  advanceButtonBlocked: {
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    opacity: 0.6,
   },
   advanceButtonText: { color: tokens.textPrimary, fontSize: 14, fontWeight: '700' },
+  abandonWrap: { gap: 8 },
+  abandonButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  abandonButtonText: { color: tokens.textMuted, fontSize: 12 },
+  abandonWarning: { color: tokens.accentGold, fontSize: 13 },
   emptyWrap: {
     flex: 1,
     backgroundColor: tokens.bgPrimary,

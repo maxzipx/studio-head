@@ -8,6 +8,16 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function chanceLabel(value: number): string {
+  if (value >= 0.75) return 'Likely';
+  if (value >= 0.5) return 'Even Odds';
+  return 'Long Shot';
+}
+
+function capitalized(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function roleLabel(value: string): string {
   return value === 'leadActor' ? 'Lead Actor' : value === 'supportingActor' ? 'Supporting Actor' : value;
 }
@@ -113,12 +123,13 @@ export default function TalentScreen() {
                 {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'}
               </Text>
               <Text style={styles.muted}>
-                Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
+                Opened week {entry.openedWeek} | resolves on next End Week | close chance{' '}
+                {chance !== null ? `${pct(chance)} — ${chanceLabel(chance)}` : '--'}
               </Text>
               {snapshot ? (
                 <>
                   <Text style={styles.muted}>
-                    Rounds: {snapshot.rounds}/4 ({snapshot.roundsRemaining} left) | Pressure point: {snapshot.pressurePoint}
+                    Rounds: {snapshot.rounds}/4 ({snapshot.roundsRemaining} left) | Pressure: {capitalized(snapshot.pressurePoint)}
                   </Text>
                   <Text style={styles.muted}>
                     Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks ${Math.round(
@@ -131,13 +142,19 @@ export default function TalentScreen() {
                   </Text>
                   <Text style={styles.signal}>{snapshot.signal}</Text>
                   <View style={styles.actions}>
-                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenSalary')}>
+                    <Pressable
+                      style={[styles.smallButton, snapshot.pressurePoint === 'salary' ? styles.smallButtonHighlight : null]}
+                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenSalary')}>
                       <Text style={styles.smallButtonText}>+Salary</Text>
                     </Pressable>
-                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenBackend')}>
+                    <Pressable
+                      style={[styles.smallButton, snapshot.pressurePoint === 'backend' ? styles.smallButtonHighlight : null]}
+                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenBackend')}>
                       <Text style={styles.smallButtonText}>+Backend</Text>
                     </Pressable>
-                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenPerks')}>
+                    <Pressable
+                      style={[styles.smallButton, snapshot.pressurePoint === 'perks' ? styles.smallButtonHighlight : null]}
+                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenPerks')}>
                       <Text style={styles.smallButtonText}>+Perks</Text>
                     </Pressable>
                     <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'holdFirm')}>
@@ -249,4 +266,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   smallButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 11 },
+  smallButtonHighlight: {
+    borderColor: tokens.accentGold,
+    backgroundColor: '#3B2E14',
+  },
 });

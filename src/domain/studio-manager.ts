@@ -259,9 +259,12 @@ export class StudioManager {
       normalized.offerBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
       normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
     } else if (action === 'sweetenPerks') {
-      normalized.offerPerksBudget = Math.max(
-        talent.salary.perksCost * 0.4,
-        Math.round((normalized.offerPerksBudget ?? talent.salary.perksCost) + 60_000)
+      normalized.offerPerksBudget = Math.min(
+        talent.salary.perksCost * 3,
+        Math.max(
+          talent.salary.perksCost * 0.4,
+          Math.round((normalized.offerPerksBudget ?? talent.salary.perksCost) + 60_000)
+        )
       );
       normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
     } else if (action === 'holdFirm') {
@@ -369,6 +372,37 @@ export class StudioManager {
     return {
       success: true,
       message: `Optional campaign executed on ${project.title}. Hype +5 and marketing +$180K.`,
+    };
+  }
+
+  runMarketingPushOnProject(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase === 'distribution' || project.phase === 'released') {
+      return { success: false, message: 'Marketing push not available after distribution begins.' };
+    }
+    if (this.cash < 180_000) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
+    project.hypeScore = clamp(project.hypeScore + 5, 0, 100);
+    project.marketingBudget += 180_000;
+    this.cash -= 180_000;
+    return { success: true, message: `Marketing push on ${project.title}. Hype +5, marketing +$180K.` };
+  }
+
+  abandonProject(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase === 'released') return { success: false, message: 'Released projects cannot be abandoned.' };
+    const writeDown = Math.round(project.budget.actualSpend * 0.2);
+    this.cash -= writeDown;
+    this.studioHeat = clamp(this.studioHeat - 4, 0, 100);
+    this.releaseTalent(projectId);
+    this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
+    this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
+    this.pendingCrises = this.pendingCrises.filter((item) => item.projectId !== projectId);
+    this.decisionQueue = this.decisionQueue.filter((item) => item.projectId !== projectId);
+    return {
+      success: true,
+      message: `${project.title} abandoned. $${Math.round(writeDown / 1000)}K write-down charged. Studio heat -4.`,
     };
   }
 

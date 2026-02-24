@@ -27,6 +27,8 @@ interface GameContextValue {
   counterOffer: (projectId: string, offerId: string) => void;
   walkAwayOffer: (projectId: string) => void;
   dismissReleaseReveal: (projectId: string) => void;
+  runMarketingPush: (projectId: string) => void;
+  abandonProject: (projectId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -187,6 +189,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         runWhenHydrated(() => {
           manager.dismissReleaseReveal(projectId);
           saveAndTick();
+        });
+      },
+      runMarketingPush: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runMarketingPushOnProject(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      abandonProject: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.abandonProject(projectId);
+          saveAndTick(result.message);
         });
       },
     }),
