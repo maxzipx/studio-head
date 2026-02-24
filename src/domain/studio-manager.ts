@@ -1,4 +1,13 @@
 import {
+  ACTION_BALANCE,
+  BANKRUPTCY_RULES,
+  PROJECT_BALANCE,
+  SESSION_RULES,
+  STUDIO_STARTING,
+  STUDIO_TIER_REQUIREMENTS,
+  TURN_RULES,
+} from './balance-constants';
+import {
   reputationDeltasFromRelease,
   projectedCriticalScore,
   projectedOpeningWeekendRange,
@@ -94,37 +103,11 @@ function id(prefix: string): string {
 }
 
 function phaseBurnMultiplier(phase: MovieProject['phase']): number {
-  switch (phase) {
-    case 'development':
-      return 0.005;
-    case 'preProduction':
-      return 0.008;
-    case 'production':
-      return 0.015;
-    case 'postProduction':
-      return 0.009;
-    case 'distribution':
-      return 0.0035;
-    default:
-      return 0;
-  }
+  return PROJECT_BALANCE.PHASE_BURN_MULTIPLIER[phase];
 }
 
 function initialBudgetForGenre(genre: MovieGenre): number {
-  switch (genre) {
-    case 'action':
-      return 28_000_000;
-    case 'sciFi':
-      return 32_000_000;
-    case 'animation':
-      return 36_000_000;
-    case 'horror':
-      return 14_000_000;
-    case 'documentary':
-      return 6_000_000;
-    default:
-      return 18_000_000;
-  }
+  return PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[genre];
 }
 
 const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
@@ -167,12 +150,19 @@ export class StudioManager {
   private readonly lastEventWeek = new Map<string, number>();
 
   studioName = 'Project Greenlight';
-  cash = 50_000_000;
-  reputation: StudioReputation = { critics: 12, talent: 12, distributor: 12, audience: 12 };
+  cash: number = STUDIO_STARTING.CASH;
+  reputation: StudioReputation = {
+    critics: STUDIO_STARTING.REPUTATION_PILLAR,
+    talent: STUDIO_STARTING.REPUTATION_PILLAR,
+    distributor: STUDIO_STARTING.REPUTATION_PILLAR,
+    audience: STUDIO_STARTING.REPUTATION_PILLAR,
+  };
+  isBankrupt = false;
+  bankruptcyReason: string | null = null;
   consecutiveLowCashWeeks = 0;
   firstSessionComplete = false;
   currentWeek = 1;
-  turnLengthWeeks: 1 | 2 = 1;
+  turnLengthWeeks: 1 | 2 = TURN_RULES.MIN_WEEKS;
   pendingCrises: CrisisEvent[] = [];
   distributionOffers: DistributionOffer[] = [];
   pendingReleaseReveals: string[] = [];
@@ -197,10 +187,24 @@ export class StudioManager {
   get studioTier(): StudioTier {
     const heat = this.studioHeat;
     const releasedCount = this.activeProjects.filter((p) => p.phase === 'released').length;
-    if (heat >= 80 && releasedCount >= 10) return 'globalPowerhouse';
-    if (heat >= 65 && releasedCount >= 6) return 'majorStudio';
-    if (heat >= 45 && releasedCount >= 3) return 'midTier';
-    if (heat >= 25 && releasedCount >= 1) return 'establishedIndie';
+    if (
+      heat >= STUDIO_TIER_REQUIREMENTS.globalPowerhouse.heat &&
+      releasedCount >= STUDIO_TIER_REQUIREMENTS.globalPowerhouse.releasedFilms
+    ) {
+      return 'globalPowerhouse';
+    }
+    if (heat >= STUDIO_TIER_REQUIREMENTS.majorStudio.heat && releasedCount >= STUDIO_TIER_REQUIREMENTS.majorStudio.releasedFilms) {
+      return 'majorStudio';
+    }
+    if (heat >= STUDIO_TIER_REQUIREMENTS.midTier.heat && releasedCount >= STUDIO_TIER_REQUIREMENTS.midTier.releasedFilms) {
+      return 'midTier';
+    }
+    if (
+      heat >= STUDIO_TIER_REQUIREMENTS.establishedIndie.heat &&
+      releasedCount >= STUDIO_TIER_REQUIREMENTS.establishedIndie.releasedFilms
+    ) {
+      return 'establishedIndie';
+    }
     return 'indieStudio';
   }
 
@@ -241,8 +245,8 @@ export class StudioManager {
 
   setTurnLengthWeeks(weeks: number): { success: boolean; message: string } {
     const normalized = Math.round(weeks);
-    if (normalized !== 1 && normalized !== 2) {
-      return { success: false, message: 'Turn length must be 1 or 2 weeks.' };
+    if (normalized !== TURN_RULES.MIN_WEEKS && normalized !== TURN_RULES.MAX_WEEKS) {
+      return { success: false, message: `Turn length must be ${TURN_RULES.MIN_WEEKS} or ${TURN_RULES.MAX_WEEKS} weeks.` };
     }
     this.turnLengthWeeks = normalized;
     return { success: true, message: `Turn length set to ${normalized} week${normalized === 1 ? '' : 's'}.` };
@@ -363,14 +367,17 @@ export class StudioManager {
         return a.marketingBudget - b.marketingBudget;
       })[0];
     if (!project) return { success: false, message: 'No active project available for optional action.' };
-    if (this.cash < 180_000) return { success: false, message: 'Insufficient cash for optional campaign action.' };
+    if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) {
+      return { success: false, message: 'Insufficient cash for optional campaign action.' };
+    }
 
-    project.hypeScore = clamp(project.hypeScore + 5, 0, 100);
-    project.marketingBudget += 180_000;
-    this.cash -= 180_000;
+    project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
+    project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
+    this.cash -= ACTION_BALANCE.OPTIONAL_ACTION_COST;
+    this.evaluateBankruptcy();
     return {
       success: true,
-      message: `Optional campaign executed on ${project.title}. Hype +5 and marketing +$180K.`,
+      message: `Optional campaign executed on ${project.title}. Hype +${ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST} and marketing +$180K.`,
     };
   }
 
@@ -380,10 +387,11 @@ export class StudioManager {
     if (project.phase === 'distribution' || project.phase === 'released') {
       return { success: false, message: 'Marketing push not available after distribution begins.' };
     }
-    if (this.cash < 180_000) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
-    project.hypeScore = clamp(project.hypeScore + 5, 0, 100);
-    project.marketingBudget += 180_000;
-    this.cash -= 180_000;
+    if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
+    project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
+    project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
+    this.cash -= ACTION_BALANCE.OPTIONAL_ACTION_COST;
+    this.evaluateBankruptcy();
     return { success: true, message: `Marketing push on ${project.title}. Hype +5, marketing +$180K.` };
   }
 
@@ -393,12 +401,17 @@ export class StudioManager {
     if (project.phase !== 'development') {
       return { success: false, message: 'Script sprint is only available during development.' };
     }
-    if (project.scriptQuality >= 8.5) {
+    if (project.scriptQuality >= ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY) {
       return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
     }
-    if (this.cash < 100_000) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
-    this.cash -= 100_000;
-    project.scriptQuality = clamp(project.scriptQuality + 0.5, 0, 8.5);
+    if (this.cash < ACTION_BALANCE.SCRIPT_SPRINT_COST) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
+    this.cash -= ACTION_BALANCE.SCRIPT_SPRINT_COST;
+    project.scriptQuality = clamp(
+      project.scriptQuality + ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST,
+      0,
+      ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY
+    );
+    this.evaluateBankruptcy();
     return {
       success: true,
       message: `Script sprint on ${project.title}. Script quality now ${project.scriptQuality.toFixed(1)}.`,
@@ -411,13 +424,21 @@ export class StudioManager {
     if (project.phase !== 'postProduction') {
       return { success: false, message: 'Polish pass is only available during post-production.' };
     }
-    if ((project.postPolishPasses ?? 0) >= 2 || project.editorialScore >= 9) {
+    if (
+      (project.postPolishPasses ?? 0) >= ACTION_BALANCE.POLISH_PASS_MAX_USES ||
+      project.editorialScore >= ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL
+    ) {
       return { success: false, message: `${project.title} has no polish passes remaining.` };
     }
-    if (this.cash < 120_000) return { success: false, message: 'Insufficient cash for polish pass ($120K needed).' };
-    this.cash -= 120_000;
-    project.postPolishPasses = Math.min(2, (project.postPolishPasses ?? 0) + 1);
-    project.editorialScore = clamp(project.editorialScore + 2, 0, 9);
+    if (this.cash < ACTION_BALANCE.POLISH_PASS_COST) return { success: false, message: 'Insufficient cash for polish pass ($120K needed).' };
+    this.cash -= ACTION_BALANCE.POLISH_PASS_COST;
+    project.postPolishPasses = Math.min(ACTION_BALANCE.POLISH_PASS_MAX_USES, (project.postPolishPasses ?? 0) + 1);
+    project.editorialScore = clamp(
+      project.editorialScore + ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST,
+      0,
+      ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL
+    );
+    this.evaluateBankruptcy();
     return {
       success: true,
       message: `Polish pass on ${project.title}. Editorial score now ${project.editorialScore.toFixed(1)}.`,
@@ -431,6 +452,7 @@ export class StudioManager {
     const writeDown = Math.round(project.budget.actualSpend * 0.2);
     this.cash -= writeDown;
     this.adjustReputation(-4, 'talent');
+    this.evaluateBankruptcy();
     this.releaseTalent(projectId);
     this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
@@ -579,6 +601,7 @@ export class StudioManager {
       project.productionStatus = 'onTrack';
     }
     this.cash += option.cashDelta;
+    this.evaluateBankruptcy();
     this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
   }
 
@@ -612,6 +635,7 @@ export class StudioManager {
     if (option.talentRepDelta) this.adjustReputation(option.talentRepDelta, 'talent');
     if (option.distributorRepDelta) this.adjustReputation(option.distributorRepDelta, 'distributor');
     if (option.audienceDelta) this.adjustReputation(option.audienceDelta, 'audience');
+    this.evaluateBankruptcy();
     this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
     if (decision.arcId) {
       this.applyArcMutation(decision.arcId, option);
@@ -650,15 +674,16 @@ export class StudioManager {
 
     this.currentWeek += 1;
 
-    if (this.cash < 1_000_000) {
+    if (this.cash < BANKRUPTCY_RULES.LOW_CASH_WARNING_THRESHOLD) {
       this.consecutiveLowCashWeeks += 1;
     } else {
       this.consecutiveLowCashWeeks = 0;
     }
 
-    if (!this.firstSessionComplete && this.currentWeek > 5) {
+    if (!this.firstSessionComplete && this.currentWeek > SESSION_RULES.FIRST_SESSION_COMPLETE_WEEK) {
       this.firstSessionComplete = true;
     }
+    this.evaluateBankruptcy(events);
 
     const summary: WeekSummary = {
       week: this.currentWeek,
@@ -1314,5 +1339,15 @@ export class StudioManager {
       this.activeProjects.find((project) => project.phase !== 'released');
     if (!leadProject) return;
     openingDecision.projectId = leadProject.id;
+  }
+
+  private evaluateBankruptcy(events?: string[]): void {
+    if (this.isBankrupt) return;
+    if (this.cash > BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD) return;
+    this.isBankrupt = true;
+    const roundedCash = Math.round(this.cash);
+    this.cash = Math.max(BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD, roundedCash);
+    this.bankruptcyReason = `Bankruptcy declared at week ${this.currentWeek} with cash $${roundedCash.toLocaleString()}.`;
+    events?.push('Bankruptcy declared. The studio has run out of operating cash.');
   }
 }

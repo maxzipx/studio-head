@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { STUDIO_STARTING } from '../domain/balance-constants';
 import { StudioManager } from '../domain/studio-manager';
 
 const SAVE_KEY = 'pg.save.v1';
@@ -26,15 +27,24 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     manager.studioName = defaults.studioName;
   }
   if (!Number.isFinite(manager.cash)) manager.cash = defaults.cash;
+  if (typeof manager.isBankrupt !== 'boolean') manager.isBankrupt = false;
+  if (typeof manager.bankruptcyReason !== 'string' && manager.bankruptcyReason !== null) {
+    manager.bankruptcyReason = null;
+  }
   if (!Number.isFinite(manager.consecutiveLowCashWeeks)) manager.consecutiveLowCashWeeks = 0;
   if (typeof manager.firstSessionComplete !== 'boolean') manager.firstSessionComplete = false;
 
   if (!isRecord(manager.reputation)) {
-    manager.reputation = { critics: 12, talent: 12, distributor: 12, audience: 12 };
+    manager.reputation = {
+      critics: STUDIO_STARTING.REPUTATION_PILLAR,
+      talent: STUDIO_STARTING.REPUTATION_PILLAR,
+      distributor: STUDIO_STARTING.REPUTATION_PILLAR,
+      audience: STUDIO_STARTING.REPUTATION_PILLAR,
+    };
   } else {
     const rep = manager.reputation as Record<string, unknown>;
     for (const field of ['critics', 'talent', 'distributor', 'audience']) {
-      if (!Number.isFinite(rep[field])) rep[field] = 12;
+      if (!Number.isFinite(rep[field])) rep[field] = STUDIO_STARTING.REPUTATION_PILLAR;
       rep[field] = Math.min(100, Math.max(0, rep[field] as number));
     }
   }

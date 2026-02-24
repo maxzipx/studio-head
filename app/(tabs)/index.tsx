@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
@@ -44,6 +45,9 @@ export default function HQScreen() {
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
   const readyToAdvance = manager.canEndWeek ? 'Ready' : 'Blocked';
+  const isGameOver = manager.isBankrupt;
+  const hasLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
+  const hasUrgentLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.URGENT_WEEKS;
   const arcEntries = Object.entries(manager.storyArcs)
     .sort((a, b) => {
       if (a[1].status === b[1].status) return b[1].lastUpdatedWeek - a[1].lastUpdatedWeek;
@@ -112,13 +116,22 @@ export default function HQScreen() {
         <Text style={styles.body}>Inbox Items: {manager.decisionQueue.length}</Text>
         <Text style={styles.body}>Active Projects: {manager.activeProjects.length}</Text>
         {!manager.canEndWeek ? <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text> : null}
-        {manager.consecutiveLowCashWeeks >= 2 ? (
+        {hasLowCashWarning ? (
           <Text style={styles.alert}>
             Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
-            {manager.consecutiveLowCashWeeks >= 4 ? ' Emergency action required.' : ''}
+            {hasUrgentLowCashWarning ? ' Emergency action required.' : ''}
           </Text>
         ) : null}
       </View>
+
+      {isGameOver ? (
+        <View style={[styles.card, styles.gameOverCard]}>
+          <Text style={styles.label}>Game Over</Text>
+          <Text style={styles.gameOverTitle}>Bankruptcy Declared</Text>
+          <Text style={styles.body}>{manager.bankruptcyReason ?? 'Studio is bankrupt.'}</Text>
+          <Text style={styles.mutedBody}>Start a new run from the save menu to continue playing.</Text>
+        </View>
+      ) : null}
 
       {!manager.firstSessionComplete ? (
         <View style={[styles.card, styles.tutorialCard]}>
@@ -163,12 +176,14 @@ export default function HQScreen() {
         <View style={styles.actionsRow}>
           <Pressable
             style={[styles.choiceButton, styles.turnChoiceButton, manager.turnLengthWeeks === 1 ? styles.choiceButtonActive : null]}
+            disabled={isGameOver}
             onPress={() => setTurnLength(1)}>
             <Text style={styles.choiceTitle}>1 Week</Text>
             <Text style={styles.choiceBody}>Safer pacing, more control</Text>
           </Pressable>
           <Pressable
             style={[styles.choiceButton, styles.turnChoiceButton, manager.turnLengthWeeks === 2 ? styles.choiceButtonActive : null]}
+            disabled={isGameOver}
             onPress={() => setTurnLength(2)}>
             <Text style={styles.choiceTitle}>2 Weeks</Text>
             <Text style={styles.choiceBody}>Faster flow, bigger swings</Text>
@@ -287,16 +302,23 @@ export default function HQScreen() {
         </View>
       ) : null}
 
-      <Pressable style={styles.secondaryButton} onPress={runOptionalAction}>
+      <Pressable
+        style={[styles.secondaryButton, isGameOver ? styles.disabledSecondaryButton : null]}
+        disabled={isGameOver}
+        onPress={runOptionalAction}>
         <Text style={styles.secondaryButtonText}>Run Optional Action (+Hype)</Text>
       </Pressable>
 
       <Pressable
-        style={[styles.primaryButton, !manager.canEndWeek ? styles.disabledButton : null]}
-        disabled={!manager.canEndWeek}
+        style={[styles.primaryButton, !manager.canEndWeek || isGameOver ? styles.disabledButton : null]}
+        disabled={!manager.canEndWeek || isGameOver}
         onPress={endWeek}>
         <Text style={styles.primaryButtonText}>
-          {manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
+          {isGameOver
+            ? 'Game Over'
+            : manager.canEndWeek
+              ? `End Turn (${manager.turnLengthWeeks}w)`
+              : 'Resolve Crisis First'}
         </Text>
       </Pressable>
 
@@ -542,6 +564,9 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#5A4C31',
   },
+  disabledSecondaryButton: {
+    opacity: 0.55,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(7, 9, 13, 0.75)',
@@ -594,6 +619,15 @@ const styles = StyleSheet.create({
   tutorialCard: {
     borderColor: tokens.accentTeal,
     backgroundColor: '#0A1F1E',
+  },
+  gameOverCard: {
+    borderColor: tokens.accentRed,
+    backgroundColor: '#2A1212',
+  },
+  gameOverTitle: {
+    color: tokens.accentRed,
+    fontSize: 17,
+    fontWeight: '700',
   },
   tutorialTip: {
     color: tokens.accentTeal,

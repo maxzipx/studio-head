@@ -61,9 +61,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const saveAndTick = useCallback(
     (message?: string) => {
+      const bankruptcySuffix = manager.isBankrupt
+        ? ` Game over: ${manager.bankruptcyReason ?? 'Studio is bankrupt.'}`
+        : '';
       if (message) {
-        const nextMessage = hasSaveFailureRef.current ? `${message} ${AUTOSAVE_WARNING}` : message;
+        const nextMessage = hasSaveFailureRef.current
+          ? `${message}${bankruptcySuffix} ${AUTOSAVE_WARNING}`
+          : `${message}${bankruptcySuffix}`;
         setLastMessage(nextMessage);
+      } else if (bankruptcySuffix) {
+        setLastMessage(bankruptcySuffix.trim());
       }
       void saveManagerToStorage(manager)
         .then(() => {
@@ -79,14 +86,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   );
 
   const runWhenHydrated = useCallback(
-    (action: () => void) => {
+    (action: () => void, options?: { allowWhenBankrupt?: boolean }) => {
       if (!isHydrated) {
         setLastMessage('Loading saved game... controls unlock in a moment.');
         return;
       }
+      if (manager.isBankrupt && !options?.allowWhenBankrupt) {
+        setLastMessage(`Game over: ${manager.bankruptcyReason ?? 'Studio is bankrupt.'}`);
+        return;
+      }
       action();
     },
-    [isHydrated]
+    [isHydrated, manager.bankruptcyReason, manager.isBankrupt]
   );
 
   const value = useMemo(
@@ -203,7 +214,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         runWhenHydrated(() => {
           manager.dismissReleaseReveal(projectId);
           saveAndTick();
-        });
+        }, { allowWhenBankrupt: true });
       },
       runMarketingPush: (projectId: string) => {
         runWhenHydrated(() => {

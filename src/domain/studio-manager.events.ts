@@ -1,3 +1,4 @@
+import { EVENT_BALANCE } from './balance-constants';
 import { createSeedScriptMarket } from './seeds';
 import type {
   CrisisEvent,
@@ -170,7 +171,7 @@ export function eventWeightForManager(manager: any, event: EventTemplate): numbe
   if (event.category === 'finance' && manager.cash < 25_000_000) {
     weight += 0.45;
   }
-  if (event.category === 'marketing' && manager.studioHeat < 25) {
+  if (event.category === 'marketing' && manager.studioHeat < EVENT_BALANCE.LOW_HEAT_MARKETING_WEIGHT_THRESHOLD) {
     weight += 0.35;
   }
   if (event.category === 'operations' && manager.pendingCrises.length > 0) {
