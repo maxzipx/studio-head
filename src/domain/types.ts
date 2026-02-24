@@ -201,7 +201,16 @@ export interface PlayerNegotiation {
   talentId: string;
   projectId: string;
   openedWeek: number;
+  rounds?: number;
+  holdLineCount?: number;
+  offerSalaryMultiplier?: number;
+  offerBackendPoints?: number;
+  offerPerksBudget?: number;
+  lastComputedChance?: number;
+  lastResponse?: string;
 }
+
+export type NegotiationAction = 'sweetenSalary' | 'sweetenBackend' | 'sweetenPerks' | 'holdFirm';
 
 export interface DistributionOffer {
   id: string;

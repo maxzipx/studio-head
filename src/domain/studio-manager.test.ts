@@ -198,6 +198,55 @@ describe('StudioManager', () => {
     expect(project!.directorId).not.toBe(director!.id);
   });
 
+  it('supports negotiation rounds with term sweeteners and hold-line penalties', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiation(project!.id, lead!.id);
+    expect(opened.success).toBe(true);
+
+    const baseline = manager.getNegotiationSnapshot(project!.id, lead!.id);
+    expect(baseline).toBeTruthy();
+    expect(baseline?.rounds).toBe(0);
+
+    manager.adjustTalentNegotiation(project!.id, lead!.id, 'holdFirm');
+    const afterHold = manager.getNegotiationSnapshot(project!.id, lead!.id);
+    expect(afterHold).toBeTruthy();
+    expect(afterHold?.rounds).toBe(1);
+    expect((afterHold?.chance ?? 0)).toBeLessThan(baseline?.chance ?? 1);
+
+    manager.adjustTalentNegotiation(project!.id, lead!.id, 'sweetenSalary');
+    const afterSweetener = manager.getNegotiationSnapshot(project!.id, lead!.id);
+    expect(afterSweetener).toBeTruthy();
+    expect(afterSweetener?.rounds).toBe(2);
+    expect((afterSweetener?.salaryMultiplier ?? 0)).toBeGreaterThan(afterHold?.salaryMultiplier ?? 0);
+    expect((afterSweetener?.chance ?? 0)).toBeGreaterThan(afterHold?.chance ?? 0);
+  });
+
+  it('reports explicit decline reason after repeated hardline rounds', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      negotiationRng: () => 0.99,
+      eventRng: () => 1,
+      rivalRng: () => 1,
+    });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.startTalentNegotiation(project!.id, lead!.id);
+    manager.adjustTalentNegotiation(project!.id, lead!.id, 'holdFirm');
+    manager.adjustTalentNegotiation(project!.id, lead!.id, 'holdFirm');
+
+    manager.endWeek();
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('hardline rounds'))).toBe(true);
+  });
+
   it('cancels open negotiation if project leaves development before resolution', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0, eventRng: () => 1, rivalRng: () => 1 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

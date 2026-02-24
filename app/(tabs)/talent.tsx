@@ -13,7 +13,7 @@ function roleLabel(value: string): string {
 }
 
 export default function TalentScreen() {
-  const { manager, startNegotiation, attachTalent, lastMessage } = useGame();
+  const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const activeProject = selectedProjectId ? developmentProjects.find((project) => project.id === selectedProjectId) ?? null : null;
@@ -105,7 +105,8 @@ export default function TalentScreen() {
         {manager.playerNegotiations.map((entry) => {
           const talent = manager.talentPool.find((item) => item.id === entry.talentId);
           const project = manager.activeProjects.find((item) => item.id === entry.projectId);
-          const chance = manager.getNegotiationChance(entry.talentId);
+          const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
+          const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
           return (
             <View key={`${entry.projectId}-${entry.talentId}`} style={styles.subCard}>
               <Text style={styles.bodyStrong}>
@@ -114,6 +115,30 @@ export default function TalentScreen() {
               <Text style={styles.muted}>
                 Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
               </Text>
+              {snapshot ? (
+                <>
+                  <Text style={styles.muted}>
+                    Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks ${Math.round(
+                      snapshot.perksBudget
+                    ).toLocaleString()}
+                  </Text>
+                  <Text style={styles.signal}>{snapshot.signal}</Text>
+                  <View style={styles.actions}>
+                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenSalary')}>
+                      <Text style={styles.smallButtonText}>+Salary</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenBackend')}>
+                      <Text style={styles.smallButtonText}>+Backend</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenPerks')}>
+                      <Text style={styles.smallButtonText}>+Perks</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'holdFirm')}>
+                      <Text style={styles.smallButtonText}>Hold Line</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
             </View>
           );
         })}
@@ -144,7 +169,7 @@ export default function TalentScreen() {
             {activeProject && talent.availability === 'available' ? (
               <View style={styles.actions}>
                 <Pressable style={styles.button} onPress={() => startNegotiation(activeProject.id, talent.id)}>
-                  <Text style={styles.buttonText}>Open Negotiation {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
+                  <Text style={styles.buttonText}>Open Negotiation {pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => attachTalent(activeProject.id, talent.id)}>
                   <Text style={styles.buttonText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
@@ -184,6 +209,7 @@ const styles = StyleSheet.create({
   body: { color: tokens.textSecondary, fontSize: 13 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
+  signal: { color: tokens.accentGold, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   targetButton: {
     borderRadius: 10,
@@ -207,4 +233,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   buttonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
+  smallButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  smallButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 11 },
 });

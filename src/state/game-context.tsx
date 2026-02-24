@@ -16,6 +16,11 @@ interface GameContextValue {
   renameStudio: (name: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
   startNegotiation: (projectId: string, talentId: string) => void;
+  adjustNegotiation: (
+    projectId: string,
+    talentId: string,
+    action: 'sweetenSalary' | 'sweetenBackend' | 'sweetenPerks' | 'holdFirm'
+  ) => void;
   advancePhase: (projectId: string) => void;
   setReleaseWeek: (projectId: string, releaseWeek: number) => void;
   acceptOffer: (projectId: string, offerId: string) => void;
@@ -135,6 +140,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       startNegotiation: (projectId: string, talentId: string) => {
         runWhenHydrated(() => {
           const result = manager.startTalentNegotiation(projectId, talentId);
+          saveAndTick(result.message);
+        });
+      },
+      adjustNegotiation: (
+        projectId: string,
+        talentId: string,
+        action: 'sweetenSalary' | 'sweetenBackend' | 'sweetenPerks' | 'holdFirm'
+      ) => {
+        runWhenHydrated(() => {
+          const result = manager.adjustTalentNegotiation(projectId, talentId, action);
           saveAndTick(result.message);
         });
       },

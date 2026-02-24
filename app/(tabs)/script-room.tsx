@@ -18,7 +18,7 @@ function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): strin
 }
 
 export default function ScriptRoomScreen() {
-  const { manager, acquireScript, passScript, startNegotiation, attachTalent, lastMessage } = useGame();
+  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const availableDirectors = manager.getAvailableTalentForRole('director');
   const availableLeads = manager.getAvailableTalentForRole('leadActor');
@@ -36,7 +36,8 @@ export default function ScriptRoomScreen() {
             {manager.playerNegotiations.map((entry) => {
               const talent = manager.talentPool.find((item) => item.id === entry.talentId);
               const project = manager.activeProjects.find((item) => item.id === entry.projectId);
-              const chance = manager.getNegotiationChance(entry.talentId);
+              const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
+              const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
               return (
                 <View key={`${entry.projectId}-${entry.talentId}`} style={styles.subCard}>
                   <Text style={styles.bodyStrong}>
@@ -45,6 +46,41 @@ export default function ScriptRoomScreen() {
                   <Text style={styles.muted}>
                     Opened week {entry.openedWeek} | resolves on next End Week | close chance {chance !== null ? pct(chance) : '--'}
                   </Text>
+                  {snapshot ? (
+                    <>
+                      <Text style={styles.muted}>
+                        Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks{' '}
+                        {money(snapshot.perksBudget)}
+                      </Text>
+                      <Text style={styles.muted}>
+                        Ask: Salary {snapshot.demandSalaryMultiplier.toFixed(2)}x | Backend {snapshot.demandBackendPoints.toFixed(1)}pts | Perks{' '}
+                        {money(snapshot.demandPerksBudget)}
+                      </Text>
+                      <Text style={styles.signal}>{snapshot.signal}</Text>
+                      <View style={styles.negotiationActions}>
+                        <Pressable
+                          style={styles.negotiationButton}
+                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenSalary')}>
+                          <Text style={styles.negotiationButtonText}>+Salary</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.negotiationButton}
+                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenBackend')}>
+                          <Text style={styles.negotiationButtonText}>+Backend</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.negotiationButton}
+                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenPerks')}>
+                          <Text style={styles.negotiationButtonText}>+Perks</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.negotiationButton}
+                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'holdFirm')}>
+                          <Text style={styles.negotiationButtonText}>Hold Line</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : null}
                 </View>
               );
             })}
@@ -128,7 +164,7 @@ export default function ScriptRoomScreen() {
                       <Text style={styles.talentText}>
                         Open: {talent.name} | Craft {talent.craftScore.toFixed(1)} | {talent.agentTier.toUpperCase()}
                       </Text>
-                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
+                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id, project.id) ?? 0)}</Text>
                     </Pressable>
                     <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
                       <Text style={styles.quickText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
@@ -143,7 +179,7 @@ export default function ScriptRoomScreen() {
                       <Text style={styles.talentText}>
                         Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {talent.agentTier.toUpperCase()}
                       </Text>
-                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id) ?? 0)}</Text>
+                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id, project.id) ?? 0)}</Text>
                     </Pressable>
                     <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
                       <Text style={styles.quickText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
@@ -237,6 +273,29 @@ const styles = StyleSheet.create({
   muted: {
     color: tokens.textMuted,
     fontSize: 12,
+  },
+  signal: {
+    color: tokens.accentGold,
+    fontSize: 12,
+  },
+  negotiationActions: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 3,
+  },
+  negotiationButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  negotiationButtonText: {
+    color: tokens.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
   },
   actions: {
     flexDirection: 'row',
