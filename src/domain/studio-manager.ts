@@ -4,6 +4,16 @@ import {
   projectedOpeningWeekendRange,
   projectedROI,
 } from './formulas';
+import {
+  adjustTalentNegotiationForManager,
+  getNegotiationChanceForManager,
+  getNegotiationSnapshotForManager,
+  getQuickCloseChanceForManager,
+  negotiateAndAttachTalentForManager,
+  processPlayerNegotiationsForManager,
+  startTalentNegotiationForManager,
+  type NegotiationSnapshot,
+} from './studio-manager.negotiation';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -163,73 +173,18 @@ export class StudioManager {
   }
 
   getNegotiationChance(talentId: string, projectId?: string): number | null {
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return null;
-    const negotiation = this.findNegotiation(talentId, projectId);
-    if (!negotiation) return this.talentDealChance(talent, 0.7);
-    return this.evaluateNegotiation(negotiation, talent).chance;
+    return getNegotiationChanceForManager(this, talentId, projectId);
   }
 
   getQuickCloseChance(talentId: string): number | null {
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return null;
-    const quickTerms = this.buildQuickCloseTerms(talent);
-    return this.evaluateNegotiation(
-      {
-        talentId,
-        projectId: '',
-        openedWeek: this.currentWeek,
-        rounds: 1,
-        holdLineCount: 0,
-        offerSalaryMultiplier: quickTerms.salaryMultiplier,
-        offerBackendPoints: quickTerms.backendPoints,
-        offerPerksBudget: quickTerms.perksBudget,
-      },
-      talent,
-      0.72
-    ).chance;
+    return getQuickCloseChanceForManager(this, talentId);
   }
 
   getNegotiationSnapshot(
     projectId: string,
     talentId: string
-  ): {
-    salaryMultiplier: number;
-    backendPoints: number;
-    perksBudget: number;
-    rounds: number;
-    holdLineCount: number;
-    chance: number;
-    signal: string;
-    pressurePoint: 'salary' | 'backend' | 'perks';
-    roundsRemaining: number;
-    demandSalaryMultiplier: number;
-    demandBackendPoints: number;
-    demandPerksBudget: number;
-  } | null {
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return null;
-    const negotiation = this.findNegotiation(talentId, projectId);
-    if (!negotiation) return null;
-
-    const normalized = this.normalizeNegotiation(negotiation, talent);
-    const evaluation = this.evaluateNegotiation(normalized, talent);
-    const signal = normalized.lastResponse ?? this.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
-
-    return {
-      salaryMultiplier: normalized.offerSalaryMultiplier ?? 1,
-      backendPoints: normalized.offerBackendPoints ?? talent.salary.backendPoints,
-      perksBudget: normalized.offerPerksBudget ?? talent.salary.perksCost,
-      rounds: normalized.rounds ?? 0,
-      holdLineCount: normalized.holdLineCount ?? 0,
-      chance: evaluation.chance,
-      signal,
-      pressurePoint: this.negotiationPressurePoint(evaluation),
-      roundsRemaining: Math.max(0, 4 - (normalized.rounds ?? 0)),
-      demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
-      demandBackendPoints: evaluation.demand.backendPoints,
-      demandPerksBudget: evaluation.demand.perksBudget,
-    };
+  ): NegotiationSnapshot | null {
+    return getNegotiationSnapshotForManager(this, projectId, talentId);
   }
 
   adjustTalentNegotiation(
@@ -237,56 +192,7 @@ export class StudioManager {
     talentId: string,
     action: NegotiationAction
   ): { success: boolean; message: string } {
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return { success: false, message: 'Talent not found.' };
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    const negotiation = this.findNegotiation(talentId, projectId);
-    if (!negotiation) return { success: false, message: 'No open negotiation for this project and talent.' };
-    if (talent.availability !== 'inNegotiation') return { success: false, message: `${talent.name} is not currently in negotiation.` };
-    if (project.phase !== 'development') return { success: false, message: 'Negotiation can only be adjusted during development.' };
-
-    const normalized = this.normalizeNegotiation(negotiation, talent);
-    const rounds = normalized.rounds ?? 0;
-    if (rounds >= 4) {
-      return { success: false, message: `Negotiation with ${talent.name} is out of rounds. Resolve it at End Week.` };
-    }
-
-    if (action === 'sweetenSalary') {
-      normalized.offerSalaryMultiplier = clamp((normalized.offerSalaryMultiplier ?? 1) + 0.06, 1, 1.5);
-      normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
-    } else if (action === 'sweetenBackend') {
-      normalized.offerBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
-      normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
-    } else if (action === 'sweetenPerks') {
-      normalized.offerPerksBudget = Math.min(
-        talent.salary.perksCost * 3,
-        Math.max(
-          talent.salary.perksCost * 0.4,
-          Math.round((normalized.offerPerksBudget ?? talent.salary.perksCost) + 60_000)
-        )
-      );
-      normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
-    } else if (action === 'holdFirm') {
-      normalized.holdLineCount = (normalized.holdLineCount ?? 0) + 1;
-    }
-
-    normalized.rounds = rounds + 1;
-    const evaluation = this.evaluateNegotiation(normalized, talent);
-    normalized.lastComputedChance = evaluation.chance;
-    normalized.lastResponse = this.composeNegotiationPreview(
-      talent.name,
-      evaluation,
-      normalized.holdLineCount ?? 0
-    );
-
-    Object.assign(negotiation, normalized);
-    return {
-      success: true,
-      message: `${talent.name} negotiation round ${normalized.rounds}: ${normalized.lastResponse} Close chance ${Math.round(
-        evaluation.chance * 100
-      )}%.`,
-    };
+    return adjustTalentNegotiationForManager(this, projectId, talentId, action);
   }
 
   evaluateScriptPitch(scriptId: string): {
@@ -407,43 +313,7 @@ export class StudioManager {
   }
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'development') {
-      return { success: false, message: 'Talent negotiations can only be opened for development projects.' };
-    }
-
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return { success: false, message: 'Talent not found.' };
-    if (talent.availability !== 'available') {
-      const returns = talent.unavailableUntilWeek ? ` (returns week ${talent.unavailableUntilWeek})` : '';
-      return { success: false, message: `${talent.name} is unavailable${returns}.` };
-    }
-    if (this.playerNegotiations.some((item) => item.talentId === talentId)) {
-      return { success: false, message: `${talent.name} is already in negotiation.` };
-    }
-
-    talent.availability = 'inNegotiation';
-    const negotiation: PlayerNegotiation = {
-      talentId,
-      projectId,
-      openedWeek: this.currentWeek,
-      rounds: 0,
-      holdLineCount: 0,
-      offerSalaryMultiplier: 1,
-      offerBackendPoints: talent.salary.backendPoints,
-      offerPerksBudget: talent.salary.perksCost,
-      lastComputedChance: this.talentDealChance(talent, 0.7),
-      lastResponse: 'Initial offer package sent.',
-    };
-    this.playerNegotiations.push(negotiation);
-    const chance = this.evaluateNegotiation(negotiation, talent).chance;
-    return {
-      success: true,
-      message: `Opened negotiation with ${talent.name}. Package starts at salary 1.00x, backend ${talent.salary.backendPoints.toFixed(
-        1
-      )}, perks ${Math.round(talent.salary.perksCost / 1000)}K. Close chance ${Math.round(chance * 100)}% at next End Week.`,
-    };
+    return startTalentNegotiationForManager(this, projectId, talentId);
   }
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
@@ -522,54 +392,7 @@ export class StudioManager {
   }
 
   negotiateAndAttachTalent(projectId: string, talentId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'development') {
-      return { success: false, message: 'Talent attachments can only be closed for development projects.' };
-    }
-
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return { success: false, message: 'Talent not found.' };
-    if (talent.availability !== 'available') {
-      const returns = talent.unavailableUntilWeek ? ` (returns week ${talent.unavailableUntilWeek})` : '';
-      return { success: false, message: `${talent.name} is unavailable${returns}.` };
-    }
-
-    const quickTerms = this.buildQuickCloseTerms(talent);
-    const chance = this.evaluateNegotiation(
-      {
-        talentId,
-        projectId,
-        openedWeek: this.currentWeek,
-        rounds: 1,
-        holdLineCount: 0,
-        offerSalaryMultiplier: quickTerms.salaryMultiplier,
-        offerBackendPoints: quickTerms.backendPoints,
-        offerPerksBudget: quickTerms.perksBudget,
-      },
-      talent,
-      0.72
-    ).chance;
-    const retainer = this.computeDealMemoCost(talent, quickTerms);
-    const attemptFee = this.computeQuickCloseAttemptFee(talent, quickTerms);
-    if (this.cash < retainer + attemptFee) {
-      return { success: false, message: 'Insufficient funds for quick-close attempt and deal memo retainer.' };
-    }
-
-    this.cash -= attemptFee;
-    if (this.negotiationRng() > chance) {
-      this.setNegotiationCooldown(talent, 1);
-      return {
-        success: false,
-        message: `${talent.name}'s reps declined quick-close terms. Attempt cost ${Math.round(
-          attemptFee / 1000
-        )}K burned. Re-open next week.`,
-      };
-    }
-    if (!this.finalizeTalentAttachment(project, talent, quickTerms)) {
-      return { success: false, message: `Deal memo failed for ${talent.name}; cash is below retainer.` };
-    }
-    return { success: true, message: `${talent.name} attached to ${project.title}.` };
+    return negotiateAndAttachTalentForManager(this, projectId, talentId);
   }
 
   advanceProjectPhase(projectId: string): { success: boolean; message: string } {
@@ -1523,48 +1346,7 @@ export class StudioManager {
   }
 
   private processPlayerNegotiations(events: string[]): void {
-    const resolved: string[] = [];
-    for (const negotiation of this.playerNegotiations) {
-      if (this.currentWeek - negotiation.openedWeek < 1) continue;
-      const talent = this.talentPool.find((item) => item.id === negotiation.talentId);
-      const project = this.activeProjects.find((item) => item.id === negotiation.projectId);
-      if (!talent || !project) {
-        if (talent?.availability === 'inNegotiation') {
-          talent.availability = 'available';
-        }
-        resolved.push(negotiation.talentId);
-        continue;
-      }
-      if (talent.availability !== 'inNegotiation') {
-        resolved.push(negotiation.talentId);
-        continue;
-      }
-      if (project.phase !== 'development') {
-        talent.availability = 'available';
-        events.push(`Negotiation window closed for ${talent.name}; ${project.title} moved out of development.`);
-        resolved.push(negotiation.talentId);
-        continue;
-      }
-
-      const normalized = this.normalizeNegotiation(negotiation, talent);
-      const evaluation = this.evaluateNegotiation(normalized, talent);
-      normalized.lastComputedChance = evaluation.chance;
-      if (this.negotiationRng() <= evaluation.chance) {
-        if (this.finalizeTalentAttachment(project, talent, this.readNegotiationTerms(normalized, talent))) {
-          events.push(this.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0));
-        } else {
-          this.setNegotiationCooldown(talent, 1);
-          events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);
-        }
-      } else {
-        this.setNegotiationCooldown(talent, 1);
-        events.push(this.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
-      }
-      resolved.push(negotiation.talentId);
-    }
-    if (resolved.length > 0) {
-      this.playerNegotiations = this.playerNegotiations.filter((item) => !resolved.includes(item.talentId));
-    }
+    processPlayerNegotiationsForManager(this, events);
   }
 
   private processRivalCalendarMoves(events: string[]): void {
