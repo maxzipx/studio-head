@@ -91,7 +91,7 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
     project.releaseResolved = false;
     project.projectedROI = projection.roi;
     manager.pendingReleaseReveals.push(project.id);
-    manager.releaseTalent(project.id);
+    manager.releaseTalent(project.id, 'released');
     return { success: true, message: `${project.title} released. Opening weekend posted.` };
   }
 

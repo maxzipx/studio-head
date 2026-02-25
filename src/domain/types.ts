@@ -51,6 +51,38 @@ export interface SalaryObject {
   perksCost: number;
 }
 
+export type TalentTrustLevel = 'hostile' | 'wary' | 'neutral' | 'aligned' | 'loyal';
+
+export type TalentInteractionKind =
+  | 'negotiationOpened'
+  | 'negotiationSweetened'
+  | 'negotiationHardline'
+  | 'negotiationDeclined'
+  | 'quickCloseFailed'
+  | 'quickCloseSuccess'
+  | 'dealSigned'
+  | 'dealStalled'
+  | 'projectReleased'
+  | 'projectAbandoned'
+  | 'poachedByRival'
+  | 'counterPoachWon'
+  | 'counterPoachLost';
+
+export interface TalentInteractionEntry {
+  week: number;
+  kind: TalentInteractionKind;
+  trustDelta: number;
+  loyaltyDelta: number;
+  note: string;
+  projectId?: string | null;
+}
+
+export interface TalentRelationshipMemory {
+  trust: number;
+  loyalty: number;
+  interactionHistory: TalentInteractionEntry[];
+}
+
 export interface Talent {
   id: string;
   name: string;
@@ -66,6 +98,7 @@ export interface Talent {
   reputation: number;
   agentTier: AgentTier;
   studioRelationship: number;
+  relationshipMemory: TalentRelationshipMemory;
 }
 
 export interface ScriptPitch {

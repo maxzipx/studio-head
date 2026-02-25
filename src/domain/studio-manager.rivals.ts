@@ -54,6 +54,13 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
       if (negotiation) {
         const project = manager.activeProjects.find((item: any) => item.id === negotiation.projectId);
         const projectTitle = project?.title ?? 'your project';
+        manager.recordTalentInteraction(picked, {
+          kind: 'poachedByRival',
+          trustDelta: -6,
+          loyaltyDelta: -8,
+          note: `${rival.name} poached ${picked.name} during talks for ${projectTitle}.`,
+          projectId: negotiation.projectId,
+        });
         manager.pendingCrises.push({
           id: createId('crisis'),
           projectId: negotiation.projectId,
@@ -90,6 +97,13 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
         events.push(`${rival.name} poached ${picked.name} from ${projectTitle}. Counter-offer decision required.`);
       }
     } else {
+      manager.recordTalentInteraction(picked, {
+        kind: 'poachedByRival',
+        trustDelta: -4,
+        loyaltyDelta: -5,
+        note: `${rival.name} poached ${picked.name}.`,
+        projectId: null,
+      });
       events.push(`${rival.name} attached ${picked.name}. Available again around week ${unavailableUntil}.`);
     }
   }

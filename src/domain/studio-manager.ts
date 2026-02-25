@@ -1,6 +1,7 @@
 import {
   ACTION_BALANCE,
   BANKRUPTCY_RULES,
+  MEMORY_RULES,
   PROJECT_BALANCE,
   SESSION_RULES,
   STUDIO_STARTING,
@@ -91,7 +92,9 @@ import type {
   StudioReputation,
   StudioTier,
   Talent,
+  TalentInteractionKind,
   TalentRole,
+  TalentTrustLevel,
   WeekSummary,
 } from './types';
 
@@ -226,6 +229,63 @@ export class StudioManager {
   adjustCash(delta: number): void {
     if (!Number.isFinite(delta) || delta === 0) return;
     this.cash = Math.round(this.cash + delta);
+  }
+
+  private getTalentMemory(talent: Talent): Talent['relationshipMemory'] {
+    if (!talent.relationshipMemory) {
+      const trust = Math.round(Math.min(100, Math.max(0, 35 + talent.studioRelationship * 45)));
+      const loyalty = Math.round(Math.min(100, Math.max(0, 30 + talent.studioRelationship * 40)));
+      talent.relationshipMemory = {
+        trust,
+        loyalty,
+        interactionHistory: [],
+      };
+    }
+    if (!Array.isArray(talent.relationshipMemory.interactionHistory)) {
+      talent.relationshipMemory.interactionHistory = [];
+    }
+    return talent.relationshipMemory;
+  }
+
+  private syncLegacyRelationship(talent: Talent): void {
+    const memory = this.getTalentMemory(talent);
+    talent.studioRelationship = clamp((memory.trust * 0.62 + memory.loyalty * 0.38) / 100, 0, 1);
+  }
+
+  getTalentTrustLevel(talent: Talent): TalentTrustLevel {
+    const trust = this.getTalentMemory(talent).trust;
+    if (trust < 25) return 'hostile';
+    if (trust < 45) return 'wary';
+    if (trust < 65) return 'neutral';
+    if (trust < 82) return 'aligned';
+    return 'loyal';
+  }
+
+  recordTalentInteraction(
+    talent: Talent,
+    input: {
+      kind: TalentInteractionKind;
+      trustDelta: number;
+      loyaltyDelta: number;
+      note: string;
+      projectId?: string | null;
+    }
+  ): void {
+    const memory = this.getTalentMemory(talent);
+    memory.trust = clamp(Math.round(memory.trust + input.trustDelta), 0, 100);
+    memory.loyalty = clamp(Math.round(memory.loyalty + input.loyaltyDelta), 0, 100);
+    memory.interactionHistory.push({
+      week: this.currentWeek,
+      kind: input.kind,
+      trustDelta: Math.round(input.trustDelta),
+      loyaltyDelta: Math.round(input.loyaltyDelta),
+      note: input.note,
+      projectId: input.projectId ?? null,
+    });
+    if (memory.interactionHistory.length > MEMORY_RULES.TALENT_INTERACTION_HISTORY_MAX) {
+      memory.interactionHistory = memory.interactionHistory.slice(-MEMORY_RULES.TALENT_INTERACTION_HISTORY_MAX);
+    }
+    this.syncLegacyRelationship(talent);
   }
 
   constructor(input?: {
@@ -455,7 +515,7 @@ export class StudioManager {
     this.adjustCash(-writeDown);
     this.adjustReputation(-4, 'talent');
     this.evaluateBankruptcy();
-    this.releaseTalent(projectId);
+    this.releaseTalent(projectId, 'abandoned');
     this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
     this.pendingCrises = this.pendingCrises.filter((item) => item.projectId !== projectId);
@@ -1160,7 +1220,11 @@ export class StudioManager {
 
   private talentDealChance(talent: Talent, base: number): number {
     const arcLeverage = this.getArcOutcomeModifiers().talentLeverage;
-    const relationshipBoost = clamp((talent.studioRelationship - 0.5) * 0.24, -0.12, 0.12);
+    const memory = this.getTalentMemory(talent);
+    this.syncLegacyRelationship(talent);
+    const trustBoost = (memory.trust - 50) / 260;
+    const loyaltyBoost = (memory.loyalty - 50) / 320;
+    const relationshipBoost = clamp((talent.studioRelationship - 0.5) * 0.16 + trustBoost + loyaltyBoost, -0.16, 0.2);
     const heatBoost = clamp((this.reputation.talent - 10) / 260, -0.08, 0.16);
     const reputationPenalty = clamp((talent.starPower - 5) * 0.015 + (talent.craftScore - 5) * 0.01, 0, 0.16);
     const egoPenalty = clamp((talent.egoLevel - 5) * 0.018, -0.04, 0.16);
@@ -1173,6 +1237,13 @@ export class StudioManager {
     const retainer = this.computeDealMemoCost(talent, normalizedTerms);
     if (this.cash < retainer) {
       talent.availability = 'available';
+      this.recordTalentInteraction(talent, {
+        kind: 'dealStalled',
+        trustDelta: -5,
+        loyaltyDelta: -4,
+        note: `Deal memo for ${project.title} failed due to insufficient retainer cash.`,
+        projectId: project.id,
+      });
       return false;
     }
     this.adjustCash(-retainer);
@@ -1190,6 +1261,13 @@ export class StudioManager {
       }
     }
     project.hypeScore = clamp(project.hypeScore + talent.starPower * 0.8, 0, 100);
+    this.recordTalentInteraction(talent, {
+      kind: 'dealSigned',
+      trustDelta: 5,
+      loyaltyDelta: 6,
+      note: `Signed onto ${project.title}.`,
+      projectId: project.id,
+    });
     return true;
   }
 
@@ -1209,11 +1287,33 @@ export class StudioManager {
           rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
         }
         this.finalizeTalentAttachment(project, talent);
+        this.recordTalentInteraction(talent, {
+          kind: 'counterPoachWon',
+          trustDelta: 4,
+          loyaltyDelta: 7,
+          note: `Countered rival pressure and re-secured ${talent.name} for ${project.title}.`,
+          projectId: project.id,
+        });
+      } else {
+        this.recordTalentInteraction(talent, {
+          kind: 'counterPoachLost',
+          trustDelta: -4,
+          loyaltyDelta: -6,
+          note: `Counter-offer failed while trying to secure ${project.title}.`,
+          projectId: project.id,
+        });
       }
     }
 
     if (option.kind === 'talentWalk') {
       project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
+      this.recordTalentInteraction(talent, {
+        kind: 'counterPoachLost',
+        trustDelta: -2,
+        loyaltyDelta: -3,
+        note: `Let poach pressure stand on ${project.title}.`,
+        projectId: project.id,
+      });
     }
 
     this.playerNegotiations = this.playerNegotiations.filter((item) => item.talentId !== talent.id);
@@ -1324,11 +1424,29 @@ export class StudioManager {
     generateDistributionOffersForManager(this, projectId);
   }
 
-  private releaseTalent(projectId: string): void {
+  private releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {
+    const project = this.activeProjects.find((item) => item.id === projectId);
     for (const talent of this.talentPool) {
       if (talent.attachedProjectId === projectId) {
         talent.attachedProjectId = null;
         talent.availability = 'available';
+        if (context === 'abandoned') {
+          this.recordTalentInteraction(talent, {
+            kind: 'projectAbandoned',
+            trustDelta: -9,
+            loyaltyDelta: -11,
+            note: `Studio abandoned ${project?.title ?? 'an attached project'}.`,
+            projectId,
+          });
+        } else {
+          this.recordTalentInteraction(talent, {
+            kind: 'projectReleased',
+            trustDelta: 2,
+            loyaltyDelta: 3,
+            note: `${project?.title ?? 'Project'} moved into release.`,
+            projectId,
+          });
+        }
       }
     }
   }

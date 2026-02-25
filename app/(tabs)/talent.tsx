@@ -22,6 +22,31 @@ function roleLabel(value: string): string {
   return value === 'leadActor' ? 'Lead Actor' : value === 'supportingActor' ? 'Supporting Actor' : value;
 }
 
+function trustLevelLabel(value: string): string {
+  if (value === 'hostile') return 'Hostile';
+  if (value === 'wary') return 'Wary';
+  if (value === 'aligned') return 'Aligned';
+  if (value === 'loyal') return 'Loyal';
+  return 'Neutral';
+}
+
+function interactionLabel(kind: string): string {
+  if (kind === 'negotiationOpened') return 'Opened negotiation';
+  if (kind === 'negotiationSweetened') return 'Sweetened terms';
+  if (kind === 'negotiationHardline') return 'Held hard line';
+  if (kind === 'negotiationDeclined') return 'Declined terms';
+  if (kind === 'quickCloseFailed') return 'Quick-close failed';
+  if (kind === 'quickCloseSuccess') return 'Quick-close success';
+  if (kind === 'dealSigned') return 'Deal signed';
+  if (kind === 'dealStalled') return 'Deal stalled';
+  if (kind === 'projectReleased') return 'Project released';
+  if (kind === 'projectAbandoned') return 'Project abandoned';
+  if (kind === 'poachedByRival') return 'Poached by rival';
+  if (kind === 'counterPoachWon') return 'Counter-poach won';
+  if (kind === 'counterPoachLost') return 'Counter-poach lost';
+  return 'Interaction';
+}
+
 export default function TalentScreen() {
   const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
@@ -177,6 +202,10 @@ export default function TalentScreen() {
             ? `In Production - ${rival.name} (returns W${talent.unavailableUntilWeek ?? '-'})`
             : talent.availability;
         const projectFit = activeProject ? talent.genreFit[activeProject.genre] ?? 0.5 : null;
+        const trustLevel = manager.getTalentTrustLevel(talent);
+        const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
+        const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
+        const recentInteractions = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
         return (
           <View key={talent.id} style={styles.card}>
             <Text style={styles.cardTitle}>{talent.name}</Text>
@@ -185,9 +214,20 @@ export default function TalentScreen() {
             </Text>
             <Text style={styles.muted}>Status: {status}</Text>
             <Text style={styles.muted}>Agent: {talent.agentTier.toUpperCase()} | Ego {talent.egoLevel.toFixed(1)}</Text>
-            <Text style={styles.muted}>Relationship: {talent.studioRelationship.toFixed(2)} | Reputation: {talent.reputation.toFixed(1)}</Text>
+            <Text style={styles.muted}>
+              Trust: {trust.toFixed(0)} ({trustLevelLabel(trustLevel)}) | Loyalty: {loyalty.toFixed(0)} | Reputation:{' '}
+              {talent.reputation.toFixed(1)}
+            </Text>
             {activeProject ? <Text style={styles.muted}>Fit to {activeProject.title}: {pct(projectFit ?? 0)}</Text> : null}
             {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
+            {recentInteractions.length > 0 ? <Text style={styles.muted}>Recent Memory:</Text> : null}
+            {recentInteractions.map((entry, index) => (
+              <Text key={`${talent.id}-${entry.week}-${index}`} style={styles.muted}>
+                W{entry.week}: {interactionLabel(entry.kind)} ({entry.trustDelta >= 0 ? '+' : ''}
+                {entry.trustDelta}T, {entry.loyaltyDelta >= 0 ? '+' : ''}
+                {entry.loyaltyDelta}L)
+              </Text>
+            ))}
             {activeProject && talent.availability === 'available' ? (
               <View style={styles.actions}>
                 <Pressable style={styles.button} onPress={() => startNegotiation(activeProject.id, talent.id)}>

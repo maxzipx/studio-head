@@ -69,4 +69,19 @@ describe('persistence restore', () => {
     expect(project.editorialScore).toBe(5);
     expect(project.postPolishPasses).toBe(2);
   });
+
+  it('migrates legacy talent relationship state into memory model', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const firstTalent = (snapshot.talentPool as Record<string, unknown>[])[0];
+    delete firstTalent.relationshipMemory;
+    firstTalent.studioRelationship = 0.2;
+
+    const restored = restoreStudioManager(snapshot);
+    const talent = restored.talentPool[0];
+    expect(talent.relationshipMemory).toBeTruthy();
+    expect(talent.relationshipMemory.interactionHistory).toEqual([]);
+    expect(talent.relationshipMemory.trust).toBeGreaterThan(0);
+    expect(talent.relationshipMemory.loyalty).toBeGreaterThan(0);
+  });
 });

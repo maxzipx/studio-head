@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { STUDIO_STARTING } from '../domain/balance-constants';
+import { MEMORY_RULES, STUDIO_STARTING } from '../domain/balance-constants';
 import { StudioManager } from '../domain/studio-manager';
 
 const SAVE_KEY = 'pg.save.v1';
@@ -70,6 +70,40 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     project.postPolishPasses = Math.min(2, Math.max(0, Math.round(project.postPolishPasses)));
   }
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
+  for (const talent of manager.talentPool) {
+    if (!isRecord(talent.relationshipMemory)) {
+      const baselineTrust = Math.round(Math.min(100, Math.max(0, 35 + talent.studioRelationship * 45)));
+      const baselineLoyalty = Math.round(Math.min(100, Math.max(0, 30 + talent.studioRelationship * 40)));
+      talent.relationshipMemory = {
+        trust: baselineTrust,
+        loyalty: baselineLoyalty,
+        interactionHistory: [],
+      };
+    } else {
+      if (!Number.isFinite(talent.relationshipMemory.trust)) talent.relationshipMemory.trust = 50;
+      if (!Number.isFinite(talent.relationshipMemory.loyalty)) talent.relationshipMemory.loyalty = 50;
+      talent.relationshipMemory.trust = Math.min(100, Math.max(0, Math.round(talent.relationshipMemory.trust)));
+      talent.relationshipMemory.loyalty = Math.min(100, Math.max(0, Math.round(talent.relationshipMemory.loyalty)));
+      if (!Array.isArray(talent.relationshipMemory.interactionHistory)) {
+        talent.relationshipMemory.interactionHistory = [];
+      }
+      talent.relationshipMemory.interactionHistory = talent.relationshipMemory.interactionHistory
+        .filter((entry) => isRecord(entry) && typeof entry.note === 'string')
+        .slice(-MEMORY_RULES.TALENT_INTERACTION_HISTORY_MAX)
+        .map((entry) => ({
+          week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
+          kind: typeof entry.kind === 'string' ? entry.kind : 'negotiationOpened',
+          trustDelta: Number.isFinite(entry.trustDelta) ? Math.round(entry.trustDelta as number) : 0,
+          loyaltyDelta: Number.isFinite(entry.loyaltyDelta) ? Math.round(entry.loyaltyDelta as number) : 0,
+          note: String(entry.note),
+          projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,
+        }));
+    }
+    talent.studioRelationship = Math.min(
+      1,
+      Math.max(0, (talent.relationshipMemory.trust * 0.62 + talent.relationshipMemory.loyalty * 0.38) / 100)
+    );
+  }
   if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
   if (!Array.isArray(manager.industryNewsLog)) manager.industryNewsLog = [];

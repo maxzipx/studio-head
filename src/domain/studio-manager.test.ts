@@ -203,6 +203,48 @@ describe('StudioManager', () => {
     expect(director!.availability).toBe('attached');
   });
 
+  it('records talent memory changes across attachment and abandonment', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    const baselineTrust = director!.relationshipMemory.trust;
+    const baselineLoyalty = director!.relationshipMemory.loyalty;
+
+    const attach = manager.negotiateAndAttachTalent(project!.id, director!.id);
+    expect(attach.success).toBe(true);
+    expect(director!.relationshipMemory.trust).toBeGreaterThan(baselineTrust);
+    expect(director!.relationshipMemory.loyalty).toBeGreaterThan(baselineLoyalty);
+
+    const trustAfterAttach = director!.relationshipMemory.trust;
+    const loyaltyAfterAttach = director!.relationshipMemory.loyalty;
+    const abandon = manager.abandonProject(project!.id);
+    expect(abandon.success).toBe(true);
+    expect(director!.availability).toBe('available');
+    expect(director!.relationshipMemory.trust).toBeLessThan(trustAfterAttach);
+    expect(director!.relationshipMemory.loyalty).toBeLessThan(loyaltyAfterAttach);
+    expect(director!.relationshipMemory.interactionHistory.at(-1)?.kind).toBe('projectAbandoned');
+  });
+
+  it('caps talent interaction history length to bounded memory', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const talent = manager.talentPool[0];
+
+    for (let i = 0; i < 14; i += 1) {
+      manager.recordTalentInteraction(talent, {
+        kind: 'negotiationHardline',
+        trustDelta: -1,
+        loyaltyDelta: -1,
+        note: `memory-${i}`,
+      });
+    }
+
+    expect(talent.relationshipMemory.interactionHistory.length).toBe(10);
+    expect(talent.relationshipMemory.interactionHistory[0]?.note).toBe('memory-4');
+    expect(talent.relationshipMemory.interactionHistory[9]?.note).toBe('memory-13');
+  });
+
   it('blocks negotiations and attachments for non-development projects', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

@@ -66,3 +66,7 @@ export const PROJECT_BALANCE = {
 export const EVENT_BALANCE = {
   LOW_HEAT_MARKETING_WEIGHT_THRESHOLD: 25,
 } as const;
+
+export const MEMORY_RULES = {
+  TALENT_INTERACTION_HISTORY_MAX: 10,
+} as const;

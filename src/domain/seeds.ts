@@ -1,6 +1,16 @@
 import type { DecisionItem, MovieProject, RivalStudio, ScriptPitch, Talent } from './types';
 import { createId } from './id';
 
+function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
+  const trust = Math.round(Math.min(100, Math.max(0, 35 + studioRelationship * 45)));
+  const loyalty = Math.round(Math.min(100, Math.max(0, 30 + studioRelationship * 40)));
+  return {
+    trust,
+    loyalty,
+    interactionHistory: [],
+  };
+}
+
 export function createSeedTalentPool(): Talent[] {
   return [
     {
@@ -18,6 +28,7 @@ export function createSeedTalentPool(): Talent[] {
       reputation: 74,
       agentTier: 'wme',
       studioRelationship: 0.2,
+      relationshipMemory: createInitialRelationship(0.2),
     },
     {
       id: createId('talent'),
@@ -34,6 +45,7 @@ export function createSeedTalentPool(): Talent[] {
       reputation: 70,
       agentTier: 'caa',
       studioRelationship: 0.1,
+      relationshipMemory: createInitialRelationship(0.1),
     },
     {
       id: createId('talent'),
@@ -50,6 +62,7 @@ export function createSeedTalentPool(): Talent[] {
       reputation: 78,
       agentTier: 'independent',
       studioRelationship: 0.35,
+      relationshipMemory: createInitialRelationship(0.35),
     },
   ];
 }

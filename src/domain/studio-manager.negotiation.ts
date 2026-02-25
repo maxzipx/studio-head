@@ -98,17 +98,45 @@ export function adjustTalentNegotiationForManager(
   if (action === 'sweetenSalary') {
     normalized.offerSalaryMultiplier = clamp((normalized.offerSalaryMultiplier ?? 1) + 0.06, 1, 1.5);
     normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
+    manager.recordTalentInteraction(talent, {
+      kind: 'negotiationSweetened',
+      trustDelta: 1,
+      loyaltyDelta: 0,
+      note: `Improved salary terms on ${project.title}.`,
+      projectId,
+    });
   } else if (action === 'sweetenBackend') {
     normalized.offerBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
     normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
+    manager.recordTalentInteraction(talent, {
+      kind: 'negotiationSweetened',
+      trustDelta: 1,
+      loyaltyDelta: 1,
+      note: `Improved backend terms on ${project.title}.`,
+      projectId,
+    });
   } else if (action === 'sweetenPerks') {
     normalized.offerPerksBudget = Math.min(
       talent.salary.perksCost * 3,
       Math.max(talent.salary.perksCost * 0.4, Math.round((normalized.offerPerksBudget ?? talent.salary.perksCost) + 60_000))
     );
     normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
+    manager.recordTalentInteraction(talent, {
+      kind: 'negotiationSweetened',
+      trustDelta: 1,
+      loyaltyDelta: 0,
+      note: `Expanded support/perks package on ${project.title}.`,
+      projectId,
+    });
   } else if (action === 'holdFirm') {
     normalized.holdLineCount = (normalized.holdLineCount ?? 0) + 1;
+    manager.recordTalentInteraction(talent, {
+      kind: 'negotiationHardline',
+      trustDelta: -2,
+      loyaltyDelta: -1,
+      note: `Held firm on current package for ${project.title}.`,
+      projectId,
+    });
   }
 
   normalized.rounds = rounds + 1;
@@ -160,6 +188,13 @@ export function startTalentNegotiationForManager(
     lastResponse: 'Initial offer package sent.',
   };
   manager.playerNegotiations.push(negotiation);
+  manager.recordTalentInteraction(talent, {
+    kind: 'negotiationOpened',
+    trustDelta: 1,
+    loyaltyDelta: 0,
+    note: `Opened negotiations for ${project.title}.`,
+    projectId,
+  });
   const chance = manager.evaluateNegotiation(negotiation, talent).chance;
   return {
     success: true,
@@ -211,6 +246,13 @@ export function negotiateAndAttachTalentForManager(
   manager.adjustCash(-attemptFee);
   if (manager.negotiationRng() > chance) {
     manager.setNegotiationCooldown(talent, 1);
+    manager.recordTalentInteraction(talent, {
+      kind: 'quickCloseFailed',
+      trustDelta: -3,
+      loyaltyDelta: -2,
+      note: `Quick-close attempt failed for ${project.title}.`,
+      projectId,
+    });
     return {
       success: false,
       message: `${talent.name}'s reps declined quick-close terms. Attempt cost ${Math.round(
@@ -221,6 +263,13 @@ export function negotiateAndAttachTalentForManager(
   if (!manager.finalizeTalentAttachment(project, talent, quickTerms)) {
     return { success: false, message: `Deal memo failed for ${talent.name}; cash is below retainer.` };
   }
+  manager.recordTalentInteraction(talent, {
+    kind: 'quickCloseSuccess',
+    trustDelta: 2,
+    loyaltyDelta: 2,
+    note: `Quick-close landed for ${project.title}.`,
+    projectId,
+  });
   return { success: true, message: `${talent.name} attached to ${project.title}.` };
 }
 
@@ -244,6 +293,13 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
     if (project.phase !== 'development') {
       talent.availability = 'available';
       events.push(`Negotiation window closed for ${talent.name}; ${project.title} moved out of development.`);
+      manager.recordTalentInteraction(talent, {
+        kind: 'negotiationDeclined',
+        trustDelta: -1,
+        loyaltyDelta: -2,
+        note: `Negotiation closed when ${project.title} moved out of development.`,
+        projectId: project.id,
+      });
       resolved.push(negotiation.talentId);
       continue;
     }
@@ -260,6 +316,13 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       }
     } else {
       manager.setNegotiationCooldown(talent, 1);
+      manager.recordTalentInteraction(talent, {
+        kind: 'negotiationDeclined',
+        trustDelta: -3,
+        loyaltyDelta: -2,
+        note: `Declined final terms for ${project.title}.`,
+        projectId: project.id,
+      });
       events.push(manager.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
     }
     resolved.push(negotiation.talentId);
