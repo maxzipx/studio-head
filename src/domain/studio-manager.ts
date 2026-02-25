@@ -2325,10 +2325,10 @@ export class StudioManager {
     const totalWins = results.reduce((sum, item) => sum + item.wins, 0);
     const winner = results.find((item) => item.wins > 0) ?? results[0];
 
-    let criticsDelta = totalNominations * 1.4 + totalWins * 5;
-    let talentDelta = totalNominations * 0.9 + totalWins * 2.2;
-    let distributorDelta = totalNominations * 0.5 + totalWins * 1.8;
-    let audienceDelta = totalWins * 1.4;
+    let criticsDelta = totalNominations * 1.1 + totalWins * 3.8;
+    let talentDelta = totalNominations * 0.7 + totalWins * 1.6;
+    let distributorDelta = totalNominations * 0.4 + totalWins * 1.2;
+    let audienceDelta = totalWins * 1;
     if (totalNominations === 0) {
       criticsDelta -= 1;
       talentDelta -= 1;

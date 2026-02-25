@@ -94,7 +94,7 @@ export function projectedROI(input: {
   const domesticTotal = input.openingWeekend * legMultiplier;
   const internationalTotal = domesticTotal * INTERNATIONAL_FACTOR[input.genre];
   const worldwideGross = domesticTotal + internationalTotal;
-  const netRevenue = worldwideGross * 0.52;
+  const netRevenue = worldwideGross * 0.54;
   return netRevenue / Math.max(1, input.totalCost);
 }
 
@@ -109,22 +109,22 @@ export function reputationDeltasFromRelease(input: {
   let audienceDelta = 0;
   const critical = input.criticalScore;
 
-  if (critical > 90) criticsDelta += 15;
-  else if (critical > 80) criticsDelta += 8;
-  else if (critical < 40) criticsDelta -= 10;
+  if (critical > 90) criticsDelta += 12;
+  else if (critical > 80) criticsDelta += 6;
+  else if (critical < 40) criticsDelta -= 9;
 
-  criticsDelta += input.awardsNominations * 3 + input.awardsWins * 8;
+  criticsDelta += input.awardsNominations * 2 + input.awardsWins * 5;
 
-  if (input.roi > 3) audienceDelta += 12;
-  else if (input.roi > 2) audienceDelta += 6;
-  else if (input.roi < 1) audienceDelta -= 8;
+  if (input.roi > 3) audienceDelta += 10;
+  else if (input.roi > 2) audienceDelta += 5;
+  else if (input.roi < 1) audienceDelta -= 7;
 
   criticsDelta -= input.controversyPenalty * 0.6;
   audienceDelta -= input.controversyPenalty * 0.4;
 
   return {
-    critics: clamp(criticsDelta, -15, 20),
-    audience: clamp(audienceDelta, -12, 15),
+    critics: clamp(criticsDelta, -12, 16),
+    audience: clamp(audienceDelta, -10, 12),
   };
 }
 
@@ -167,11 +167,11 @@ export function awardsSeasonScore(input: {
 }
 
 export function awardsNominationProbability(score: number): number {
-  if (score >= 86) return 0.85;
-  if (score >= 78) return 0.66;
-  if (score >= 70) return 0.44;
-  if (score >= 62) return 0.25;
-  if (score >= 54) return 0.12;
+  if (score >= 90) return 0.65;
+  if (score >= 82) return 0.48;
+  if (score >= 74) return 0.3;
+  if (score >= 66) return 0.16;
+  if (score >= 58) return 0.08;
   return 0.05;
 }
 
@@ -180,8 +180,8 @@ export function awardsWinProbability(input: {
   nominations: number;
   controversy: number;
 }): number {
-  const base = 0.04 + awardsNominationProbability(input.score) * 0.42;
-  const nominationBoost = Math.min(0.18, input.nominations * 0.035);
+  const base = 0.03 + awardsNominationProbability(input.score) * 0.3;
+  const nominationBoost = Math.min(0.12, input.nominations * 0.028);
   const controversyPenalty = clamp(input.controversy, 0, 100) * 0.0015;
-  return clamp(base + nominationBoost - controversyPenalty, 0.02, 0.72);
+  return clamp(base + nominationBoost - controversyPenalty, 0.02, 0.6);
 }

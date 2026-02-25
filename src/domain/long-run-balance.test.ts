@@ -286,15 +286,15 @@ describe('long-run balance harness', () => {
     expect(summary).toMatchInlineSnapshot(`
       {
         "avgPendingCrisesMean": 0.18,
-        "awardsNomMean": 15.67,
-        "awardsWinMean": 2.96,
-        "bankruptRate": 0.75,
-        "cashMax": 9351201,
-        "cashMedian": 0,
+        "awardsNomMean": 17.29,
+        "awardsWinMean": 2.17,
+        "bankruptRate": 0.333,
+        "cashMax": 47862781,
+        "cashMedian": 4063854,
         "cashMin": 0,
-        "heatMean": 92.96,
+        "heatMean": 93.88,
         "maxPendingCrises": 4,
-        "releasedMean": 5.38,
+        "releasedMean": 7.42,
         "releasedMin": 1,
       }
     `);

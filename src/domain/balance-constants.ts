@@ -30,12 +30,12 @@ export const STUDIO_TIER_REQUIREMENTS: Record<StudioTier, { heat: number; releas
 };
 
 export const ACTION_BALANCE = {
-  OPTIONAL_ACTION_COST: 180_000,
+  OPTIONAL_ACTION_COST: 160_000,
   OPTIONAL_ACTION_HYPE_BOOST: 5,
   OPTIONAL_ACTION_MARKETING_BOOST: 180_000,
-  GREENLIGHT_APPROVAL_FEE: 220_000,
-  TEST_SCREENING_COST: 650_000,
-  RESHOOT_COST: 850_000,
+  GREENLIGHT_APPROVAL_FEE: 180_000,
+  TEST_SCREENING_COST: 560_000,
+  RESHOOT_COST: 760_000,
   RESHOOT_SCHEDULE_WEEKS: 1,
   SCRIPT_SPRINT_COST: 100_000,
   SCRIPT_SPRINT_QUALITY_BOOST: 0.5,
@@ -63,11 +63,11 @@ export const PROJECT_BALANCE = {
     thriller: 18_000_000,
   } satisfies Record<MovieGenre, number>,
   PHASE_BURN_MULTIPLIER: {
-    development: 0.005,
-    preProduction: 0.008,
-    production: 0.015,
-    postProduction: 0.009,
-    distribution: 0.0035,
+    development: 0.0045,
+    preProduction: 0.007,
+    production: 0.013,
+    postProduction: 0.008,
+    distribution: 0.003,
     released: 0,
   } satisfies Record<ProjectPhase, number>,
 } as const;
