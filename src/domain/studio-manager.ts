@@ -103,6 +103,7 @@ import type {
   DecisionCategory,
   DecisionItem,
   DistributionOffer,
+  DepartmentTrack,
   EventTemplate,
   FranchiseTrack,
   FranchiseProjectionModifiers,
@@ -127,6 +128,7 @@ import type {
   SequelEligibility,
   StoryArcState,
   StudioReputation,
+  StudioSpecialization,
   StudioTier,
   Talent,
   TalentInteractionKind,
@@ -282,6 +284,25 @@ function releaseOutcomeFromRoi(roi: number): ReleaseOutcomeLabel {
   return 'flop';
 }
 
+function specializationProfile(focus: StudioSpecialization): {
+  openingMultiplier: number;
+  criticalDelta: number;
+  burnMultiplier: number;
+  awardsBoost: number;
+  distributionLeverage: number;
+} {
+  if (focus === 'blockbuster') {
+    return { openingMultiplier: 1.09, criticalDelta: -3, burnMultiplier: 1.03, awardsBoost: -4, distributionLeverage: 0.025 };
+  }
+  if (focus === 'prestige') {
+    return { openingMultiplier: 0.93, criticalDelta: 4, burnMultiplier: 1.01, awardsBoost: 6, distributionLeverage: 0.005 };
+  }
+  if (focus === 'indie') {
+    return { openingMultiplier: 0.95, criticalDelta: 1, burnMultiplier: 0.92, awardsBoost: 2, distributionLeverage: -0.005 };
+  }
+  return { openingMultiplier: 1, criticalDelta: 0, burnMultiplier: 1, awardsBoost: 0, distributionLeverage: 0 };
+}
+
 function buildIpTemplate(kind: IpKind): {
   qualityBonus: number;
   hypeBonus: number;
@@ -390,6 +411,16 @@ export class StudioManager {
   marketingTeamLevel = 1;
   ownedIps: OwnedIp[] = [];
   studioCapacityUpgrades = 0;
+  studioSpecialization: StudioSpecialization = 'balanced';
+  specializationCommittedWeek: number | null = null;
+  departmentLevels: Record<DepartmentTrack, number> = {
+    development: 0,
+    production: 0,
+    distribution: 0,
+  };
+  exclusiveDistributionPartner: string | null = null;
+  exclusivePartnerUntilWeek: number | null = null;
+  executiveNetworkLevel = 0;
 
   get studioHeat(): number {
     return Math.round(
@@ -441,6 +472,10 @@ export class StudioManager {
 
   get projectCapacityUsed(): number {
     return this.activeProjects.filter((project) => project.phase !== 'released').length;
+  }
+
+  get specializationProfile(): ReturnType<typeof specializationProfile> {
+    return specializationProfile(this.studioSpecialization);
   }
 
   adjustReputation(delta: number, pillar: keyof StudioReputation | 'all' = 'all'): void {
@@ -722,6 +757,89 @@ export class StudioManager {
     return { success: true, message: `Studio renamed to ${sanitized}.` };
   }
 
+  setStudioSpecialization(next: StudioSpecialization): { success: boolean; message: string } {
+    if (this.studioSpecialization === next) {
+      return { success: false, message: `${next} specialization is already active.` };
+    }
+    const switchCost = this.specializationCommittedWeek === null ? 0 : 650_000;
+    if (this.cash < switchCost) {
+      return { success: false, message: `Insufficient cash to pivot specialization (${Math.round(switchCost / 1000)}K).` };
+    }
+    if (switchCost > 0) {
+      this.adjustCash(-switchCost);
+      this.adjustReputation(-1, 'talent');
+      this.adjustReputation(-1, 'distributor');
+    }
+    this.studioSpecialization = next;
+    this.specializationCommittedWeek = this.currentWeek;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message:
+        switchCost > 0
+          ? `Studio identity pivoted to ${next}. Repositioning cost paid and partner confidence dipped.`
+          : `Studio identity set to ${next}.`,
+    };
+  }
+
+  investDepartment(track: DepartmentTrack): { success: boolean; message: string } {
+    const level = this.departmentLevels[track];
+    if (level >= 4) return { success: false, message: `${track} department is already maxed.` };
+    const cost = 420_000 * (level + 1);
+    if (this.cash < cost) {
+      return { success: false, message: `Insufficient cash to invest in ${track} department (${Math.round(cost / 1000)}K).` };
+    }
+    this.adjustCash(-cost);
+    this.departmentLevels[track] = level + 1;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message: `${track} department upgraded to level ${this.departmentLevels[track]}.`,
+    };
+  }
+
+  getActiveExclusivePartner(): string | null {
+    if (!this.exclusiveDistributionPartner || !this.exclusivePartnerUntilWeek) return null;
+    if (this.currentWeek > this.exclusivePartnerUntilWeek) {
+      this.exclusiveDistributionPartner = null;
+      this.exclusivePartnerUntilWeek = null;
+      return null;
+    }
+    return this.exclusiveDistributionPartner;
+  }
+
+  signExclusiveDistributionPartner(partner: string): { success: boolean; message: string } {
+    const allowedPartners = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
+    if (!allowedPartners.includes(partner)) return { success: false, message: 'Unknown distribution partner.' };
+    const current = this.getActiveExclusivePartner();
+    if (current === partner) return { success: false, message: `${partner} partnership is already active.` };
+    const cost = 480_000;
+    if (this.cash < cost) return { success: false, message: 'Insufficient cash for exclusive partnership.' };
+    this.adjustCash(-cost);
+    if (current && current !== partner) {
+      this.adjustReputation(-1, 'distributor');
+    }
+    this.exclusiveDistributionPartner = partner;
+    this.exclusivePartnerUntilWeek = this.currentWeek + 26;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message: `Signed exclusive distribution alignment with ${partner} through week ${this.exclusivePartnerUntilWeek}.`,
+    };
+  }
+
+  poachExecutiveTeam(): { success: boolean; message: string } {
+    if (this.executiveNetworkLevel >= 3) return { success: false, message: 'Executive network is already maxed.' };
+    const next = this.executiveNetworkLevel + 1;
+    const cost = 900_000 * next;
+    if (this.cash < cost) return { success: false, message: `Insufficient cash for executive poach (${Math.round(cost / 1000)}K).` };
+    this.adjustCash(-cost);
+    this.executiveNetworkLevel = next;
+    this.adjustReputation(1, 'talent');
+    this.evaluateBankruptcy();
+    return { success: true, message: `Executive network upgraded to level ${next}.` };
+  }
+
   advanceUntilDecision(maxWeeks = 26): {
     success: boolean;
     advancedWeeks: number;
@@ -818,16 +936,18 @@ export class StudioManager {
       };
     }
 
-    if (this.cash < ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE) {
+    const feeReduction = this.departmentLevels.development * 15_000;
+    const approvalFee = Math.max(120_000, ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE - feeReduction);
+    if (this.cash < approvalFee) {
       return {
         success: false,
-        message: `Insufficient cash for greenlight approval ($${Math.round(ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE / 1000)}K needed).`,
+        message: `Insufficient cash for greenlight approval ($${Math.round(approvalFee / 1000)}K needed).`,
       };
     }
-    this.adjustCash(-ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE);
+    this.adjustCash(-approvalFee);
     project.greenlightApproved = true;
     project.greenlightWeek = this.currentWeek;
-    project.greenlightFeePaid = (project.greenlightFeePaid ?? 0) + ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE;
+    project.greenlightFeePaid = (project.greenlightFeePaid ?? 0) + approvalFee;
     project.greenlightLockedCeiling = project.budget.ceiling;
     this.evaluateBankruptcy();
     return {
@@ -1250,9 +1370,10 @@ export class StudioManager {
       return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
     }
     if (this.cash < ACTION_BALANCE.SCRIPT_SPRINT_COST) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
+    const sprintBoost = ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST + this.departmentLevels.development * 0.08;
     this.adjustCash(-ACTION_BALANCE.SCRIPT_SPRINT_COST);
     project.scriptQuality = clamp(
-      project.scriptQuality + ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST,
+      project.scriptQuality + sprintBoost,
       0,
       ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY
     );
@@ -1770,7 +1891,7 @@ export class StudioManager {
       crisisPenalty: project.productionStatus === 'inCrisis' ? 8 : 0,
       chemistryPenalty: 0,
     });
-    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta, 0, 100);
+    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta + this.specializationProfile.criticalDelta, 0, 100);
 
     const opening = projectedOpeningWeekendRange({
       genre: project.genre,
@@ -1781,7 +1902,7 @@ export class StudioManager {
       seasonalMultiplier: this.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
-    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier;
+    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * this.specializationProfile.openingMultiplier;
     const openingLow = opening.low * combinedOpeningMultiplier;
     const openingHigh = opening.high * combinedOpeningMultiplier;
     const openingMid = opening.midpoint * combinedOpeningMultiplier;
@@ -1808,7 +1929,14 @@ export class StudioManager {
   }
 
   private projectedBurnForProject(project: MovieProject, burnMultiplier: number): number {
-    return project.budget.ceiling * phaseBurnMultiplier(project.phase) * burnMultiplier;
+    const productionEfficiency = 1 - this.departmentLevels.production * 0.03;
+    return (
+      project.budget.ceiling *
+      phaseBurnMultiplier(project.phase) *
+      burnMultiplier *
+      this.specializationProfile.burnMultiplier *
+      clamp(productionEfficiency, 0.82, 1.05)
+    );
   }
 
   private addChronicleEntry(entry: Omit<ChronicleEntry, 'id'>): void {
@@ -2138,7 +2266,7 @@ export class StudioManager {
     }
 
     const awardsArc = this.storyArcs['awards-circuit'];
-    const baseCampaignBoost = this.hasStoryFlag('awards_campaign') ? 8 : 0;
+    const baseCampaignBoost = (this.hasStoryFlag('awards_campaign') ? 8 : 0) + this.specializationProfile.awardsBoost;
     const baselineFestivalBoost = this.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
@@ -2688,8 +2816,9 @@ export class StudioManager {
     const agentPenalty = clamp((AGENT_DIFFICULTY[talent.agentTier] - 1) * 0.2, 0, 0.12);
     const grudgePenalty = clamp(outlook.grudgeScore / TALENT_NEGOTIATION_RULES.CHANCE_PENALTY_GRUDGE_DIVISOR, 0, 0.2);
     const refusalPenalty = outlook.refusalRisk === 'critical' ? 0.04 : outlook.refusalRisk === 'elevated' ? 0.02 : 0;
+    const executiveBoost = this.executiveNetworkLevel * 0.015;
     return clamp(
-      base + relationshipBoost + heatBoost + arcLeverage - reputationPenalty - egoPenalty - agentPenalty - grudgePenalty - refusalPenalty,
+      base + relationshipBoost + heatBoost + arcLeverage + executiveBoost - reputationPenalty - egoPenalty - agentPenalty - grudgePenalty - refusalPenalty,
       0.08,
       0.95
     );
@@ -2865,6 +2994,16 @@ export class StudioManager {
           modifiers.distributionLeverage -= 0.02;
         }
       }
+    }
+
+    modifiers.distributionLeverage += this.specializationProfile.distributionLeverage;
+    modifiers.distributionLeverage += this.departmentLevels.distribution * 0.015;
+    modifiers.distributionLeverage += this.executiveNetworkLevel * 0.01;
+    modifiers.talentLeverage += this.executiveNetworkLevel * 0.012;
+    if (this.studioSpecialization === 'blockbuster') {
+      modifiers.hypeDecayStep = Math.max(0.8, modifiers.hypeDecayStep - 0.2);
+    } else if (this.studioSpecialization === 'prestige') {
+      modifiers.releaseHeatMomentum += 0.6;
     }
 
     modifiers.burnMultiplier = clamp(modifiers.burnMultiplier, 0.85, 1.2);

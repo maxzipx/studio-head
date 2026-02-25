@@ -47,6 +47,10 @@ interface GameContextValue {
   upgradeStudioCapacity: () => void;
   acquireIpRights: (ipId: string) => void;
   developFromIp: (ipId: string) => void;
+  setStudioSpecialization: (focus: 'balanced' | 'blockbuster' | 'prestige' | 'indie') => void;
+  investDepartment: (track: 'development' | 'production' | 'distribution') => void;
+  signExclusivePartner: (partner: string) => void;
+  poachExecutiveTeam: () => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -342,6 +346,30 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       developFromIp: (ipId: string) => {
         runWhenHydrated(() => {
           const result = manager.developProjectFromIp(ipId);
+          saveAndTick(result.message);
+        });
+      },
+      setStudioSpecialization: (focus: 'balanced' | 'blockbuster' | 'prestige' | 'indie') => {
+        runWhenHydrated(() => {
+          const result = manager.setStudioSpecialization(focus);
+          saveAndTick(result.message);
+        });
+      },
+      investDepartment: (track: 'development' | 'production' | 'distribution') => {
+        runWhenHydrated(() => {
+          const result = manager.investDepartment(track);
+          saveAndTick(result.message);
+        });
+      },
+      signExclusivePartner: (partner: string) => {
+        runWhenHydrated(() => {
+          const result = manager.signExclusiveDistributionPartner(partner);
+          saveAndTick(result.message);
+        });
+      },
+      poachExecutiveTeam: () => {
+        runWhenHydrated(() => {
+          const result = manager.poachExecutiveTeam();
           saveAndTick(result.message);
         });
       },

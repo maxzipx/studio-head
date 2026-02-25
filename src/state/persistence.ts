@@ -42,6 +42,33 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   manager.marketingTeamLevel = Math.min(5, Math.max(1, Math.round(manager.marketingTeamLevel)));
   if (!Number.isFinite(manager.studioCapacityUpgrades)) manager.studioCapacityUpgrades = 0;
   manager.studioCapacityUpgrades = Math.max(0, Math.round(manager.studioCapacityUpgrades));
+  if (
+    manager.studioSpecialization !== 'balanced' &&
+    manager.studioSpecialization !== 'blockbuster' &&
+    manager.studioSpecialization !== 'prestige' &&
+    manager.studioSpecialization !== 'indie'
+  ) {
+    manager.studioSpecialization = 'balanced';
+  }
+  if (!Number.isFinite(manager.specializationCommittedWeek)) manager.specializationCommittedWeek = null;
+  if (!isRecord(manager.departmentLevels)) {
+    manager.departmentLevels = { development: 0, production: 0, distribution: 0 };
+  }
+  manager.departmentLevels.development = Number.isFinite(manager.departmentLevels.development)
+    ? Math.max(0, Math.min(4, Math.round(manager.departmentLevels.development)))
+    : 0;
+  manager.departmentLevels.production = Number.isFinite(manager.departmentLevels.production)
+    ? Math.max(0, Math.min(4, Math.round(manager.departmentLevels.production)))
+    : 0;
+  manager.departmentLevels.distribution = Number.isFinite(manager.departmentLevels.distribution)
+    ? Math.max(0, Math.min(4, Math.round(manager.departmentLevels.distribution)))
+    : 0;
+  if (typeof manager.exclusiveDistributionPartner !== 'string' && manager.exclusiveDistributionPartner !== null) {
+    manager.exclusiveDistributionPartner = null;
+  }
+  if (!Number.isFinite(manager.exclusivePartnerUntilWeek)) manager.exclusivePartnerUntilWeek = null;
+  if (!Number.isFinite(manager.executiveNetworkLevel)) manager.executiveNetworkLevel = 0;
+  manager.executiveNetworkLevel = Math.max(0, Math.min(3, Math.round(manager.executiveNetworkLevel)));
 
   if (!isRecord(manager.reputation)) {
     manager.reputation = {

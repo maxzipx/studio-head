@@ -49,6 +49,14 @@ const CHRONICLE_ICONS: Record<string, string> = {
   crisisResolved: '🔧',
 };
 
+const SPECIALIZATION_OPTIONS: Array<{ key: 'balanced' | 'blockbuster' | 'prestige' | 'indie'; label: string }> = [
+  { key: 'balanced', label: 'Balanced' },
+  { key: 'blockbuster', label: 'Blockbuster' },
+  { key: 'prestige', label: 'Prestige' },
+  { key: 'indie', label: 'Indie' },
+];
+
+const PARTNER_OPTIONS = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
 function stanceLabel(value: string): string {
   if (value === 'hostile') return 'Hostile';
   if (value === 'competitive') return 'Competitive';
@@ -69,6 +77,10 @@ export default function HQScreen() {
     renameStudio,
     upgradeMarketingTeam,
     upgradeStudioCapacity,
+    setStudioSpecialization,
+    investDepartment,
+    signExclusivePartner,
+    poachExecutiveTeam,
     lastMessage,
   } =
     useGame();
@@ -231,6 +243,9 @@ export default function HQScreen() {
         <Text style={styles.body}>
           Marketing Team: L{manager.marketingTeamLevel} | Capacity: {manager.projectCapacityUsed}/{manager.projectCapacityLimit}
         </Text>
+        <Text style={styles.body}>
+          Specialization: {manager.studioSpecialization} | Exec Network: L{manager.executiveNetworkLevel}
+        </Text>
         <View style={styles.actionsRow}>
           <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={upgradeMarketingTeam}>
             <Text style={styles.choiceTitle}>Upgrade Marketing Team</Text>
@@ -239,6 +254,53 @@ export default function HQScreen() {
             <Text style={styles.choiceTitle}>Expand Studio Capacity</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Studio Identity</Text>
+        <Text style={styles.mutedBody}>Choose one focus. Pivoting later costs cash and partner trust.</Text>
+        <View style={styles.actionsRow}>
+          {SPECIALIZATION_OPTIONS.map((option) => (
+            <Pressable
+              key={option.key}
+              style={[styles.choiceButton, manager.studioSpecialization === option.key ? styles.choiceButtonActive : null]}
+              disabled={isGameOver}
+              onPress={() => setStudioSpecialization(option.key)}>
+              <Text style={styles.choiceTitle}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.mutedBody}>
+          Departments: Dev L{manager.departmentLevels.development} | Prod L{manager.departmentLevels.production} | Dist L{manager.departmentLevels.distribution}
+        </Text>
+        <View style={styles.actionsRow}>
+          <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={() => investDepartment('development')}>
+            <Text style={styles.choiceTitle}>Invest Dev</Text>
+          </Pressable>
+          <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={() => investDepartment('production')}>
+            <Text style={styles.choiceTitle}>Invest Production</Text>
+          </Pressable>
+          <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={() => investDepartment('distribution')}>
+            <Text style={styles.choiceTitle}>Invest Distribution</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Strategic Levers</Text>
+        <Text style={styles.body}>
+          Exclusive Partner: {manager.getActiveExclusivePartner() ?? 'None'} {manager.exclusivePartnerUntilWeek ? `(to W${manager.exclusivePartnerUntilWeek})` : ''}
+        </Text>
+        <View style={styles.actionsRow}>
+          {PARTNER_OPTIONS.map((partner) => (
+            <Pressable key={partner} style={styles.choiceButton} disabled={isGameOver} onPress={() => signExclusivePartner(partner)}>
+              <Text style={styles.choiceTitle}>{partner.split(' ')[0]}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={poachExecutiveTeam}>
+          <Text style={styles.choiceTitle}>Poach Executive Team</Text>
+        </Pressable>
       </View>
 
       <View style={styles.card}>
@@ -722,6 +784,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   playerRow: {
     color: tokens.accentGold,
@@ -892,3 +955,5 @@ const styles = StyleSheet.create({
     color: tokens.accentRed,
   },
 });
+
+

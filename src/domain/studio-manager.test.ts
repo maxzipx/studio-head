@@ -674,6 +674,40 @@ describe('StudioManager', () => {
     expect(third.success).toBe(false);
   });
 
+  it('applies specialization modifiers to projection profile', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects[0];
+    project.releaseWeek = manager.currentWeek + 8;
+
+    const base = manager.getProjectedForProject(project.id);
+    expect(base).toBeTruthy();
+
+    manager.setStudioSpecialization('blockbuster');
+    const blockbuster = manager.getProjectedForProject(project.id);
+    expect(blockbuster).toBeTruthy();
+    expect((blockbuster?.openingHigh ?? 0)).toBeGreaterThan(base?.openingHigh ?? 0);
+
+    manager.setStudioSpecialization('prestige');
+    const prestige = manager.getProjectedForProject(project.id);
+    expect(prestige).toBeTruthy();
+    expect((prestige?.critical ?? 0)).toBeGreaterThan(base?.critical ?? 0);
+  });
+
+  it('scales script sprint quality gain with development department level', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    expect(project).toBeTruthy();
+    manager.cash = 10_000_000;
+    project!.scriptQuality = 6.4;
+
+    manager.investDepartment('development');
+    manager.investDepartment('development');
+    const before = project!.scriptQuality;
+    const result = manager.runScriptDevelopmentSprint(project!.id);
+    expect(result.success).toBe(true);
+    expect(project!.scriptQuality - before).toBeGreaterThan(0.5);
+  });
+
   it('enforces phase progression gates and advances when requirements are met', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
@@ -917,6 +951,37 @@ describe('StudioManager', () => {
 
     manager.walkAwayDistribution(project!.id);
     expect(manager.getOffersForProject(project!.id).length).toBe(0);
+  });
+
+  it('biases offer strength toward active exclusive distribution partner', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    manager.signExclusiveDistributionPartner('Aster Peak Pictures');
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
+    project!.marketingBudget = 1_000_000;
+
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+    project!.scheduledWeeksRemaining = 0;
+    manager.advanceProjectPhase(project!.id);
+
+    const offers = manager.getOffersForProject(project!.id);
+    const exclusive = offers.find((offer) => offer.partner === 'Aster Peak Pictures');
+    const nonExclusive = offers.find((offer) => offer.partner !== 'Aster Peak Pictures');
+    expect(exclusive).toBeTruthy();
+    expect(nonExclusive).toBeTruthy();
+    expect((exclusive?.minimumGuarantee ?? 0)).toBeGreaterThan(nonExclusive?.minimumGuarantee ?? 0);
   });
 
   it('preserves backend share reductions when accepting distribution offers', () => {

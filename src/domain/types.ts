@@ -393,6 +393,10 @@ export type StudioTier =
   | 'majorStudio'
   | 'globalPowerhouse';
 
+export type StudioSpecialization = 'balanced' | 'blockbuster' | 'prestige' | 'indie';
+
+export type DepartmentTrack = 'development' | 'production' | 'distribution';
+
 export const STUDIO_TIER_LABELS: Record<StudioTier, string> = {
   indieStudio: 'Indie Studio',
   establishedIndie: 'Established Indie',

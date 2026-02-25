@@ -143,7 +143,8 @@ export function counterDistributionOfferForManager(
     return { success: false, message: `${offer.partner} will not entertain another counter.` };
   }
   offer.counterAttempts = attempts + 1;
-  const successChance = clamp(0.53 + manager.reputation.distributor / 220, 0.25, 0.9);
+  const strategyBonus = (manager.departmentLevels?.distribution ?? 0) * 0.025 + (manager.executiveNetworkLevel ?? 0) * 0.02;
+  const successChance = clamp(0.53 + manager.reputation.distributor / 220 + strategyBonus, 0.25, 0.92);
   if (manager.negotiationRng() > successChance) {
     return { success: false, message: `${offer.partner} declined the counter.` };
   }
@@ -196,6 +197,9 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
   const hypeFactor = 1 + project.hypeScore / 200;
   const mgMultiplier = 1 + modifiers.distributionLeverage;
   const shareLift = modifiers.distributionLeverage * 0.22;
+  const exclusivePartner = manager.getActiveExclusivePartner?.() ?? null;
+  const exclusiveBoost = 1.16;
+  const offPartnerPenalty = 0.94;
   const offers: DistributionOffer[] = [
     {
       id: createId('deal'),
@@ -231,5 +235,13 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
       counterAttempts: 0,
     },
   ];
+  for (const offer of offers) {
+    if (!exclusivePartner) continue;
+    const isExclusive = offer.partner === exclusivePartner;
+    const multiplier = isExclusive ? exclusiveBoost : offPartnerPenalty;
+    offer.minimumGuarantee *= multiplier;
+    offer.revenueShareToStudio = clamp(offer.revenueShareToStudio + (isExclusive ? 0.02 : -0.015), 0.45, 0.7);
+    offer.pAndACommitment *= isExclusive ? 1.08 : 0.95;
+  }
   manager.distributionOffers.push(...offers);
 }
