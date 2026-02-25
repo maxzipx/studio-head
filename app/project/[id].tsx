@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
+import { ACTION_BALANCE, FESTIVAL_RULES } from '@/src/domain/balance-constants';
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
@@ -110,28 +111,38 @@ export default function ProjectDetailScreen() {
   const projectDecisions = manager.decisionQueue.filter((decision) => decision.projectId === project.id);
   const offers = manager.getOffersForProject(project.id);
   const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
-  const canPush = project.phase !== 'released' && manager.cash >= 180_000;
+  const canPush = project.phase !== 'released' && manager.cash >= ACTION_BALANCE.OPTIONAL_ACTION_COST;
   const genreDemand = manager.getGenreDemandMultiplier(project.genre);
   const canFestivalSubmit =
     (project.phase === 'postProduction' || project.phase === 'distribution') &&
     project.festivalStatus !== 'submitted' &&
     project.festivalStatus !== 'selected' &&
     project.festivalStatus !== 'buzzed' &&
-    manager.cash >= 140_000;
-  const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
+    manager.cash >= FESTIVAL_RULES.SUBMISSION_COST;
+  const canScriptSprint =
+    project.phase === 'development' &&
+    manager.cash >= ACTION_BALANCE.SCRIPT_SPRINT_COST &&
+    project.scriptQuality < ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY;
   const canApproveGreenlight =
     project.phase === 'development' &&
     !!project.directorId &&
     project.castIds.length > 0 &&
     project.scriptQuality >= 6 &&
     !project.greenlightApproved &&
-    manager.cash >= 220_000;
+    manager.cash >= ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE;
   const canSendBack = project.phase === 'development' && !!project.directorId && project.castIds.length > 0 && project.scriptQuality >= 6;
-  const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
+  const canPolishPass =
+    project.phase === 'postProduction' &&
+    manager.cash >= ACTION_BALANCE.POLISH_PASS_COST &&
+    project.editorialScore < ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL &&
+    (project.postPolishPasses ?? 0) < ACTION_BALANCE.POLISH_PASS_MAX_USES;
   const canTestScreening =
     (project.phase === 'postProduction' || project.phase === 'distribution') &&
-    manager.cash >= 650_000;
-  const canReshoot = project.phase === 'postProduction' && !!project.testScreeningCompleted && manager.cash >= 850_000;
+    manager.cash >= ACTION_BALANCE.TEST_SCREENING_COST;
+  const canReshoot =
+    project.phase === 'postProduction' &&
+    !!project.testScreeningCompleted &&
+    manager.cash >= ACTION_BALANCE.RESHOOT_COST;
   const canTrackingLeverage = project.phase === 'distribution' && (project.trackingLeverageAmount ?? 0) <= 0;
   const franchiseModifiers = manager.getFranchiseProjectionModifiers(project.id);
   const franchiseStatus = manager.getFranchiseStatus(project.id);
@@ -267,12 +278,17 @@ export default function ProjectDetailScreen() {
       {project.phase === 'development' ? (
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Script Development</Text>
-          <Text style={styles.body}>Script quality: {project.scriptQuality.toFixed(1)} / 8.5 sprint cap</Text>
+          <Text style={styles.body}>
+            Script quality: {project.scriptQuality.toFixed(1)} / {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)} sprint cap
+          </Text>
           <Pressable
             style={[styles.button, !canScriptSprint ? styles.buttonDisabled : null]}
             disabled={!canScriptSprint}
             onPress={() => runScriptSprint(project.id)}>
-            <Text style={styles.buttonText}>Script Sprint $100K (+0.5 quality, max 8.5)</Text>
+            <Text style={styles.buttonText}>
+              Script Sprint {money(ACTION_BALANCE.SCRIPT_SPRINT_COST)} (+{ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST.toFixed(1)} quality, max{' '}
+              {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)})
+            </Text>
           </Pressable>
           <Text style={styles.muted}>Greenlight gate is mandatory before Pre-Production.</Text>
           <View style={styles.actions}>
@@ -280,7 +296,7 @@ export default function ProjectDetailScreen() {
               style={[styles.button, !canApproveGreenlight ? styles.buttonDisabled : null]}
               disabled={!canApproveGreenlight}
               onPress={() => runGreenlightReview(project.id, true)}>
-              <Text style={styles.buttonText}>Approve Greenlight $220K</Text>
+              <Text style={styles.buttonText}>Approve Greenlight {money(ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE)}</Text>
             </Pressable>
             <Pressable
               style={[styles.button, !canSendBack ? styles.buttonDisabled : null]}
@@ -383,13 +399,19 @@ export default function ProjectDetailScreen() {
             style={[styles.button, !canPush ? styles.buttonDisabled : null]}
             disabled={!canPush}
             onPress={() => runMarketingPush(project.id)}>
-            <Text style={styles.buttonText}>Marketing Push $180K (+$180K budget, +5 hype)</Text>
+            <Text style={styles.buttonText}>
+              Marketing Push {money(ACTION_BALANCE.OPTIONAL_ACTION_COST)} (+{money(ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST)} budget, +
+              {ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST.toFixed(0)} hype)
+            </Text>
           </Pressable>
           <Pressable
             style={[styles.button, !canPolishPass ? styles.buttonDisabled : null]}
             disabled={!canPolishPass}
             onPress={() => runPostPolishPass(project.id)}>
-            <Text style={styles.buttonText}>Polish Pass $120K (+2 editorial, max 9, 2 uses)</Text>
+            <Text style={styles.buttonText}>
+              Polish Pass {money(ACTION_BALANCE.POLISH_PASS_COST)} (+{ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST.toFixed(0)} editorial, max{' '}
+              {ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL.toFixed(0)}, {ACTION_BALANCE.POLISH_PASS_MAX_USES.toFixed(0)} uses)
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -414,14 +436,16 @@ export default function ProjectDetailScreen() {
             style={[styles.button, !canTestScreening ? styles.buttonDisabled : null]}
             disabled={!canTestScreening}
             onPress={() => runTestScreening(project.id)}>
-            <Text style={styles.buttonText}>Run Test Screening $650K</Text>
+            <Text style={styles.buttonText}>Run Test Screening {money(ACTION_BALANCE.TEST_SCREENING_COST)}</Text>
           </Pressable>
           {project.phase === 'postProduction' ? (
             <Pressable
               style={[styles.button, !canReshoot ? styles.buttonDisabled : null]}
               disabled={!canReshoot}
               onPress={() => runReshoots(project.id)}>
-              <Text style={styles.buttonText}>Order Reshoots $850K (+1w)</Text>
+              <Text style={styles.buttonText}>
+                Order Reshoots {money(ACTION_BALANCE.RESHOOT_COST)} (+{ACTION_BALANCE.RESHOOT_SCHEDULE_WEEKS.toFixed(0)}w)
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -440,7 +464,7 @@ export default function ProjectDetailScreen() {
             style={[styles.button, !canFestivalSubmit ? styles.buttonDisabled : null]}
             disabled={!canFestivalSubmit}
             onPress={() => runFestivalSubmission(project.id)}>
-            <Text style={styles.buttonText}>Submit Festival Cut $140K</Text>
+            <Text style={styles.buttonText}>Submit Festival Cut {money(FESTIVAL_RULES.SUBMISSION_COST)}</Text>
           </Pressable>
         </View>
       ) : null}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
@@ -13,7 +13,7 @@ function starDisplay(value: number): string {
   const full = Math.floor(scaled);
   const hasHalf = scaled - full >= 0.5;
   const empty = 5 - full - (hasHalf ? 1 : 0);
-  return `${'★'.repeat(full)}${hasHalf ? '⯨' : ''}${'☆'.repeat(empty)}`;
+  return `${'\u2605'.repeat(full)}${hasHalf ? '\u00BD' : ''}${'\u2606'.repeat(empty)}`;
 }
 
 function chanceLabel(value: number): string {
@@ -68,6 +68,18 @@ export default function TalentScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const activeProject = selectedProjectId ? developmentProjects.find((project) => project.id === selectedProjectId) ?? null : null;
   const projectLedger = manager.activeProjects.filter((project) => project.phase !== 'released');
+  const talentRoster = useMemo(
+    () =>
+      [...manager.talentPool].sort((a, b) => {
+        if (a.availability !== b.availability) return a.availability === 'available' ? -1 : 1;
+        if (a.role !== b.role) return a.role.localeCompare(b.role);
+        return b.starPower - a.starPower;
+      }),
+    [manager.talentPool]
+  );
+  const availableTalentCount = talentRoster.filter((talent) => talent.availability === 'available').length;
+  const rivalLockedCount = talentRoster.filter((talent) => manager.rivals.some((rival) => rival.lockedTalentIds.includes(talent.id))).length;
+  const coolingOffCount = talentRoster.filter((talent) => manager.getTalentNegotiationOutlook(talent).blocked).length;
 
   useEffect(() => {
     const selectionStillValid = !!selectedProjectId && developmentProjects.some((project) => project.id === selectedProjectId);
@@ -100,7 +112,15 @@ export default function TalentScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Development Targets</Text>
+        <Text style={styles.sectionLabel}>Market Snapshot</Text>
+        <Text style={styles.body}>Available now: {availableTalentCount}</Text>
+        <Text style={styles.body}>Open negotiations: {manager.playerNegotiations.length}</Text>
+        <Text style={styles.body}>Rival lockouts: {rivalLockedCount}</Text>
+        <Text style={styles.body}>Cooling-off lockouts: {coolingOffCount}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Development Targets</Text>
         {developmentProjects.length === 0 ? <Text style={styles.muted}>No development-phase project is available for attachment right now.</Text> : null}
         {developmentProjects.map((project) => (
           <Pressable
@@ -116,7 +136,7 @@ export default function TalentScreen() {
 
       {activeProject ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Active Target Project</Text>
+          <Text style={styles.sectionLabel}>Active Target Project</Text>
           <Text style={styles.body}>
             {activeProject.title} ({activeProject.genre}) | {activeProject.phase}
           </Text>
@@ -139,7 +159,7 @@ export default function TalentScreen() {
       ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Project Ledger</Text>
+        <Text style={styles.sectionLabel}>Project Ledger</Text>
         {projectLedger.length === 0 ? <Text style={styles.muted}>No active projects.</Text> : null}
         {projectLedger.map((project) => {
           const director = project.directorId
@@ -161,7 +181,7 @@ export default function TalentScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Open Negotiations</Text>
+        <Text style={styles.sectionLabel}>Open Negotiations</Text>
         {manager.playerNegotiations.length === 0 ? <Text style={styles.muted}>No open negotiations.</Text> : null}
         {manager.playerNegotiations.map((entry) => {
           const talent = manager.talentPool.find((item) => item.id === entry.talentId);
@@ -219,7 +239,8 @@ export default function TalentScreen() {
         })}
       </View>
 
-      {manager.talentPool.map((talent) => {
+      <Text style={styles.sectionHeader}>Talent Roster</Text>
+      {talentRoster.map((talent) => {
         const rival = manager.rivals.find((item) => item.lockedTalentIds.includes(talent.id));
         const attachedProject =
           talent.attachedProjectId && manager.activeProjects.find((project) => project.id === talent.attachedProjectId);
@@ -232,6 +253,7 @@ export default function TalentScreen() {
         const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
         const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
         const outlook = manager.getTalentNegotiationOutlook(talent);
+        const targetChance = activeProject ? manager.getNegotiationChance(talent.id, activeProject.id) : null;
         const recentInteractions = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
         return (
           <View key={talent.id} style={styles.card}>
@@ -252,6 +274,7 @@ export default function TalentScreen() {
             </Text>
             {outlook.reason ? <Text style={styles.alert}>{outlook.reason}</Text> : null}
             {activeProject ? <Text style={styles.muted}>Fit to {activeProject.title}: {pct(projectFit ?? 0)}</Text> : null}
+            {activeProject && targetChance !== null ? <Text style={styles.muted}>Target close chance: {pct(targetChance)}</Text> : null}
             {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
             {recentInteractions.length > 0 ? <Text style={styles.muted}>Recent Memory:</Text> : null}
             {recentInteractions.map((entry, index) => (
@@ -306,13 +329,28 @@ const styles = StyleSheet.create({
     padding: 8,
     gap: 4,
   },
+  sectionLabel: {
+    color: tokens.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sectionHeader: {
+    color: tokens.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   cardTitle: { color: tokens.textPrimary, fontSize: 18, fontWeight: '700' },
   body: { color: tokens.textSecondary, fontSize: 13 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
   alert: { color: '#F5D089', fontSize: 12 },
   signal: { color: tokens.accentGold, fontSize: 12 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
   targetButton: {
     borderRadius: 10,
     borderWidth: 1,
@@ -352,3 +390,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B2E14',
   },
 });
+
