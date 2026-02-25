@@ -255,6 +255,9 @@ export class StudioManager {
   adjustCash(delta: number): void {
     if (!Number.isFinite(delta) || delta === 0) return;
     this.cash = Math.round(this.cash + delta);
+    if (this.isBankrupt) {
+      this.cash = Math.max(BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD, this.cash);
+    }
   }
 
   private getTalentMemory(talent: Talent): Talent['relationshipMemory'] {
@@ -869,6 +872,7 @@ export class StudioManager {
     this.tickRivalHeat(events);
     this.processRivalCalendarMoves(events);
     this.processRivalSignatureMoves(events);
+    this.applyRivalMemoryReversion();
     this.projectOutcomes();
 
     this.currentWeek += 1;
@@ -1427,6 +1431,16 @@ export class StudioManager {
       note: `Lower-intensity response selected: ${option.label}.`,
       projectId: decision.projectId,
     });
+  }
+
+  private applyRivalMemoryReversion(): void {
+    for (const rival of this.rivals) {
+      const memory = this.getRivalMemory(rival);
+      memory.hostility = clamp(memory.hostility + (50 - memory.hostility) * 0.035, 0, 100);
+      memory.respect = clamp(memory.respect + (50 - memory.respect) * 0.028, 0, 100);
+      memory.retaliationBias = clamp(memory.retaliationBias + (50 - memory.retaliationBias) * 0.03, 0, 100);
+      memory.cooperationBias = clamp(memory.cooperationBias + (45 - memory.cooperationBias) * 0.03, 0, 100);
+    }
   }
 
   private estimateReleaseRunWeeks(project: MovieProject): number {
