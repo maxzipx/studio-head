@@ -375,6 +375,7 @@ export function startSequelForManager(
     sequelToProjectId: baseProject.id,
     franchiseCarryoverHype: eligibility.carryoverHype,
     franchiseStrategy: 'balanced',
+    adaptedFromIpId: baseProject.adaptedFromIpId ?? null,
   };
 
   manager.activeProjects.push(sequel);

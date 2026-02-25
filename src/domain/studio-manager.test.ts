@@ -1658,5 +1658,89 @@ describe('StudioManager', () => {
     expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
   });
 
+  it('creates a major IP contract commitment when major rights are acquired', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
+    manager.reputation.distributor = 80;
+    manager.cash = 100_000_000;
+    manager.refreshIpMarketplace(true);
+    const major = manager.ownedIps.find((ip) => ip.major);
+    expect(major).toBeTruthy();
+
+    const result = manager.acquireIpRights(major!.id);
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Contract requires');
+
+    const commitment = manager.getMajorIpCommitments().find((entry) => entry.ipId === major!.id);
+    expect(commitment).toBeTruthy();
+    expect(commitment?.remainingReleases).toBe(3);
+    expect(commitment?.requiredReleases).toBe(3);
+    expect(commitment?.deadlineWeek).toBeGreaterThan(manager.currentWeek);
+  });
+
+  it('locks unrelated script acquisitions when a major IP contract has no active installment', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
+    manager.reputation.distributor = 80;
+    manager.cash = 100_000_000;
+    manager.refreshIpMarketplace(true);
+    const major = manager.ownedIps.find((ip) => ip.major);
+    expect(major).toBeTruthy();
+    manager.acquireIpRights(major!.id);
+
+    const script = manager.scriptMarket[0];
+    const result = manager.acquireScript(script.id);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Contract lock');
+  });
+
+  it('carries adaptedFromIpId into sequels so major IP contract tracking continues', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
+    manager.reputation.distributor = 80;
+    manager.cash = 100_000_000;
+    manager.refreshIpMarketplace(true);
+    const major = manager.ownedIps.find((ip) => ip.major);
+    expect(major).toBeTruthy();
+    manager.acquireIpRights(major!.id);
+    const adaptation = manager.developProjectFromIp(major!.id);
+    expect(adaptation.success).toBe(true);
+    const base = manager.activeProjects.find((project) => project.id === adaptation.projectId);
+    expect(base).toBeTruthy();
+    base!.phase = 'released';
+    base!.releaseResolved = true;
+    base!.releaseWeek = manager.currentWeek - 2;
+    base!.criticalScore = 74;
+    base!.audienceScore = 78;
+    base!.projectedROI = 1.5;
+
+    const sequelStart = manager.startSequel(base!.id);
+    expect(sequelStart.success).toBe(true);
+    const sequel = manager.activeProjects.find((project) => project.id === sequelStart.projectId);
+    expect(sequel).toBeTruthy();
+    expect(sequel?.adaptedFromIpId).toBe(major!.id);
+  });
+
+  it('applies breach penalties when major IP contract deadline is missed', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, rivalRng: () => 1 });
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+    manager.reputation.distributor = 80;
+    manager.cash = 100_000_000;
+    manager.refreshIpMarketplace(true);
+    const major = manager.ownedIps.find((ip) => ip.major);
+    expect(major).toBeTruthy();
+    manager.acquireIpRights(major!.id);
+    const commitment = manager.getMajorIpCommitments().find((entry) => entry.ipId === major!.id);
+    expect(commitment).toBeTruthy();
+    const cashBefore = manager.cash;
+    manager.currentWeek = commitment!.deadlineWeek + 1;
+
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('contract breached'))).toBe(true);
+    expect(cashBefore - manager.cash).toBeGreaterThanOrEqual(1_400_000);
+
+    const breached = manager.getMajorIpCommitments().find((entry) => entry.ipId === major!.id);
+    expect(breached?.breached).toBe(true);
+    expect(breached?.remainingReleases).toBe(0);
+  });
+
 });
 

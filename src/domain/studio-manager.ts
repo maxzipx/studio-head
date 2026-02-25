@@ -361,6 +361,31 @@ function buildIpTemplate(kind: IpKind): {
   };
 }
 
+const MAJOR_IP_CONTRACT_RULES = {
+  REQUIRED_RELEASES: 3,
+  DEADLINE_WEEKS: 208,
+  BREACH_CASH_PENALTY: 1_400_000,
+  BREACH_DISTRIBUTOR_DELTA: -8,
+  BREACH_TALENT_DELTA: -5,
+  BREACH_AUDIENCE_DELTA: -3,
+} as const;
+
+function majorIpRemainingKey(ipId: string): string {
+  return `major_ip_remaining_${ipId}`;
+}
+
+function majorIpTotalKey(ipId: string): string {
+  return `major_ip_total_${ipId}`;
+}
+
+function majorIpDeadlineKey(ipId: string): string {
+  return `major_ip_deadline_${ipId}`;
+}
+
+function majorIpBreachedKey(ipId: string): string {
+  return `major_ip_breached_${ipId}`;
+}
+
 export class StudioManager {
   private readonly crisisRng: () => number;
   private readonly eventRng: () => number;
@@ -474,8 +499,176 @@ export class StudioManager {
     return this.activeProjects.filter((project) => project.phase !== 'released').length;
   }
 
+  getMajorIpCommitments(): Array<{
+    ipId: string;
+    name: string;
+    remainingReleases: number;
+    requiredReleases: number;
+    deadlineWeek: number;
+    breached: boolean;
+    hasActiveInstallment: boolean;
+    isBlocking: boolean;
+  }> {
+    const result: Array<{
+      ipId: string;
+      name: string;
+      remainingReleases: number;
+      requiredReleases: number;
+      deadlineWeek: number;
+      breached: boolean;
+      hasActiveInstallment: boolean;
+      isBlocking: boolean;
+    }> = [];
+    const blocking = this.getBlockingMajorIpCommitment();
+    for (const ip of this.ownedIps.filter((item) => item.major)) {
+      const owned = (this.storyFlags[`owned_ip_${ip.id}`] ?? 0) > 0;
+      if (!owned) continue;
+      const remaining = Math.max(0, Math.round(this.storyFlags[majorIpRemainingKey(ip.id)] ?? 0));
+      const requiredReleases = Math.max(
+        remaining,
+        Math.round(this.storyFlags[majorIpTotalKey(ip.id)] ?? MAJOR_IP_CONTRACT_RULES.REQUIRED_RELEASES)
+      );
+      const deadlineWeek = Math.round(
+        this.storyFlags[majorIpDeadlineKey(ip.id)] ?? this.currentWeek + MAJOR_IP_CONTRACT_RULES.DEADLINE_WEEKS
+      );
+      const breached = (this.storyFlags[majorIpBreachedKey(ip.id)] ?? 0) > 0;
+      if (remaining <= 0 && !breached) continue;
+      const hasActiveInstallment = this.hasActiveInstallmentForIp(ip.id);
+      result.push({
+        ipId: ip.id,
+        name: ip.name,
+        remainingReleases: remaining,
+        requiredReleases,
+        deadlineWeek,
+        breached,
+        hasActiveInstallment,
+        isBlocking: blocking?.ip.id === ip.id,
+      });
+    }
+    return result.sort((a, b) => a.deadlineWeek - b.deadlineWeek);
+  }
+
   get specializationProfile(): ReturnType<typeof specializationProfile> {
     return specializationProfile(this.studioSpecialization);
+  }
+
+  private hasActiveInstallmentForIp(ipId: string): boolean {
+    return this.activeProjects.some((project) => project.adaptedFromIpId === ipId && !project.releaseResolved);
+  }
+
+  private initializeMajorIpCommitment(ip: OwnedIp): { required: number; deadlineWeek: number } | null {
+    if (!ip.major) return null;
+    const remainingKey = majorIpRemainingKey(ip.id);
+    const totalKey = majorIpTotalKey(ip.id);
+    const deadlineKey = majorIpDeadlineKey(ip.id);
+    const breachedKey = majorIpBreachedKey(ip.id);
+
+    const existingRemaining = Math.max(0, Math.round(this.storyFlags[remainingKey] ?? 0));
+    const existingTotal = Math.max(0, Math.round(this.storyFlags[totalKey] ?? 0));
+    const existingDeadline = Math.round(this.storyFlags[deadlineKey] ?? 0);
+
+    const required = Math.max(existingTotal, existingRemaining, MAJOR_IP_CONTRACT_RULES.REQUIRED_RELEASES);
+    const deadlineWeek =
+      existingDeadline > 0 ? existingDeadline : this.currentWeek + MAJOR_IP_CONTRACT_RULES.DEADLINE_WEEKS;
+
+    this.storyFlags[remainingKey] = Math.max(existingRemaining, required);
+    this.storyFlags[totalKey] = required;
+    this.storyFlags[deadlineKey] = deadlineWeek;
+    this.storyFlags[breachedKey] = this.storyFlags[breachedKey] ?? 0;
+    return { required, deadlineWeek };
+  }
+
+  private getBlockingMajorIpCommitment(targetIpId?: string): { ip: OwnedIp; remaining: number; deadlineWeek: number } | null {
+    const ownedMajorIps = this.ownedIps.filter((ip) => ip.major && (this.storyFlags[`owned_ip_${ip.id}`] ?? 0) > 0);
+    const pending = ownedMajorIps
+      .map((ip) => {
+        const remaining = Math.max(0, Math.round(this.storyFlags[majorIpRemainingKey(ip.id)] ?? 0));
+        const deadlineWeek = Math.round(this.storyFlags[majorIpDeadlineKey(ip.id)] ?? this.currentWeek);
+        return { ip, remaining, deadlineWeek };
+      })
+      .filter((entry) => entry.remaining > 0)
+      .sort((a, b) => a.deadlineWeek - b.deadlineWeek);
+
+    for (const entry of pending) {
+      if (targetIpId && entry.ip.id === targetIpId) continue;
+      if (this.hasActiveInstallmentForIp(entry.ip.id)) continue;
+      return entry;
+    }
+    return null;
+  }
+
+  private applyMajorIpReleaseProgress(project: MovieProject, events: string[]): void {
+    const ipId = project.adaptedFromIpId;
+    if (!ipId) return;
+    const ip = this.ownedIps.find((entry) => entry.id === ipId);
+    if (!ip?.major) return;
+
+    const remainingKey = majorIpRemainingKey(ip.id);
+    const totalKey = majorIpTotalKey(ip.id);
+    const deadlineKey = majorIpDeadlineKey(ip.id);
+
+    const remaining = Math.max(0, Math.round(this.storyFlags[remainingKey] ?? 0));
+    if (remaining <= 0) return;
+
+    const requiredReleases = Math.max(remaining, Math.round(this.storyFlags[totalKey] ?? MAJOR_IP_CONTRACT_RULES.REQUIRED_RELEASES));
+    const deadlineWeek = Math.round(
+      this.storyFlags[deadlineKey] ?? this.currentWeek + MAJOR_IP_CONTRACT_RULES.DEADLINE_WEEKS
+    );
+    const nextRemaining = Math.max(0, remaining - 1);
+    this.storyFlags[remainingKey] = nextRemaining;
+    const delivered = requiredReleases - nextRemaining;
+
+    if (nextRemaining === 0) {
+      events.push(`${ip.name} contract fulfilled (${delivered}/${requiredReleases} releases delivered).`);
+      this.addChronicleEntry({
+        week: this.currentWeek,
+        type: 'arcResolution',
+        headline: `${ip.name} contract fulfilled`,
+        detail: `Delivered ${requiredReleases} release(s) by week ${this.currentWeek}.`,
+        impact: 'positive',
+      });
+      return;
+    }
+
+    events.push(
+      `${ip.name} contract progress: ${delivered}/${requiredReleases} delivered. ${nextRemaining} release(s) remain by week ${deadlineWeek}.`
+    );
+    if (deadlineWeek - this.currentWeek <= 26) {
+      events.push(`${ip.name} contract warning: ${deadlineWeek - this.currentWeek} week(s) left to deliver remaining releases.`);
+    }
+  }
+
+  private evaluateMajorIpContractBreaches(events: string[]): void {
+    for (const ip of this.ownedIps.filter((entry) => entry.major && (this.storyFlags[`owned_ip_${entry.id}`] ?? 0) > 0)) {
+      const remainingKey = majorIpRemainingKey(ip.id);
+      const breachedKey = majorIpBreachedKey(ip.id);
+      const deadlineKey = majorIpDeadlineKey(ip.id);
+      const totalKey = majorIpTotalKey(ip.id);
+      const remaining = Math.max(0, Math.round(this.storyFlags[remainingKey] ?? 0));
+      if (remaining <= 0) continue;
+      const alreadyBreached = (this.storyFlags[breachedKey] ?? 0) > 0;
+      if (alreadyBreached) continue;
+      const deadlineWeek = Math.round(this.storyFlags[deadlineKey] ?? this.currentWeek);
+      if (this.currentWeek <= deadlineWeek) continue;
+
+      const required = Math.max(remaining, Math.round(this.storyFlags[totalKey] ?? MAJOR_IP_CONTRACT_RULES.REQUIRED_RELEASES));
+      this.storyFlags[breachedKey] = 1;
+      this.storyFlags[remainingKey] = 0;
+      this.adjustCash(-MAJOR_IP_CONTRACT_RULES.BREACH_CASH_PENALTY);
+      this.adjustReputation(MAJOR_IP_CONTRACT_RULES.BREACH_DISTRIBUTOR_DELTA, 'distributor');
+      this.adjustReputation(MAJOR_IP_CONTRACT_RULES.BREACH_TALENT_DELTA, 'talent');
+      this.adjustReputation(MAJOR_IP_CONTRACT_RULES.BREACH_AUDIENCE_DELTA, 'audience');
+      events.push(
+        `${ip.name} major-IP contract breached (${required - remaining}/${required} delivered). Penalty ${MAJOR_IP_CONTRACT_RULES.BREACH_CASH_PENALTY.toLocaleString()} and reputation damage applied.`
+      );
+      this.addChronicleEntry({
+        week: this.currentWeek,
+        type: 'arcResolution',
+        headline: `${ip.name} contract default`,
+        detail: `${remaining} required release(s) missed by week ${deadlineWeek}.`,
+        impact: 'negative',
+      });
+    }
   }
 
   adjustReputation(delta: number, pillar: keyof StudioReputation | 'all' = 'all'): void {
@@ -1109,7 +1302,14 @@ export class StudioManager {
     if (this.cash < ip.acquisitionCost) return { success: false, message: 'Insufficient cash to acquire IP rights.' };
     this.adjustCash(-ip.acquisitionCost);
     this.storyFlags[`owned_ip_${ip.id}`] = 1;
+    const majorContract = this.initializeMajorIpCommitment(ip);
     this.evaluateBankruptcy();
+    if (majorContract) {
+      return {
+        success: true,
+        message: `${ip.name} rights secured. Contract requires ${majorContract.required} releases by week ${majorContract.deadlineWeek}.`,
+      };
+    }
     return { success: true, message: `${ip.name} rights secured.` };
   }
 
@@ -1119,6 +1319,14 @@ export class StudioManager {
     if (ip.expiresWeek < this.currentWeek) return { success: false, message: 'IP rights window has expired.' };
     if (ip.usedProjectId) return { success: false, message: 'This IP is already in development.' };
     if (!this.storyFlags[`owned_ip_${ip.id}`]) return { success: false, message: 'Acquire rights first.' };
+    this.initializeMajorIpCommitment(ip);
+    const majorLock = this.getBlockingMajorIpCommitment(ip.id);
+    if (majorLock) {
+      return {
+        success: false,
+        message: `Contract lock: launch the next ${majorLock.ip.name} installment before opening unrelated adaptations.`,
+      };
+    }
     if (this.projectCapacityUsed >= this.projectCapacityLimit) {
       return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
     }
@@ -1498,6 +1706,14 @@ export class StudioManager {
   }
 
   startSequel(projectId: string): { success: boolean; message: string; projectId?: string } {
+    const baseProject = this.activeProjects.find((item) => item.id === projectId);
+    const majorLock = this.getBlockingMajorIpCommitment(baseProject?.adaptedFromIpId ?? undefined);
+    if (majorLock) {
+      return {
+        success: false,
+        message: `Contract lock: open the next ${majorLock.ip.name} installment before starting other sequel lines.`,
+      };
+    }
     if (this.projectCapacityUsed >= this.projectCapacityLimit) {
       return {
         success: false,
@@ -1537,6 +1753,13 @@ export class StudioManager {
   }
 
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
+    const majorLock = this.getBlockingMajorIpCommitment();
+    if (majorLock) {
+      return {
+        success: false,
+        message: `Contract lock: launch the next ${majorLock.ip.name} installment before acquiring unrelated scripts.`,
+      };
+    }
     const pitch = this.scriptMarket.find((item) => item.id === scriptId);
     if (!pitch) return { success: false, message: 'Script not found.' };
     if (this.projectCapacityUsed >= this.projectCapacityLimit) {
@@ -1782,6 +2005,7 @@ export class StudioManager {
 
     this.currentWeek += 1;
     this.processAnnualAwards(events);
+    this.evaluateMajorIpContractBreaches(events);
 
     if (this.cash < BANKRUPTCY_RULES.LOW_CASH_WARNING_THRESHOLD) {
       this.consecutiveLowCashWeeks += 1;
@@ -2092,6 +2316,7 @@ export class StudioManager {
         this.settleTrackingLeverage(project, events);
         this.maybeStartMerchandiseStream(project, events);
         markFranchiseReleaseForManager(this, project.id);
+        this.applyMajorIpReleaseProgress(project, events);
         events.push(
           `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
         );

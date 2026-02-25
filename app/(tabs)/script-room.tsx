@@ -24,6 +24,7 @@ export default function ScriptRoomScreen() {
   const availableDirectors = manager.getAvailableTalentForRole('director');
   const availableLeads = manager.getAvailableTalentForRole('leadActor');
   const ipMarket = manager.ownedIps.filter((ip) => !ip.usedProjectId && ip.expiresWeek >= manager.currentWeek);
+  const majorIpCommitments = manager.getMajorIpCommitments();
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -51,6 +52,20 @@ export default function ScriptRoomScreen() {
         <Text style={styles.muted}>You cannot acquire new projects above capacity.</Text>
       </View>
 
+      {majorIpCommitments.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.bodyStrong}>Major IP Commitments</Text>
+          {majorIpCommitments.map((commitment) => (
+            <Text key={commitment.ipId} style={styles.muted}>
+              {commitment.name}: {commitment.requiredReleases - commitment.remainingReleases}/{commitment.requiredReleases} delivered | deadline W
+              {commitment.deadlineWeek}
+              {commitment.isBlocking ? ' | CONTRACT LOCK ACTIVE' : ''}
+              {commitment.breached ? ' | DEFAULTED' : ''}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>IP Marketplace</Text>
         {ipMarket.length === 0 ? <Text style={styles.muted}>No active IP opportunities this week.</Text> : null}
@@ -63,6 +78,7 @@ export default function ScriptRoomScreen() {
             <Text style={styles.muted}>
               Rights {money(ip.acquisitionCost)} | Bonuses: +{ip.hypeBonus} hype, +{ip.qualityBonus.toFixed(1)} quality
             </Text>
+            {ip.major ? <Text style={styles.warning}>Major IP contract: 3-release obligation applies once rights are secured.</Text> : null}
             <View style={styles.actions}>
               <Pressable style={styles.actionButton} onPress={() => acquireIpRights(ip.id)}>
                 <Text style={styles.actionText}>Acquire Rights</Text>
@@ -321,6 +337,10 @@ const styles = StyleSheet.create({
   },
   muted: {
     color: tokens.textMuted,
+    fontSize: 12,
+  },
+  warning: {
+    color: tokens.accentGold,
     fontSize: 12,
   },
   signal: {
