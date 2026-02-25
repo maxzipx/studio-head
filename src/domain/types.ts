@@ -114,6 +114,36 @@ export interface ScriptPitch {
   expiresInWeeks: number;
 }
 
+export interface FranchiseTrack {
+  id: string;
+  name: string;
+  genre: MovieGenre;
+  rootProjectId: string;
+  projectIds: string[];
+  releasedProjectIds: string[];
+  activeProjectId: string | null;
+  momentum: number;
+  fatigue: number;
+  lastReleaseWeek: number | null;
+}
+
+export interface SequelEligibility {
+  projectId: string;
+  franchiseId: string | null;
+  nextEpisode: number;
+  projectedMomentum: number;
+  projectedFatigue: number;
+  upfrontCost: number;
+  carryoverHype: number;
+  eligible: boolean;
+  reason?: string;
+}
+
+export interface SequelCandidate extends SequelEligibility {
+  title: string;
+  genre: MovieGenre;
+}
+
 export interface CrisisOption {
   id: string;
   label: string;
@@ -247,6 +277,10 @@ export interface MovieProject {
   commercialAppeal: number;
   originality: number;
   controversy: number;
+  franchiseId: string | null;
+  franchiseEpisode: number | null;
+  sequelToProjectId: string | null;
+  franchiseCarryoverHype: number;
 }
 
 export interface PlayerNegotiation {

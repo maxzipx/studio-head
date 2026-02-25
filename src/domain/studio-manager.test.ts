@@ -189,6 +189,51 @@ describe('StudioManager', () => {
     expect(manager.scriptMarket.length).toBe(beforeScripts - 1);
   });
 
+  it('starts sequel development from an eligible released project and creates franchise tracking', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects[0];
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 2;
+    baseProject.criticalScore = 75;
+    baseProject.audienceScore = 79;
+    baseProject.projectedROI = 1.6;
+
+    const eligibility = manager.getSequelEligibility(baseProject.id);
+    expect(eligibility?.eligible).toBe(true);
+
+    const result = manager.startSequel(baseProject.id);
+    expect(result.success).toBe(true);
+    expect(result.projectId).toBeTruthy();
+
+    const sequel = manager.activeProjects.find((project) => project.id === result.projectId);
+    expect(sequel).toBeTruthy();
+    expect(sequel?.phase).toBe('development');
+    expect(sequel?.franchiseId).toBeTruthy();
+    expect(sequel?.franchiseEpisode).toBe(2);
+    expect(sequel?.sequelToProjectId).toBe(baseProject.id);
+    expect(sequel?.franchiseCarryoverHype).toBeGreaterThan(0);
+    expect(manager.franchises.length).toBe(1);
+    expect(manager.franchises[0].activeProjectId).toBe(sequel?.id);
+  });
+
+  it('blocks opening a second sequel while one franchise project is still active', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects[0];
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 1;
+    baseProject.criticalScore = 70;
+    baseProject.audienceScore = 73;
+
+    const first = manager.startSequel(baseProject.id);
+    expect(first.success).toBe(true);
+
+    const second = manager.startSequel(baseProject.id);
+    expect(second.success).toBe(false);
+    expect(second.message).toContain('Finish');
+  });
+
   it('attaches available talent through negotiation', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

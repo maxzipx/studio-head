@@ -98,7 +98,12 @@ describe('persistence restore', () => {
     delete firstProject.festivalSubmissionWeek;
     delete firstProject.festivalResolutionWeek;
     delete firstProject.festivalBuzz;
+    delete firstProject.franchiseId;
+    delete firstProject.franchiseEpisode;
+    delete firstProject.sequelToProjectId;
+    delete firstProject.franchiseCarryoverHype;
     snapshot.genreCycles = 'bad-data' as unknown as Record<string, unknown>;
+    snapshot.franchises = 'bad-data' as unknown as never[];
     snapshot.awardsHistory = 'bad-data' as unknown as never[];
     snapshot.awardsSeasonsProcessed = 'bad-data' as unknown as number[];
 
@@ -109,6 +114,11 @@ describe('persistence restore', () => {
     expect(restored.activeProjects[0].awardsWins).toBe(0);
     expect(restored.activeProjects[0].festivalStatus).toBe('none');
     expect(restored.activeProjects[0].festivalBuzz).toBe(0);
+    expect(restored.activeProjects[0].franchiseId).toBeNull();
+    expect(restored.activeProjects[0].franchiseEpisode).toBeNull();
+    expect(restored.activeProjects[0].sequelToProjectId).toBeNull();
+    expect(restored.activeProjects[0].franchiseCarryoverHype).toBe(0);
+    expect(Array.isArray(restored.franchises)).toBe(true);
     expect(typeof restored.genreCycles.action.demand).toBe('number');
     expect(Array.isArray(restored.awardsHistory)).toBe(true);
     expect(Array.isArray(restored.awardsSeasonsProcessed)).toBe(true);

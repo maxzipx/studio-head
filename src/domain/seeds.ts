@@ -132,6 +132,10 @@ export function createSeedProjects(): MovieProject[] {
       commercialAppeal: 68,
       originality: 57,
       controversy: 28,
+      franchiseId: null,
+      franchiseEpisode: null,
+      sequelToProjectId: null,
+      franchiseCarryoverHype: 0,
     },
     {
       id: createId('project'),
@@ -180,6 +184,10 @@ export function createSeedProjects(): MovieProject[] {
       commercialAppeal: 37,
       originality: 64,
       controversy: 14,
+      franchiseId: null,
+      franchiseEpisode: null,
+      sequelToProjectId: null,
+      franchiseCarryoverHype: 0,
     },
   ];
 }

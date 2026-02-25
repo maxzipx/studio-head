@@ -83,7 +83,39 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     if (!Number.isFinite(project.festivalResolutionWeek)) project.festivalResolutionWeek = null;
     if (!Number.isFinite(project.festivalBuzz)) project.festivalBuzz = 0;
     project.festivalBuzz = Math.min(100, Math.max(0, Math.round(project.festivalBuzz)));
+    if (typeof project.franchiseId !== 'string' && project.franchiseId !== null) {
+      project.franchiseId = null;
+    }
+    if (!Number.isFinite(project.franchiseEpisode)) project.franchiseEpisode = null;
+    if (project.franchiseEpisode !== null) {
+      project.franchiseEpisode = Math.max(1, Math.round(project.franchiseEpisode));
+    }
+    if (typeof project.sequelToProjectId !== 'string' && project.sequelToProjectId !== null) {
+      project.sequelToProjectId = null;
+    }
+    if (!Number.isFinite(project.franchiseCarryoverHype)) project.franchiseCarryoverHype = 0;
+    project.franchiseCarryoverHype = Math.min(100, Math.max(0, Math.round(project.franchiseCarryoverHype)));
   }
+  if (!Array.isArray(manager.franchises)) manager.franchises = [];
+  manager.franchises = manager.franchises
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string')
+    .map((entry) => ({
+      id: String(entry.id),
+      name: typeof entry.name === 'string' ? entry.name : 'Untitled Franchise',
+      genre: typeof entry.genre === 'string' ? entry.genre : 'drama',
+      rootProjectId: typeof entry.rootProjectId === 'string' ? entry.rootProjectId : '',
+      projectIds: Array.isArray(entry.projectIds)
+        ? entry.projectIds.filter((id): id is string => typeof id === 'string')
+        : [],
+      releasedProjectIds: Array.isArray(entry.releasedProjectIds)
+        ? entry.releasedProjectIds.filter((id): id is string => typeof id === 'string')
+        : [],
+      activeProjectId: typeof entry.activeProjectId === 'string' || entry.activeProjectId === null ? entry.activeProjectId : null,
+      momentum: Number.isFinite(entry.momentum) ? Math.min(100, Math.max(0, Number(entry.momentum))) : 40,
+      fatigue: Number.isFinite(entry.fatigue) ? Math.min(100, Math.max(0, Number(entry.fatigue))) : 10,
+      lastReleaseWeek: Number.isFinite(entry.lastReleaseWeek) ? Math.max(1, Math.round(entry.lastReleaseWeek as number)) : null,
+    }))
+    .filter((franchise) => franchise.projectIds.length > 0);
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
   for (const talent of manager.talentPool) {
     if (!isRecord(talent.relationshipMemory)) {

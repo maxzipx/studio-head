@@ -72,6 +72,13 @@ import {
   rivalNewsHeadlineForManager,
   tickRivalHeatForManager,
 } from './studio-manager.rivals';
+import {
+  getSequelCandidatesForManager,
+  getSequelEligibilityForManager,
+  markFranchiseReleaseForManager,
+  removeProjectFromFranchiseForManager,
+  startSequelForManager,
+} from './studio-manager.franchise';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -87,6 +94,7 @@ import type {
   DecisionItem,
   DistributionOffer,
   EventTemplate,
+  FranchiseTrack,
   GenreCycleState,
   IndustryNewsItem,
   MovieGenre,
@@ -96,6 +104,8 @@ import type {
   RivalInteractionKind,
   RivalStudio,
   ScriptPitch,
+  SequelCandidate,
+  SequelEligibility,
   StoryArcState,
   StudioReputation,
   StudioTier,
@@ -191,6 +201,7 @@ export class StudioManager {
   pendingReleaseReveals: string[] = [];
   decisionQueue: DecisionItem[] = createOpeningDecisions();
   activeProjects: MovieProject[] = createSeedProjects();
+  franchises: FranchiseTrack[] = [];
   talentPool: Talent[] = createSeedTalentPool();
   scriptMarket: ScriptPitch[] = createSeedScriptMarket();
   rivals: RivalStudio[] = createSeedRivals();
@@ -646,6 +657,7 @@ export class StudioManager {
     this.adjustReputation(-4, 'talent');
     this.evaluateBankruptcy();
     this.releaseTalent(projectId, 'abandoned');
+    removeProjectFromFranchiseForManager(this, projectId);
     this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
     this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
     this.pendingCrises = this.pendingCrises.filter((item) => item.projectId !== projectId);
@@ -676,6 +688,18 @@ export class StudioManager {
 
   dismissReleaseReveal(projectId: string): void {
     this.pendingReleaseReveals = this.pendingReleaseReveals.filter((idValue) => idValue !== projectId);
+  }
+
+  getSequelEligibility(projectId: string): SequelEligibility | null {
+    return getSequelEligibilityForManager(this, projectId);
+  }
+
+  getSequelCandidates(): SequelCandidate[] {
+    return getSequelCandidatesForManager(this);
+  }
+
+  startSequel(projectId: string): { success: boolean; message: string; projectId?: string } {
+    return startSequelForManager(this, projectId);
   }
 
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
@@ -743,6 +767,10 @@ export class StudioManager {
       ),
       originality: clamp(Math.round(pitch.conceptStrength * 8 + 10), 0, 100),
       controversy: pitch.genre === 'horror' ? 35 : pitch.genre === 'thriller' ? 28 : pitch.genre === 'action' ? 22 : 15,
+      franchiseId: null,
+      franchiseEpisode: null,
+      sequelToProjectId: null,
+      franchiseCarryoverHype: 0,
     };
     this.activeProjects.push(project);
     return { success: true, message: `Acquired "${pitch.title}".`, projectId: project.id };
@@ -1154,6 +1182,7 @@ export class StudioManager {
         this.adjustReputation(criticsDelta, 'critics');
         this.adjustReputation(audienceDelta, 'audience');
         project.releaseResolved = true;
+        markFranchiseReleaseForManager(this, project.id);
         events.push(
           `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
         );
