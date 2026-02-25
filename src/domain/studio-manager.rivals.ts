@@ -381,31 +381,18 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
         .filter((item: any) => item.phase === 'distribution')
         .sort((a: any, b: any) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
       if (project) {
-        manager.distributionOffers = manager.distributionOffers.filter(
-          (item: any) => !(item.projectId === project.id && item.partner === `${rival.name} Stream+`)
-        );
-        manager.distributionOffers.push({
-          id: createId('deal'),
-          projectId: project.id,
-          partner: `${rival.name} Stream+`,
-          releaseWindow: 'streamingExclusive',
-          minimumGuarantee: project.budget.ceiling * 0.46,
-          pAndACommitment: project.budget.ceiling * 0.055,
-          revenueShareToStudio: 0.68,
-          projectedOpeningOverride: 0.72,
-          counterAttempts: 0,
-        });
-        const hadFlag = manager.hasStoryFlag('streaming_pressure');
-        manager.storyFlags.streaming_pressure = (manager.storyFlags.streaming_pressure ?? 0) + 1;
+        project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
+        const hadFlag = manager.hasStoryFlag('platform_ad_blitz');
+        manager.storyFlags.platform_ad_blitz = (manager.storyFlags.platform_ad_blitz ?? 0) + 1;
         if (!hadFlag) {
-          queueRivalCounterplayDecisionForManager(manager, 'streaming_pressure', rival.name, project.id);
+          queueRivalCounterplayDecisionForManager(manager, 'platform_ad_blitz', rival.name, project.id);
         }
-        events.push(`${rival.name} floated an aggressive competing streaming offer into your distribution stack.`);
+        events.push(`${rival.name} launched a platform-funded media blitz against ${project.title}.`);
         manager.recordRivalInteraction(rival, {
           kind: 'streamingPressure',
           hostilityDelta: 2,
           respectDelta: 1,
-          note: `Injected streaming-first pressure on ${project.title}.`,
+          note: `Ran platform-driven media pressure against ${project.title}.`,
           projectId: project.id,
         });
       }
@@ -508,38 +495,38 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
 
     if (rival.personality === 'streamingFirst') {
       if (!nextPipelineProject) continue;
-      const title = `Counterplay: ${rival.name} Output Deal (${nextPipelineProject.title})`;
+      const title = `Counterplay: ${rival.name} Platform Pressure (${nextPipelineProject.title})`;
       if (manager.decisionQueue.length < 5 && !manager.decisionQueue.some((item: any) => item.title === title)) {
         manager.decisionQueue.push({
           id: createId('decision'),
           projectId: nextPipelineProject.id,
           category: 'finance',
           title,
-          body: `${rival.name} offered a streaming-first output deal for ${nextPipelineProject.title}.`,
+          body: `${rival.name} is bundling platform media spend to undercut your theatrical positioning on ${nextPipelineProject.title}.`,
           weeksUntilExpiry: 1,
           options: [
             {
               id: createId('opt'),
-              label: 'Accept Output Deal',
-              preview: 'Immediate cash and marketing support, with lower theatrical upside.',
-              cashDelta: 320_000,
+              label: 'Lock Premium Theater Commitments',
+              preview: 'Spend now to protect screens and pre-sales.',
+              cashDelta: -180_000,
               scriptQualityDelta: 0,
               hypeDelta: 1,
-              marketingDelta: 180_000,
-              studioHeatDelta: -1,
+              marketingDelta: 120_000,
+              distributorRepDelta: 2,
             },
             {
               id: createId('opt'),
-              label: 'Decline Deal',
-              preview: 'Keep flexibility and hold for stronger distribution leverage.',
+              label: 'Ride Out The Pressure',
+              preview: 'No spend. Risk reduced launch momentum.',
               cashDelta: 0,
               scriptQualityDelta: 0,
-              hypeDelta: 0,
-              studioHeatDelta: 1,
+              hypeDelta: -1,
+              audienceDelta: -1,
             },
           ],
         });
-        events.push(`${rival.name} put a streaming output deal on your next project.`);
+        events.push(`${rival.name} applied platform-led media pressure on ${nextPipelineProject.title}.`);
       }
       continue;
     }
@@ -684,17 +671,17 @@ export function queueRivalCounterplayDecisionForManager(
     return;
   }
 
-  if (flag === 'streaming_pressure') {
-    const title = `Counterplay: ${rivalName} Streaming Pressure`;
+  if (flag === 'platform_ad_blitz' || flag === 'streaming_pressure') {
+    const title = `Counterplay: ${rivalName} Platform Ad Blitz`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: targetProject?.id ?? null,
       category: 'finance',
       title,
-      body: 'Aggressive streaming terms are distorting your release leverage.',
+      body: 'A rival is flooding your corridor with platform-backed media pressure against your theatrical launch.',
       weeksUntilExpiry: 1,
-      onExpireClearFlag: 'streaming_pressure',
+      onExpireClearFlag: flag,
       options: [
         {
           id: createId('opt'),
@@ -704,16 +691,17 @@ export function queueRivalCounterplayDecisionForManager(
           scriptQualityDelta: 0,
           hypeDelta: 2,
           studioHeatDelta: 1,
-          clearFlag: 'streaming_pressure',
+          clearFlag: flag,
         },
         {
           id: createId('opt'),
-          label: 'Take Hybrid Safety Deal',
-          preview: 'Accept immediate cash and de-risk near-term window.',
-          cashDelta: 150_000,
+          label: 'Rebalance To Local Market Pushes',
+          preview: 'Lower spend and maintain theatrical focus.',
+          cashDelta: -80_000,
           scriptQualityDelta: 0,
-          hypeDelta: -1,
-          clearFlag: 'streaming_pressure',
+          hypeDelta: 0,
+          audienceDelta: 1,
+          clearFlag: flag,
         },
       ],
     });

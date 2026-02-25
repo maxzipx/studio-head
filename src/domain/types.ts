@@ -20,9 +20,7 @@ export type FestivalStatus = 'none' | 'submitted' | 'selected' | 'buzzed' | 'snu
 
 export type ReleaseWindow =
   | 'wideTheatrical'
-  | 'limitedTheatrical'
-  | 'streamingExclusive'
-  | 'hybridWindow';
+  | 'limitedTheatrical';
 
 export type TalentRole =
   | 'director'

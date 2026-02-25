@@ -1164,7 +1164,7 @@ describe('StudioManager', () => {
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(project.releaseWeek);
   });
 
-  it('queues streaming output-deal response after release resolution', () => {
+  it('queues platform pressure response after release resolution', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
     manager.rivals = [
       {
@@ -1188,7 +1188,7 @@ describe('StudioManager', () => {
       events
     );
 
-    expect(manager.decisionQueue.some((item) => item.title.includes('Output Deal'))).toBe(true);
+    expect(manager.decisionQueue.some((item) => item.title.includes('Platform Pressure'))).toBe(true);
   });
 
   it('creates talent poach interrupt when rival closes during player negotiation', () => {

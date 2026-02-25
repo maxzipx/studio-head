@@ -146,4 +146,30 @@ describe('persistence restore', () => {
     expect(restored.genreCycles.action.shockDirection ?? null).toBeNull();
     expect(restored.genreCycles.action.shockUntilWeek ?? null).toBeNull();
   });
+
+  it('removes non-theatrical player distribution windows from legacy saves', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const firstProject = (snapshot.activeProjects as Record<string, unknown>[])[0];
+    firstProject.phase = 'distribution';
+    firstProject.releaseWindow = 'streamingExclusive';
+
+    snapshot.distributionOffers = [
+      {
+        id: 'legacy-offer',
+        projectId: String(firstProject.id),
+        partner: 'Legacy Streamer',
+        releaseWindow: 'hybridWindow',
+        minimumGuarantee: 100_000,
+        pAndACommitment: 50_000,
+        revenueShareToStudio: 0.6,
+        projectedOpeningOverride: 1,
+        counterAttempts: 0,
+      },
+    ] as unknown as ReturnType<typeof serializeStudioManager>['distributionOffers'];
+
+    const restored = restoreStudioManager(snapshot);
+    expect(restored.distributionOffers.length).toBe(0);
+    expect(restored.activeProjects[0].releaseWindow).toBeNull();
+  });
 });

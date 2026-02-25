@@ -31,12 +31,12 @@ const TIER_NEXT_GOAL: Record<string, string> = {
 
 const ARC_LABELS: Record<string, string> = {
   'awards-circuit': 'Awards Run',
+  'exhibitor-power-play': 'Exhibitor Power Play',
   'exhibitor-war': 'Theater Access Battle',
   'financier-control': 'Investor Pressure',
   'franchise-pivot': 'Universe Gamble',
   'leak-piracy': 'Leak Fallout',
   'talent-meltdown': 'Volatile Star Cycle',
-  'streaming-pivot': 'Streaming Crossroads',
   'passion-project': "The Director's Vision",
 };
 

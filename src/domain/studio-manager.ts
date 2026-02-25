@@ -199,10 +199,10 @@ const ARC_LABELS: Record<string, string> = {
   'awards-circuit': 'Awards Run',
   'talent-meltdown': 'Volatile Star Cycle',
   'exhibitor-war': 'Theater Access Battle',
+  'exhibitor-power-play': 'Exhibitor Power Play',
   'franchise-pivot': 'Universe Gamble',
   'franchise-identity': 'Franchise Identity',
   'franchise-fatigue': 'Franchise Fatigue',
-  'streaming-pivot': 'Streaming Crossroads',
   'passion-project': "The Director's Vision",
 };
 
@@ -1737,7 +1737,7 @@ export class StudioManager {
 
     const kind: RivalInteractionKind = decision.title.includes('Awards')
       ? 'prestigePressure'
-      : decision.title.includes('Streaming') || decision.title.includes('Output Deal')
+      : decision.title.includes('Platform')
         ? 'streamingPressure'
         : decision.title.includes('Guerrilla')
           ? 'guerrillaPressure'

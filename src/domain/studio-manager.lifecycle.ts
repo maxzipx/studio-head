@@ -111,6 +111,9 @@ export function acceptDistributionOfferForManager(
   }
   const offer = manager.distributionOffers.find((item: any) => item.id === offerId && item.projectId === projectId);
   if (!offer) return { success: false, message: 'Offer not found.' };
+  if (offer.releaseWindow !== 'wideTheatrical' && offer.releaseWindow !== 'limitedTheatrical') {
+    return { success: false, message: 'Player studio can only accept theatrical distribution windows.' };
+  }
 
   project.releaseWindow = offer.releaseWindow;
   project.distributionPartner = offer.partner;
@@ -205,19 +208,19 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
     {
       id: createId('deal'),
       projectId,
-      partner: 'Northstream',
-      releaseWindow: 'streamingExclusive',
-      minimumGuarantee: base * 1.55 * mgMultiplier,
-      pAndACommitment: project.budget.ceiling * 0.06,
-      revenueShareToStudio: clamp(0.62 + shareLift, 0.45, 0.7),
-      projectedOpeningOverride: 0.8,
+      partner: 'Silverline Distribution',
+      releaseWindow: 'limitedTheatrical',
+      minimumGuarantee: base * 1.08 * mgMultiplier,
+      pAndACommitment: project.budget.ceiling * 0.08,
+      revenueShareToStudio: clamp(0.61 + shareLift, 0.45, 0.7),
+      projectedOpeningOverride: 0.94,
       counterAttempts: 0,
     },
     {
       id: createId('deal'),
       projectId,
       partner: 'Constellation Media',
-      releaseWindow: 'hybridWindow',
+      releaseWindow: 'wideTheatrical',
       minimumGuarantee: base * 1.32 * mgMultiplier,
       pAndACommitment: project.budget.ceiling * 0.1,
       revenueShareToStudio: clamp(0.58 + shareLift, 0.45, 0.7),
