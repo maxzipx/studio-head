@@ -84,4 +84,24 @@ describe('persistence restore', () => {
     expect(talent.relationshipMemory.trust).toBeGreaterThan(0);
     expect(talent.relationshipMemory.loyalty).toBeGreaterThan(0);
   });
+
+  it('migrates legacy rival data and awards state safely', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const firstRival = (snapshot.rivals as Record<string, unknown>[])[0];
+    delete firstRival.memory;
+    const firstProject = (snapshot.activeProjects as Record<string, unknown>[])[0];
+    delete firstProject.awardsNominations;
+    delete firstProject.awardsWins;
+    snapshot.awardsHistory = 'bad-data' as unknown as never[];
+    snapshot.awardsSeasonsProcessed = 'bad-data' as unknown as number[];
+
+    const restored = restoreStudioManager(snapshot);
+    expect(restored.rivals[0].memory).toBeTruthy();
+    expect(restored.rivals[0].memory.interactionHistory).toEqual([]);
+    expect(restored.activeProjects[0].awardsNominations).toBe(0);
+    expect(restored.activeProjects[0].awardsWins).toBe(0);
+    expect(Array.isArray(restored.awardsHistory)).toBe(true);
+    expect(Array.isArray(restored.awardsSeasonsProcessed)).toBe(true);
+  });
 });

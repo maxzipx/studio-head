@@ -68,6 +68,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     project.editorialScore = Math.min(10, Math.max(0, project.editorialScore));
     if (!Number.isFinite(project.postPolishPasses)) project.postPolishPasses = 0;
     project.postPolishPasses = Math.min(2, Math.max(0, Math.round(project.postPolishPasses)));
+    if (!Number.isFinite(project.awardsNominations)) project.awardsNominations = 0;
+    if (!Number.isFinite(project.awardsWins)) project.awardsWins = 0;
+    project.awardsNominations = Math.max(0, Math.round(project.awardsNominations));
+    project.awardsWins = Math.max(0, Math.round(project.awardsWins));
   }
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
   for (const talent of manager.talentPool) {
@@ -106,7 +110,64 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
   if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
+  for (const rival of manager.rivals) {
+    const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0];
+    if (!isRecord(rival.memory)) {
+      rival.memory = {
+        hostility: baseline.memory.hostility,
+        respect: baseline.memory.respect,
+        retaliationBias: baseline.memory.retaliationBias,
+        cooperationBias: baseline.memory.cooperationBias,
+        interactionHistory: [],
+      };
+    } else {
+      if (!Number.isFinite(rival.memory.hostility)) rival.memory.hostility = baseline.memory.hostility;
+      if (!Number.isFinite(rival.memory.respect)) rival.memory.respect = baseline.memory.respect;
+      if (!Number.isFinite(rival.memory.retaliationBias)) rival.memory.retaliationBias = baseline.memory.retaliationBias;
+      if (!Number.isFinite(rival.memory.cooperationBias)) rival.memory.cooperationBias = baseline.memory.cooperationBias;
+      rival.memory.hostility = Math.min(100, Math.max(0, Math.round(rival.memory.hostility)));
+      rival.memory.respect = Math.min(100, Math.max(0, Math.round(rival.memory.respect)));
+      rival.memory.retaliationBias = Math.min(100, Math.max(0, Math.round(rival.memory.retaliationBias)));
+      rival.memory.cooperationBias = Math.min(100, Math.max(0, Math.round(rival.memory.cooperationBias)));
+      if (!Array.isArray(rival.memory.interactionHistory)) rival.memory.interactionHistory = [];
+      rival.memory.interactionHistory = rival.memory.interactionHistory
+        .filter((entry) => isRecord(entry) && typeof entry.note === 'string')
+        .slice(-MEMORY_RULES.RIVAL_INTERACTION_HISTORY_MAX)
+        .map((entry) => ({
+          week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
+          kind: typeof entry.kind === 'string' ? entry.kind : 'counterplayEscalation',
+          hostilityDelta: Number.isFinite(entry.hostilityDelta) ? Math.round(entry.hostilityDelta as number) : 0,
+          respectDelta: Number.isFinite(entry.respectDelta) ? Math.round(entry.respectDelta as number) : 0,
+          note: String(entry.note),
+          projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,
+        }));
+    }
+  }
   if (!Array.isArray(manager.industryNewsLog)) manager.industryNewsLog = [];
+  if (!Array.isArray(manager.awardsHistory)) manager.awardsHistory = [];
+  manager.awardsHistory = manager.awardsHistory
+    .filter((entry) => isRecord(entry) && Array.isArray(entry.results))
+    .map((entry) => ({
+      seasonYear: Number.isFinite(entry.seasonYear) ? Math.max(1, Math.round(entry.seasonYear as number)) : 1,
+      week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
+      showName: typeof entry.showName === 'string' ? entry.showName : 'Global Film Honors',
+      headline: typeof entry.headline === 'string' ? entry.headline : 'Awards season update.',
+      results: (entry.results as unknown[])
+        .filter((result): result is Record<string, unknown> => isRecord(result) && typeof result.title === 'string')
+        .map((result) => ({
+          projectId: typeof result.projectId === 'string' ? result.projectId : 'unknown',
+          title: String(result.title),
+          nominations: Number.isFinite(result.nominations) ? Math.max(0, Math.round(result.nominations as number)) : 0,
+          wins: Number.isFinite(result.wins) ? Math.max(0, Math.round(result.wins as number)) : 0,
+          score: Number.isFinite(result.score) ? Math.max(0, Math.min(100, Number(result.score))) : 0,
+        })),
+    }))
+    .slice(0, 24);
+  if (!Array.isArray(manager.awardsSeasonsProcessed)) manager.awardsSeasonsProcessed = [];
+  manager.awardsSeasonsProcessed = manager.awardsSeasonsProcessed
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.max(1, Math.round(value)))
+    .slice(-20);
   if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
   if (!Array.isArray(manager.recentDecisionCategories)) manager.recentDecisionCategories = [];
 

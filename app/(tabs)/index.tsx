@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
+import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
@@ -38,6 +38,13 @@ const ARC_LABELS: Record<string, string> = {
   'talent-meltdown': 'Volatile Star Cycle',
 };
 
+function stanceLabel(value: string): string {
+  if (value === 'hostile') return 'Hostile';
+  if (value === 'competitive') return 'Competitive';
+  if (value === 'respectful') return 'Respectful';
+  return 'Neutral';
+}
+
 export default function HQScreen() {
   const { manager, dismissReleaseReveal, endWeek, setTurnLength, resolveCrisis, resolveDecision, runOptionalAction, renameStudio, lastMessage } =
     useGame();
@@ -58,6 +65,16 @@ export default function HQScreen() {
     })
     .slice(0, 8);
   const activeArcCount = arcEntries.filter(([, arc]) => arc.status === 'active').length;
+  const nextAwardsWeek = (() => {
+    if (manager.currentWeek < AWARDS_RULES.AWARDS_WEEK_IN_SEASON) return AWARDS_RULES.AWARDS_WEEK_IN_SEASON;
+    const offset = (manager.currentWeek - AWARDS_RULES.AWARDS_WEEK_IN_SEASON) % AWARDS_RULES.SEASON_LENGTH_WEEKS;
+    if (offset === 0) return manager.currentWeek + AWARDS_RULES.SEASON_LENGTH_WEEKS;
+    return manager.currentWeek + (AWARDS_RULES.SEASON_LENGTH_WEEKS - offset);
+  })();
+  const lastAwards = manager.awardsHistory[0];
+  const rivalRelations = [...manager.rivals]
+    .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
+    .slice(0, 4);
   const anim = useRef(new Animated.Value(0)).current;
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
 
@@ -275,6 +292,35 @@ export default function HQScreen() {
             <Text style={[styles.body, entry.isPlayer ? styles.playerRow : null]}>{entry.heat.toFixed(0)}</Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Rival Relations</Text>
+        {rivalRelations.map((rival) => (
+          <View key={rival.id} style={styles.rowLine}>
+            <Text style={styles.body}>{rival.name}</Text>
+            <Text style={styles.mutedBody}>
+              {stanceLabel(manager.getRivalStance(rival))} | H{rival.memory.hostility} / R{rival.memory.respect}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Awards Pulse</Text>
+        <Text style={styles.body}>Next awards week: W{nextAwardsWeek}</Text>
+        {lastAwards ? (
+          <>
+            <Text style={styles.bodyStrong}>{lastAwards.headline}</Text>
+            {lastAwards.results.slice(0, 3).map((result) => (
+              <Text key={`${lastAwards.seasonYear}-${result.projectId}`} style={styles.mutedBody}>
+                {result.title}: {result.nominations} nom(s), {result.wins} win(s)
+              </Text>
+            ))}
+          </>
+        ) : (
+          <Text style={styles.mutedBody}>No awards seasons have resolved yet.</Text>
+        )}
       </View>
 
       <View style={styles.card}>

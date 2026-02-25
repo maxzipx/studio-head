@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  awardsNominationProbability,
+  awardsSeasonScore,
+  awardsWinProbability,
   heatDeltaFromRelease,
   projectedCriticalScore,
   projectedOpeningWeekendRange,
@@ -64,5 +67,44 @@ describe('formulas', () => {
     // criticalScore 88 -> critics +8, awardsNominations 1 -> critics +3, roi 2.5 -> audience +6
     // average of critics(11) and audience(6) -> 8.5
     expect(delta).toBe(8.5);
+  });
+
+  it('computes awards score/probabilities with expected ordering', () => {
+    const strongScore = awardsSeasonScore({
+      criticalScore: 90,
+      scriptQuality: 8.6,
+      conceptStrength: 8,
+      prestige: 84,
+      controversy: 10,
+      campaignBoost: 10,
+      festivalBoost: 6,
+      studioCriticsReputation: 62,
+    });
+    const weakScore = awardsSeasonScore({
+      criticalScore: 55,
+      scriptQuality: 5.8,
+      conceptStrength: 5.1,
+      prestige: 32,
+      controversy: 45,
+      campaignBoost: 0,
+      festivalBoost: 0,
+      studioCriticsReputation: 40,
+    });
+
+    expect(strongScore).toBeGreaterThan(weakScore);
+    expect(awardsNominationProbability(strongScore)).toBeGreaterThan(awardsNominationProbability(weakScore));
+    expect(
+      awardsWinProbability({
+        score: strongScore,
+        nominations: 3,
+        controversy: 10,
+      })
+    ).toBeGreaterThan(
+      awardsWinProbability({
+        score: weakScore,
+        nominations: 1,
+        controversy: 45,
+      })
+    );
   });
 });

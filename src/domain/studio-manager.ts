@@ -1,5 +1,6 @@
 import {
   ACTION_BALANCE,
+  AWARDS_RULES,
   BANKRUPTCY_RULES,
   MEMORY_RULES,
   PROJECT_BALANCE,
@@ -10,6 +11,9 @@ import {
 } from './balance-constants';
 import { createId } from './id';
 import {
+  awardsNominationProbability,
+  awardsSeasonScore,
+  awardsWinProbability,
   reputationDeltasFromRelease,
   projectedCriticalScore,
   projectedOpeningWeekendRange,
@@ -76,6 +80,7 @@ import {
   createSeedTalentPool,
 } from './seeds';
 import type {
+  AwardsSeasonRecord,
   CrisisEvent,
   DecisionCategory,
   DecisionItem,
@@ -86,6 +91,7 @@ import type {
   MovieProject,
   NegotiationAction,
   PlayerNegotiation,
+  RivalInteractionKind,
   RivalStudio,
   ScriptPitch,
   StoryArcState,
@@ -177,6 +183,8 @@ export class StudioManager {
   storyArcs: Record<string, StoryArcState> = {};
   recentDecisionCategories: DecisionCategory[] = [];
   lastWeekSummary: WeekSummary | null = null;
+  awardsHistory: AwardsSeasonRecord[] = [];
+  awardsSeasonsProcessed: number[] = [];
 
   get studioHeat(): number {
     return Math.round(
@@ -286,6 +294,63 @@ export class StudioManager {
       memory.interactionHistory = memory.interactionHistory.slice(-MEMORY_RULES.TALENT_INTERACTION_HISTORY_MAX);
     }
     this.syncLegacyRelationship(talent);
+  }
+
+  private getRivalMemory(rival: RivalStudio): RivalStudio['memory'] {
+    if (!rival.memory) {
+      const baseHostility =
+        rival.personality === 'blockbusterFactory' ? 58 : rival.personality === 'scrappyUpstart' ? 55 : 50;
+      const baseRespect =
+        rival.personality === 'prestigeHunter' ? 60 : rival.personality === 'genreSpecialist' ? 56 : 52;
+      rival.memory = {
+        hostility: baseHostility,
+        respect: baseRespect,
+        retaliationBias: 50,
+        cooperationBias: 45,
+        interactionHistory: [],
+      };
+    }
+    if (!Array.isArray(rival.memory.interactionHistory)) {
+      rival.memory.interactionHistory = [];
+    }
+    return rival.memory;
+  }
+
+  getRivalStance(rival: RivalStudio): 'hostile' | 'competitive' | 'neutral' | 'respectful' {
+    const memory = this.getRivalMemory(rival);
+    const score = memory.hostility - memory.respect;
+    if (score >= 20) return 'hostile';
+    if (score >= 8) return 'competitive';
+    if (score <= -12) return 'respectful';
+    return 'neutral';
+  }
+
+  recordRivalInteraction(
+    rival: RivalStudio,
+    input: {
+      kind: RivalInteractionKind;
+      hostilityDelta: number;
+      respectDelta: number;
+      note: string;
+      projectId?: string | null;
+    }
+  ): void {
+    const memory = this.getRivalMemory(rival);
+    memory.hostility = clamp(Math.round(memory.hostility + input.hostilityDelta), 0, 100);
+    memory.respect = clamp(Math.round(memory.respect + input.respectDelta), 0, 100);
+    memory.retaliationBias = clamp(Math.round(memory.retaliationBias + input.hostilityDelta * 0.6), 0, 100);
+    memory.cooperationBias = clamp(Math.round(memory.cooperationBias + input.respectDelta * 0.6), 0, 100);
+    memory.interactionHistory.push({
+      week: this.currentWeek,
+      kind: input.kind,
+      hostilityDelta: Math.round(input.hostilityDelta),
+      respectDelta: Math.round(input.respectDelta),
+      note: input.note,
+      projectId: input.projectId ?? null,
+    });
+    if (memory.interactionHistory.length > MEMORY_RULES.RIVAL_INTERACTION_HISTORY_MAX) {
+      memory.interactionHistory = memory.interactionHistory.slice(-MEMORY_RULES.RIVAL_INTERACTION_HISTORY_MAX);
+    }
   }
 
   constructor(input?: {
@@ -593,6 +658,8 @@ export class StudioManager {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      awardsNominations: 0,
+      awardsWins: 0,
       prestige: clamp(
         Math.round(pitch.scriptQuality * 7 + (pitch.genre === 'drama' || pitch.genre === 'documentary' ? 18 : 0)),
         0, 100
@@ -702,6 +769,7 @@ export class StudioManager {
     if (decision.arcId) {
       this.applyArcMutation(decision.arcId, option);
     }
+    this.applyRivalDecisionMemory(decision, option);
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
   }
 
@@ -735,6 +803,7 @@ export class StudioManager {
     this.projectOutcomes();
 
     this.currentWeek += 1;
+    this.processAnnualAwards(events);
 
     if (this.cash < BANKRUPTCY_RULES.LOW_CASH_WARNING_THRESHOLD) {
       this.consecutiveLowCashWeeks += 1;
@@ -1017,6 +1086,174 @@ export class StudioManager {
         this.checkRivalReleaseResponses(project, events);
       }
     }
+  }
+
+  private processAnnualAwards(events: string[]): void {
+    if (
+      this.currentWeek < AWARDS_RULES.AWARDS_WEEK_IN_SEASON ||
+      (this.currentWeek - AWARDS_RULES.AWARDS_WEEK_IN_SEASON) % AWARDS_RULES.SEASON_LENGTH_WEEKS !== 0
+    ) {
+      return;
+    }
+    const seasonYear = Math.floor((this.currentWeek - 1) / AWARDS_RULES.SEASON_LENGTH_WEEKS) + 1;
+    if (this.awardsSeasonsProcessed.includes(seasonYear)) return;
+
+    const eligibilityStartWeek = this.currentWeek - AWARDS_RULES.ELIGIBILITY_WINDOW_WEEKS;
+    const eligibleProjects = this.activeProjects.filter((project) => {
+      if (project.phase !== 'released' || !project.releaseResolved) return false;
+      const releaseWeek = project.releaseWeek ?? 0;
+      if (releaseWeek < eligibilityStartWeek || releaseWeek > this.currentWeek) return false;
+      return Number.isFinite(project.criticalScore ?? NaN);
+    });
+
+    if (eligibleProjects.length === 0) {
+      this.awardsSeasonsProcessed.push(seasonYear);
+      events.push(`Awards season year ${seasonYear}: no eligible player releases this cycle.`);
+      return;
+    }
+
+    const awardsArc = this.storyArcs['awards-circuit'];
+    const baseCampaignBoost = this.hasStoryFlag('awards_campaign') ? 8 : 0;
+    const baseFestivalBoost = this.hasStoryFlag('festival_selected') ? 4 : 0;
+    const arcBoost =
+      awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
+
+    const results = eligibleProjects.map((project) => {
+      const score = awardsSeasonScore({
+        criticalScore: project.criticalScore ?? 50,
+        scriptQuality: project.scriptQuality,
+        conceptStrength: project.conceptStrength,
+        prestige: project.prestige,
+        controversy: project.controversy,
+        campaignBoost: baseCampaignBoost + arcBoost,
+        festivalBoost: baseFestivalBoost,
+        studioCriticsReputation: this.reputation.critics,
+      });
+      const nominationProbability = awardsNominationProbability(score);
+      const nominationRolls = clamp(1 + Math.floor(score / 28), 1, 4);
+      let nominations = 0;
+      for (let i = 0; i < nominationRolls; i += 1) {
+        if (this.rivalRng() <= nominationProbability) nominations += 1;
+      }
+      if (nominations === 0 && score >= 82 && this.rivalRng() < 0.35) {
+        nominations = 1;
+      }
+      let wins = 0;
+      if (nominations > 0) {
+        const winProbability = awardsWinProbability({
+          score,
+          nominations,
+          controversy: project.controversy,
+        });
+        if (this.rivalRng() <= winProbability) wins += 1;
+        if (nominations >= 3 && this.rivalRng() <= winProbability * 0.35) wins += 1;
+      }
+      project.awardsNominations += nominations;
+      project.awardsWins += wins;
+      return {
+        projectId: project.id,
+        title: project.title,
+        nominations,
+        wins,
+        score,
+      };
+    });
+
+    results.sort((a, b) => b.score - a.score);
+    const totalNominations = results.reduce((sum, item) => sum + item.nominations, 0);
+    const totalWins = results.reduce((sum, item) => sum + item.wins, 0);
+    const winner = results.find((item) => item.wins > 0) ?? results[0];
+
+    let criticsDelta = totalNominations * 1.4 + totalWins * 5;
+    let talentDelta = totalNominations * 0.9 + totalWins * 2.2;
+    let distributorDelta = totalNominations * 0.5 + totalWins * 1.8;
+    let audienceDelta = totalWins * 1.4;
+    if (totalNominations === 0) {
+      criticsDelta -= 1;
+      talentDelta -= 1;
+    }
+    this.adjustReputation(Math.round(criticsDelta), 'critics');
+    this.adjustReputation(Math.round(talentDelta), 'talent');
+    this.adjustReputation(Math.round(distributorDelta), 'distributor');
+    this.adjustReputation(Math.round(audienceDelta), 'audience');
+
+    const prestigeRival = this.rivals.find((rival) => rival.personality === 'prestigeHunter');
+    if (prestigeRival) {
+      this.recordRivalInteraction(prestigeRival, {
+        kind: 'prestigePressure',
+        hostilityDelta: totalWins > 0 ? 2 : 1,
+        respectDelta: totalWins > 0 ? 3 : 1,
+        note:
+          totalWins > 0
+            ? `You converted awards momentum with ${winner.title}.`
+            : 'You stayed in awards contention without major wins.',
+        projectId: winner.projectId,
+      });
+    }
+
+    const headline =
+      totalWins > 0
+        ? `Awards season year ${seasonYear}: ${winner.title} led with ${winner.wins} win(s) and ${winner.nominations} nomination(s).`
+        : `Awards season year ${seasonYear}: ${winner.title} led nominations (${winner.nominations}) but no major wins landed.`;
+    this.awardsHistory.unshift({
+      seasonYear,
+      week: this.currentWeek,
+      showName: 'Global Film Honors',
+      results,
+      headline,
+    });
+    this.awardsHistory = this.awardsHistory.slice(0, 24);
+    this.awardsSeasonsProcessed.push(seasonYear);
+    this.awardsSeasonsProcessed = this.awardsSeasonsProcessed.slice(-20);
+    events.push(
+      `${headline} Reputation: Critics ${Math.round(criticsDelta) >= 0 ? '+' : ''}${Math.round(criticsDelta)}, Talent ${Math.round(talentDelta) >= 0 ? '+' : ''}${Math.round(talentDelta)}.`
+    );
+  }
+
+  private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
+    if (!decision.title.startsWith('Counterplay:')) return;
+    const rival = this.rivals.find((item) => decision.title.includes(item.name));
+    if (!rival) return;
+
+    const kind: RivalInteractionKind = decision.title.includes('Awards')
+      ? 'prestigePressure'
+      : decision.title.includes('Streaming') || decision.title.includes('Output Deal')
+        ? 'streamingPressure'
+        : decision.title.includes('Guerrilla')
+          ? 'guerrillaPressure'
+          : decision.title.includes('Tentpole')
+            ? 'releaseCollision'
+            : 'counterplayEscalation';
+
+    if (option.cashDelta < 0 || option.hypeDelta > 0) {
+      this.recordRivalInteraction(rival, {
+        kind,
+        hostilityDelta: 3,
+        respectDelta: 1,
+        note: `Escalated counterplay response: ${option.label}.`,
+        projectId: decision.projectId,
+      });
+      return;
+    }
+
+    if (option.label.toLowerCase().includes('accept')) {
+      this.recordRivalInteraction(rival, {
+        kind,
+        hostilityDelta: -2,
+        respectDelta: -1,
+        note: `Accepted rival pressure option: ${option.label}.`,
+        projectId: decision.projectId,
+      });
+      return;
+    }
+
+    this.recordRivalInteraction(rival, {
+      kind,
+      hostilityDelta: -1,
+      respectDelta: 0,
+      note: `Lower-intensity response selected: ${option.label}.`,
+      projectId: decision.projectId,
+    });
   }
 
   private estimateReleaseRunWeeks(project: MovieProject): number {

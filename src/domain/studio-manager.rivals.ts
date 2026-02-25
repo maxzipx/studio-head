@@ -61,6 +61,13 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
           note: `${rival.name} poached ${picked.name} during talks for ${projectTitle}.`,
           projectId: negotiation.projectId,
         });
+        manager.recordRivalInteraction(rival, {
+          kind: 'talentPoach',
+          hostilityDelta: 4,
+          respectDelta: 1,
+          note: `Poached ${picked.name} out of active talks for ${projectTitle}.`,
+          projectId: negotiation.projectId,
+        });
         manager.pendingCrises.push({
           id: createId('crisis'),
           projectId: negotiation.projectId,
@@ -102,6 +109,13 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
         trustDelta: -4,
         loyaltyDelta: -5,
         note: `${rival.name} poached ${picked.name}.`,
+        projectId: null,
+      });
+      manager.recordRivalInteraction(rival, {
+        kind: 'talentPoach',
+        hostilityDelta: 3,
+        respectDelta: 0,
+        note: `Poached ${picked.name} from open market.`,
         projectId: null,
       });
       events.push(`${rival.name} attached ${picked.name}. Available again around week ${unavailableUntil}.`);
@@ -148,6 +162,13 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
     events.push(`${rival.name} scheduled ${film.title} for week ${film.releaseWeek}.`);
 
     if (target && target.releaseWeek && Math.abs(target.releaseWeek - film.releaseWeek) <= 0) {
+      manager.recordRivalInteraction(rival, {
+        kind: 'releaseCollision',
+        hostilityDelta: 5,
+        respectDelta: 1,
+        note: `Forced release collision against ${target.title}.`,
+        projectId: target.id,
+      });
       manager.pendingCrises.push({
         id: createId('crisis'),
         projectId: target.id,
@@ -217,6 +238,13 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
           queueRivalCounterplayDecisionForManager(manager, 'rival_tentpole_threat', rival.name, target.id);
         }
         events.push(`${rival.name} dropped a four-quadrant tentpole into your weekend corridor.`);
+        manager.recordRivalInteraction(rival, {
+          kind: 'counterplayEscalation',
+          hostilityDelta: 4,
+          respectDelta: 1,
+          note: `Dropped event tentpole into your release corridor.`,
+          projectId: target.id,
+        });
       }
       continue;
     }
@@ -229,6 +257,13 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
         queueRivalCounterplayDecisionForManager(manager, 'awards_headwind', rival.name);
       }
       events.push(`${rival.name} dominated guild chatter this week. Awards headwind intensified.`);
+      manager.recordRivalInteraction(rival, {
+        kind: 'prestigePressure',
+        hostilityDelta: 3,
+        respectDelta: 2,
+        note: 'Drove guild narrative and awards headwind.',
+        projectId: null,
+      });
       continue;
     }
 
@@ -277,6 +312,13 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
           queueRivalCounterplayDecisionForManager(manager, 'streaming_pressure', rival.name, project.id);
         }
         events.push(`${rival.name} floated an aggressive competing streaming offer into your distribution stack.`);
+        manager.recordRivalInteraction(rival, {
+          kind: 'streamingPressure',
+          hostilityDelta: 2,
+          respectDelta: 1,
+          note: `Injected streaming-first pressure on ${project.title}.`,
+          projectId: project.id,
+        });
       }
       continue;
     }
@@ -293,6 +335,13 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
           queueRivalCounterplayDecisionForManager(manager, 'guerrilla_pressure', rival.name, targetProject.id);
         }
         events.push(`${rival.name} ran a guerrilla social blitz that clipped hype on ${targetProject.title}.`);
+        manager.recordRivalInteraction(rival, {
+          kind: 'guerrillaPressure',
+          hostilityDelta: 2,
+          respectDelta: 0,
+          note: `Ran guerrilla pressure against ${targetProject.title}.`,
+          projectId: targetProject.id,
+        });
       }
     }
   }
@@ -336,6 +385,13 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
         });
       }
       events.push(`${rival.name} moved its next tentpole into week ${nextDistributionProject.releaseWeek} to pressure your upcoming release.`);
+      manager.recordRivalInteraction(rival, {
+        kind: 'calendarUndercut',
+        hostilityDelta: 3,
+        respectDelta: 1,
+        note: `Moved schedule to undercut ${nextDistributionProject.title}.`,
+        projectId: nextDistributionProject.id,
+      });
       continue;
     }
 
@@ -351,6 +407,13 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
         rival.lockedTalentIds.push(director.id);
       }
       events.push(`${rival.name} responded by poaching director ${director.name} into a prestige package.`);
+      manager.recordRivalInteraction(rival, {
+        kind: 'talentPoach',
+        hostilityDelta: 3,
+        respectDelta: 1,
+        note: `Poached director ${director.name} after your release.`,
+        projectId: null,
+      });
       continue;
     }
 
@@ -402,6 +465,13 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
       targetProject.hypeScore = clamp(targetProject.hypeScore - 3, 0, 100);
       manager.adjustReputation(-1, 'audience');
       events.push(`${rival.name} launched a counter-campaign against ${targetProject.title}. Hype -3.`);
+      manager.recordRivalInteraction(rival, {
+        kind: 'guerrillaPressure',
+        hostilityDelta: 2,
+        respectDelta: 0,
+        note: `Counter-campaign against ${targetProject.title}.`,
+        projectId: targetProject.id,
+      });
     }
   }
 }
@@ -622,87 +692,114 @@ export function getRivalBehaviorProfileForManager(manager: any, rival: RivalStud
   budgetScale: number;
   hypeScale: number;
 } {
-  switch (rival.personality) {
-    case 'blockbusterFactory':
-      return {
-        arcPressure: {
-          'exhibitor-war': 0.6,
-          'franchise-pivot': 0.5,
-          'leak-piracy': 0.2,
-        },
-        talentPoachChance: 0.32,
-        calendarMoveChance: 0.4,
-        conflictPush: 0.5,
-        signatureMoveChance: 0.22,
-        budgetScale: 1.4,
-        hypeScale: 1.25,
-      };
-    case 'prestigeHunter':
-      return {
-        arcPressure: {
-          'awards-circuit': 0.6,
-          'financier-control': 0.2,
-          'talent-meltdown': 0.2,
-        },
-        talentPoachChance: 0.28,
-        calendarMoveChance: 0.24,
-        conflictPush: 0.2,
-        signatureMoveChance: 0.2,
-        budgetScale: 0.9,
-        hypeScale: 1.05,
-      };
-    case 'genreSpecialist':
-      return {
-        arcPressure: {
-          'talent-meltdown': 0.45,
-          'leak-piracy': 0.25,
-        },
-        talentPoachChance: 0.38,
-        calendarMoveChance: 0.3,
-        conflictPush: 0.28,
-        signatureMoveChance: 0.18,
-        budgetScale: 1.05,
-        hypeScale: 1.1,
-      };
-    case 'streamingFirst':
-      return {
-        arcPressure: {
-          'exhibitor-war': 0.3,
-          'financier-control': 0.35,
-          'franchise-pivot': 0.2,
-        },
-        talentPoachChance: 0.24,
-        calendarMoveChance: 0.18,
-        conflictPush: 0.18,
-        signatureMoveChance: 0.24,
-        budgetScale: 0.85,
-        hypeScale: 0.95,
-      };
-    case 'scrappyUpstart':
-      return {
-        arcPressure: {
-          'talent-meltdown': 0.3,
-          'leak-piracy': 0.3,
-          'financier-control': 0.25,
-        },
-        talentPoachChance: 0.3,
-        calendarMoveChance: 0.26,
-        conflictPush: 0.3,
-        signatureMoveChance: 0.2,
-        budgetScale: 0.8,
-        hypeScale: 1.15,
-      };
-    default:
-      return {
-        arcPressure: {},
-        talentPoachChance: 0.3,
-        calendarMoveChance: 0.28,
-        conflictPush: 0.3,
-        signatureMoveChance: 0.15,
-        budgetScale: 1,
-        hypeScale: 1,
-      };
-  }
+  const baseProfile: {
+    arcPressure: Record<string, number>;
+    talentPoachChance: number;
+    calendarMoveChance: number;
+    conflictPush: number;
+    signatureMoveChance: number;
+    budgetScale: number;
+    hypeScale: number;
+  } = (() => {
+    switch (rival.personality) {
+      case 'blockbusterFactory':
+        return {
+          arcPressure: {
+            'exhibitor-war': 0.6,
+            'franchise-pivot': 0.5,
+            'leak-piracy': 0.2,
+          } as Record<string, number>,
+          talentPoachChance: 0.32,
+          calendarMoveChance: 0.4,
+          conflictPush: 0.5,
+          signatureMoveChance: 0.22,
+          budgetScale: 1.4,
+          hypeScale: 1.25,
+        };
+      case 'prestigeHunter':
+        return {
+          arcPressure: {
+            'awards-circuit': 0.6,
+            'financier-control': 0.2,
+            'talent-meltdown': 0.2,
+          } as Record<string, number>,
+          talentPoachChance: 0.28,
+          calendarMoveChance: 0.24,
+          conflictPush: 0.2,
+          signatureMoveChance: 0.2,
+          budgetScale: 0.9,
+          hypeScale: 1.05,
+        };
+      case 'genreSpecialist':
+        return {
+          arcPressure: {
+            'talent-meltdown': 0.45,
+            'leak-piracy': 0.25,
+          } as Record<string, number>,
+          talentPoachChance: 0.38,
+          calendarMoveChance: 0.3,
+          conflictPush: 0.28,
+          signatureMoveChance: 0.18,
+          budgetScale: 1.05,
+          hypeScale: 1.1,
+        };
+      case 'streamingFirst':
+        return {
+          arcPressure: {
+            'exhibitor-war': 0.3,
+            'financier-control': 0.35,
+            'franchise-pivot': 0.2,
+          } as Record<string, number>,
+          talentPoachChance: 0.24,
+          calendarMoveChance: 0.18,
+          conflictPush: 0.18,
+          signatureMoveChance: 0.24,
+          budgetScale: 0.85,
+          hypeScale: 0.95,
+        };
+      case 'scrappyUpstart':
+        return {
+          arcPressure: {
+            'talent-meltdown': 0.3,
+            'leak-piracy': 0.3,
+            'financier-control': 0.25,
+          } as Record<string, number>,
+          talentPoachChance: 0.3,
+          calendarMoveChance: 0.26,
+          conflictPush: 0.3,
+          signatureMoveChance: 0.2,
+          budgetScale: 0.8,
+          hypeScale: 1.15,
+        };
+      default:
+        return {
+          arcPressure: {},
+          talentPoachChance: 0.3,
+          calendarMoveChance: 0.28,
+          conflictPush: 0.3,
+          signatureMoveChance: 0.15,
+          budgetScale: 1,
+          hypeScale: 1,
+        };
+    }
+  })();
+
+  const memory = rival.memory ?? {
+    hostility: 50,
+    respect: 50,
+    retaliationBias: 50,
+    cooperationBias: 45,
+    interactionHistory: [],
+  };
+  const hostilityPush = clamp((memory.hostility - memory.respect) / 120 + (memory.retaliationBias - 50) / 220, -0.2, 0.4);
+  const restraint = clamp((memory.cooperationBias - 50) / 260, -0.2, 0.2);
+  return {
+    ...baseProfile,
+    talentPoachChance: clamp(baseProfile.talentPoachChance + hostilityPush * 0.35 - restraint * 0.2, 0.08, 0.72),
+    calendarMoveChance: clamp(baseProfile.calendarMoveChance + hostilityPush * 0.25 - restraint * 0.1, 0.08, 0.7),
+    conflictPush: clamp(baseProfile.conflictPush + hostilityPush * 0.3 - restraint * 0.15, 0.05, 0.8),
+    signatureMoveChance: clamp(baseProfile.signatureMoveChance + hostilityPush * 0.2 - restraint * 0.05, 0.05, 0.6),
+  };
 }
 
 export function rivalNewsHeadlineForManager(_manager: any, name: string, delta: number): string {

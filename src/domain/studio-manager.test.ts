@@ -883,6 +883,70 @@ describe('StudioManager', () => {
     }
   });
 
+  it('adapts rival aggression profile from long-term memory', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.5 });
+    const rival = manager.rivals.find((item) => item.personality === 'blockbusterFactory') ?? manager.rivals[0];
+    const profileBefore = (manager as unknown as { getRivalBehaviorProfile: (rival: unknown) => { conflictPush: number; talentPoachChance: number } })
+      .getRivalBehaviorProfile(rival);
+
+    manager.recordRivalInteraction(rival, {
+      kind: 'releaseCollision',
+      hostilityDelta: 18,
+      respectDelta: -8,
+      note: 'Stress-test rivalry escalation.',
+      projectId: null,
+    });
+
+    const profileAfter = (manager as unknown as { getRivalBehaviorProfile: (rival: unknown) => { conflictPush: number; talentPoachChance: number } })
+      .getRivalBehaviorProfile(rival);
+    expect(profileAfter.conflictPush).toBeGreaterThan(profileBefore.conflictPush);
+    expect(profileAfter.talentPoachChance).toBeGreaterThan(profileBefore.talentPoachChance);
+  });
+
+  it('caps rival interaction history length to bounded memory', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.5 });
+    const rival = manager.rivals[0];
+
+    for (let i = 0; i < 17; i += 1) {
+      manager.recordRivalInteraction(rival, {
+        kind: 'counterplayEscalation',
+        hostilityDelta: 1,
+        respectDelta: -1,
+        note: `rival-memory-${i}`,
+      });
+    }
+
+    expect(rival.memory.interactionHistory.length).toBe(12);
+    expect(rival.memory.interactionHistory[0]?.note).toBe('rival-memory-5');
+    expect(rival.memory.interactionHistory[11]?.note).toBe('rival-memory-16');
+  });
+
+  it('runs annual awards season and applies outcomes to eligible released films', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 0, negotiationRng: () => 1 });
+    const project = manager.activeProjects[0];
+    project.phase = 'released';
+    project.releaseResolved = true;
+    project.releaseWeek = 12;
+    project.criticalScore = 92;
+    project.scriptQuality = 8.9;
+    project.conceptStrength = 8.4;
+    project.prestige = 88;
+    project.controversy = 6;
+    project.awardsNominations = 0;
+    project.awardsWins = 0;
+    manager.currentWeek = 51;
+    const criticsBefore = manager.reputation.critics;
+
+    manager.endWeek();
+
+    expect(manager.currentWeek).toBe(52);
+    expect(manager.awardsHistory.length).toBeGreaterThan(0);
+    expect(project.awardsNominations).toBeGreaterThanOrEqual(1);
+    expect(project.awardsWins).toBeGreaterThanOrEqual(0);
+    expect(manager.reputation.critics).toBeGreaterThanOrEqual(criticsBefore);
+    expect(manager.awardsSeasonsProcessed.includes(1)).toBe(true);
+  });
+
   it('limits prestige rival poaches to directors', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
     manager.rivals = [
@@ -894,6 +958,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
 
@@ -917,6 +982,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
     const project = manager.activeProjects[0];
@@ -941,6 +1007,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
     const releasedProject = manager.activeProjects[0];
@@ -1065,6 +1132,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
 
@@ -1098,6 +1166,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
 
@@ -1126,6 +1195,7 @@ describe('StudioManager', () => {
         activeReleases: [],
         upcomingReleases: [],
         lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
     const target = manager.activeProjects[0];
@@ -1201,3 +1271,4 @@ describe('StudioManager', () => {
     expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
   });
 });
+

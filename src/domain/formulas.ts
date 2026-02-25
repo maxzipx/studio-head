@@ -141,3 +141,47 @@ export function heatDeltaFromRelease(input: {
   const nextHeat = clamp(input.currentHeat + averageDelta, 0, 100);
   return nextHeat - input.currentHeat;
 }
+
+export function awardsSeasonScore(input: {
+  criticalScore: number;
+  scriptQuality: number;
+  conceptStrength: number;
+  prestige: number;
+  controversy: number;
+  campaignBoost: number;
+  festivalBoost: number;
+  studioCriticsReputation: number;
+}): number {
+  const criticalWeight = clamp(input.criticalScore, 0, 100) * 0.5;
+  const scriptWeight = clamp(input.scriptQuality, 0, 10) * 2.4;
+  const conceptWeight = clamp(input.conceptStrength, 0, 10) * 1.4;
+  const prestigeWeight = clamp(input.prestige, 0, 100) * 0.2;
+  const reputationWeight = clamp(input.studioCriticsReputation, 0, 100) * 0.12;
+  const bonus = clamp(input.campaignBoost + input.festivalBoost, -20, 25);
+  const controversyPenalty = clamp(input.controversy, 0, 100) * 0.16;
+  return clamp(
+    criticalWeight + scriptWeight + conceptWeight + prestigeWeight + reputationWeight + bonus - controversyPenalty,
+    0,
+    100
+  );
+}
+
+export function awardsNominationProbability(score: number): number {
+  if (score >= 86) return 0.85;
+  if (score >= 78) return 0.66;
+  if (score >= 70) return 0.44;
+  if (score >= 62) return 0.25;
+  if (score >= 54) return 0.12;
+  return 0.05;
+}
+
+export function awardsWinProbability(input: {
+  score: number;
+  nominations: number;
+  controversy: number;
+}): number {
+  const base = 0.04 + awardsNominationProbability(input.score) * 0.42;
+  const nominationBoost = Math.min(0.18, input.nominations * 0.035);
+  const controversyPenalty = clamp(input.controversy, 0, 100) * 0.0015;
+  return clamp(base + nominationBoost - controversyPenalty, 0.02, 0.72);
+}

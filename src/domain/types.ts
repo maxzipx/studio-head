@@ -234,6 +234,8 @@ export interface MovieProject {
   finalBoxOffice: number | null;
   criticalScore: number | null;
   audienceScore: number | null;
+  awardsNominations: number;
+  awardsWins: number;
   prestige: number;
   commercialAppeal: number;
   originality: number;
@@ -316,6 +318,32 @@ export interface RivalFilm {
   criticalScore: number | null;
 }
 
+export type RivalInteractionKind =
+  | 'talentPoach'
+  | 'releaseCollision'
+  | 'counterplayEscalation'
+  | 'prestigePressure'
+  | 'streamingPressure'
+  | 'guerrillaPressure'
+  | 'calendarUndercut';
+
+export interface RivalInteractionEntry {
+  week: number;
+  kind: RivalInteractionKind;
+  hostilityDelta: number;
+  respectDelta: number;
+  note: string;
+  projectId?: string | null;
+}
+
+export interface RivalRelationshipMemory {
+  hostility: number;
+  respect: number;
+  retaliationBias: number;
+  cooperationBias: number;
+  interactionHistory: RivalInteractionEntry[];
+}
+
 export interface RivalStudio {
   id: string;
   name: string;
@@ -324,6 +352,7 @@ export interface RivalStudio {
   activeReleases: RivalFilm[];
   upcomingReleases: RivalFilm[];
   lockedTalentIds: string[];
+  memory: RivalRelationshipMemory;
 }
 
 export interface IndustryNewsItem {
@@ -338,4 +367,20 @@ export interface StoryArcState {
   stage: number;
   status: 'active' | 'resolved' | 'failed';
   lastUpdatedWeek: number;
+}
+
+export interface AwardsProjectResult {
+  projectId: string;
+  title: string;
+  nominations: number;
+  wins: number;
+  score: number;
+}
+
+export interface AwardsSeasonRecord {
+  seasonYear: number;
+  week: number;
+  showName: string;
+  results: AwardsProjectResult[];
+  headline: string;
 }

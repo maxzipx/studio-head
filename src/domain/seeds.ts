@@ -11,6 +11,22 @@ function createInitialRelationship(studioRelationship: number): Talent['relation
   };
 }
 
+function createInitialRivalMemory(
+  personality: RivalStudio['personality']
+): RivalStudio['memory'] {
+  const baseHostility =
+    personality === 'blockbusterFactory' ? 58 : personality === 'scrappyUpstart' ? 55 : 50;
+  const baseRespect =
+    personality === 'prestigeHunter' ? 60 : personality === 'genreSpecialist' ? 56 : 52;
+  return {
+    hostility: baseHostility,
+    respect: baseRespect,
+    retaliationBias: 50,
+    cooperationBias: 45,
+    interactionHistory: [],
+  };
+}
+
 export function createSeedTalentPool(): Talent[] {
   return [
     {
@@ -105,6 +121,8 @@ export function createSeedProjects(): MovieProject[] {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      awardsNominations: 0,
+      awardsWins: 0,
       prestige: 42,
       commercialAppeal: 68,
       originality: 57,
@@ -146,6 +164,8 @@ export function createSeedProjects(): MovieProject[] {
       finalBoxOffice: null,
       criticalScore: null,
       audienceScore: null,
+      awardsNominations: 0,
+      awardsWins: 0,
       prestige: 72,
       commercialAppeal: 37,
       originality: 64,
@@ -231,6 +251,7 @@ export function createSeedRivals(): RivalStudio[] {
       activeReleases: [],
       upcomingReleases: [],
       lockedTalentIds: [],
+      memory: createInitialRivalMemory('prestigeHunter'),
     },
     {
       id: createId('rival'),
@@ -240,6 +261,7 @@ export function createSeedRivals(): RivalStudio[] {
       activeReleases: [],
       upcomingReleases: [],
       lockedTalentIds: [],
+      memory: createInitialRivalMemory('blockbusterFactory'),
     },
     {
       id: createId('rival'),
@@ -249,6 +271,7 @@ export function createSeedRivals(): RivalStudio[] {
       activeReleases: [],
       upcomingReleases: [],
       lockedTalentIds: [],
+      memory: createInitialRivalMemory('genreSpecialist'),
     },
     {
       id: createId('rival'),
@@ -258,6 +281,7 @@ export function createSeedRivals(): RivalStudio[] {
       activeReleases: [],
       upcomingReleases: [],
       lockedTalentIds: [],
+      memory: createInitialRivalMemory('streamingFirst'),
     },
     {
       id: createId('rival'),
@@ -267,6 +291,7 @@ export function createSeedRivals(): RivalStudio[] {
       activeReleases: [],
       upcomingReleases: [],
       lockedTalentIds: [],
+      memory: createInitialRivalMemory('scrappyUpstart'),
     },
   ];
 }
