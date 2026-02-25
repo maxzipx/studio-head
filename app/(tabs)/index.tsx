@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
+import type { ReleaseReport } from '@/src/domain/types';
 import { useGame } from '@/src/state/game-context';
 import { tokens } from '@/src/ui/tokens';
 
@@ -11,6 +12,23 @@ function money(amount: number): string {
 
 function signedMoney(amount: number): string {
   return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
+}
+
+type ReleaseSplashTone = 'blockbuster' | 'flop' | 'record' | 'hit';
+
+function getReleaseSplashTone(report: ReleaseReport | null): ReleaseSplashTone {
+  if (!report) return 'hit';
+  if (report.wasRecordOpening) return 'record';
+  if (report.outcome === 'blockbuster') return 'blockbuster';
+  if (report.outcome === 'flop') return 'flop';
+  return 'hit';
+}
+
+function getReleaseSplashLabel(report: ReleaseReport): string {
+  if (report.wasRecordOpening) return 'Record-Breaking Opening';
+  if (report.outcome === 'blockbuster') return 'Blockbuster Hit';
+  if (report.outcome === 'flop') return 'Box Office Flop';
+  return 'Solid Performer';
 }
 
 const TIER_LABELS: Record<string, string> = {
@@ -87,6 +105,7 @@ export default function HQScreen() {
   const reveal = manager.getNextReleaseReveal();
   const isFinalReveal = !!reveal && manager.isFinalReleaseReveal(reveal.id);
   const revealReport = reveal ? manager.getLatestReleaseReport(reveal.id) : null;
+  const splashTone = getReleaseSplashTone(revealReport);
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
   const chronicle = manager.studioChronicle.slice(0, 8);
@@ -562,6 +581,15 @@ export default function HQScreen() {
             <Animated.View
               style={[
                 styles.modalCard,
+                isFinalReveal && revealReport
+                  ? splashTone === 'blockbuster'
+                    ? styles.modalCardBlockbuster
+                    : splashTone === 'flop'
+                      ? styles.modalCardFlop
+                      : splashTone === 'record'
+                        ? styles.modalCardRecord
+                        : styles.modalCardHit
+                  : null,
                 {
                   opacity: anim,
                   transform: [
@@ -584,11 +612,25 @@ export default function HQScreen() {
               <Text style={styles.modalFilm}>{reveal.title}</Text>
               {isFinalReveal && revealReport ? (
                 <>
+                  <View
+                    style={[
+                      styles.modalOutcomeBadge,
+                      splashTone === 'blockbuster'
+                        ? styles.modalOutcomeBadgeBlockbuster
+                        : splashTone === 'flop'
+                          ? styles.modalOutcomeBadgeFlop
+                          : splashTone === 'record'
+                            ? styles.modalOutcomeBadgeRecord
+                            : styles.modalOutcomeBadgeHit,
+                    ]}>
+                    <Text style={styles.modalOutcomeBadgeText}>{getReleaseSplashLabel(revealReport)}</Text>
+                  </View>
                   <Text style={styles.modalStat}>Outcome: {revealReport.outcome.toUpperCase()}</Text>
                   <Text style={styles.modalStat}>Total Gross: {money(revealReport.totalGross)}</Text>
                   <Text style={styles.modalStat}>Studio Net: {money(revealReport.studioNet)}</Text>
                   <Text style={styles.modalStat}>Profit / Loss: {money(revealReport.profit)}</Text>
                   <Text style={styles.modalStat}>ROI: {revealReport.roi.toFixed(2)}x</Text>
+                  {revealReport.wasRecordOpening ? <Text style={styles.modalRecordLine}>New studio opening-weekend record.</Text> : null}
                   <Text style={styles.modalSub}>
                     Drivers S:{revealReport.breakdown.script >= 0 ? '+' : ''}
                     {revealReport.breakdown.script} D:{revealReport.breakdown.direction >= 0 ? '+' : ''}
@@ -838,6 +880,22 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
+  modalCardBlockbuster: {
+    borderColor: '#4CD9A5',
+    backgroundColor: '#0C231A',
+  },
+  modalCardFlop: {
+    borderColor: '#F06767',
+    backgroundColor: '#2A1212',
+  },
+  modalCardRecord: {
+    borderColor: '#F2C35D',
+    backgroundColor: '#2B2210',
+  },
+  modalCardHit: {
+    borderColor: '#6FAEEA',
+    backgroundColor: '#122131',
+  },
   modalTitle: {
     color: tokens.accentGold,
     fontSize: 13,
@@ -853,6 +911,41 @@ const styles = StyleSheet.create({
   modalStat: {
     color: tokens.textPrimary,
     fontSize: 15,
+    fontWeight: '600',
+  },
+  modalOutcomeBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+  },
+  modalOutcomeBadgeBlockbuster: {
+    borderColor: '#4CD9A5',
+    backgroundColor: '#103A2B',
+  },
+  modalOutcomeBadgeFlop: {
+    borderColor: '#F06767',
+    backgroundColor: '#3A1717',
+  },
+  modalOutcomeBadgeRecord: {
+    borderColor: '#F2C35D',
+    backgroundColor: '#3F3215',
+  },
+  modalOutcomeBadgeHit: {
+    borderColor: '#6FAEEA',
+    backgroundColor: '#1B3048',
+  },
+  modalOutcomeBadgeText: {
+    color: tokens.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  modalRecordLine: {
+    color: tokens.accentGold,
+    fontSize: 13,
     fontWeight: '600',
   },
   modalSub: {
