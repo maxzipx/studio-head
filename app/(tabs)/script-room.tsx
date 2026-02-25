@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
@@ -18,16 +19,61 @@ function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): strin
 }
 
 export default function ScriptRoomScreen() {
-  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
+  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const availableDirectors = manager.getAvailableTalentForRole('director');
   const availableLeads = manager.getAvailableTalentForRole('leadActor');
+  const ipMarket = manager.ownedIps.filter((ip) => !ip.usedProjectId && ip.expiresWeek >= manager.currentWeek);
+  const [showHelp, setShowHelp] = useState(false);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Script Room</Text>
       <Text style={styles.subtitle}>Acquire projects, evaluate projections, and open negotiations</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+
+      <Pressable style={styles.actionButton} onPress={() => setShowHelp((value) => !value)}>
+        <Text style={styles.actionText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
+      </Pressable>
+      {showHelp ? (
+        <View style={styles.card}>
+          <Text style={styles.bodyStrong}>How to read this screen</Text>
+          <Text style={styles.muted}>1) Buy scripts with strong score/ROI fit.</Text>
+          <Text style={styles.muted}>2) Attach a director and lead actor, then run greenlight from project detail.</Text>
+          <Text style={styles.muted}>3) Use negotiation rounds to target the highlighted pressure point.</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.bodyStrong}>
+          Capacity {manager.projectCapacityUsed}/{manager.projectCapacityLimit}
+        </Text>
+        <Text style={styles.muted}>You cannot acquire new projects above capacity.</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>IP Marketplace</Text>
+        {ipMarket.length === 0 ? <Text style={styles.muted}>No active IP opportunities this week.</Text> : null}
+        {ipMarket.map((ip) => (
+          <View key={ip.id} style={styles.card}>
+            <Text style={styles.cardTitle}>{ip.name}</Text>
+            <Text style={styles.muted}>
+              {ip.kind.toUpperCase()} | Genre {ip.genre} | Expires W{ip.expiresWeek}
+            </Text>
+            <Text style={styles.muted}>
+              Rights {money(ip.acquisitionCost)} | Bonuses: +{ip.hypeBonus} hype, +{ip.qualityBonus.toFixed(1)} quality
+            </Text>
+            <View style={styles.actions}>
+              <Pressable style={styles.actionButton} onPress={() => acquireIpRights(ip.id)}>
+                <Text style={styles.actionText}>Acquire Rights</Text>
+              </Pressable>
+              <Pressable style={styles.actionButton} onPress={() => developFromIp(ip.id)}>
+                <Text style={styles.actionText}>Start Adaptation</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
 
       {manager.playerNegotiations.length > 0 ? (
         <View style={styles.section}>

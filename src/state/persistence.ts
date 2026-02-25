@@ -35,6 +35,13 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
   if (!Number.isFinite(manager.consecutiveLowCashWeeks)) manager.consecutiveLowCashWeeks = 0;
   if (typeof manager.firstSessionComplete !== 'boolean') manager.firstSessionComplete = false;
+  if (!Number.isFinite(manager.lifetimeRevenue)) manager.lifetimeRevenue = 0;
+  if (!Number.isFinite(manager.lifetimeExpenses)) manager.lifetimeExpenses = 0;
+  if (!Number.isFinite(manager.lifetimeProfit)) manager.lifetimeProfit = manager.lifetimeRevenue - manager.lifetimeExpenses;
+  if (!Number.isFinite(manager.marketingTeamLevel)) manager.marketingTeamLevel = 1;
+  manager.marketingTeamLevel = Math.min(5, Math.max(1, Math.round(manager.marketingTeamLevel)));
+  if (!Number.isFinite(manager.studioCapacityUpgrades)) manager.studioCapacityUpgrades = 0;
+  manager.studioCapacityUpgrades = Math.max(0, Math.round(manager.studioCapacityUpgrades));
 
   if (!isRecord(manager.reputation)) {
     manager.reputation = {
@@ -65,6 +72,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     (offer) => offer.releaseWindow === 'wideTheatrical' || offer.releaseWindow === 'limitedTheatrical'
   );
   if (!Array.isArray(manager.pendingReleaseReveals)) manager.pendingReleaseReveals = [];
+  if (!Array.isArray(manager.pendingFinalReleaseReveals)) manager.pendingFinalReleaseReveals = [];
   if (!Array.isArray(manager.decisionQueue)) manager.decisionQueue = defaults.decisionQueue;
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
   for (const project of manager.activeProjects) {
@@ -109,6 +117,30 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     if (!['none', 'safe', 'balanced', 'reinvention'].includes(project.franchiseStrategy)) {
       project.franchiseStrategy = project.franchiseId ? 'balanced' : 'none';
     }
+    if (typeof project.greenlightApproved !== 'boolean') project.greenlightApproved = false;
+    if (!Number.isFinite(project.greenlightWeek)) project.greenlightWeek = null;
+    if (!Number.isFinite(project.greenlightFeePaid)) project.greenlightFeePaid = 0;
+    if (!Number.isFinite(project.greenlightLockedCeiling)) project.greenlightLockedCeiling = null;
+    if (!Number.isFinite(project.sentBackForRewriteCount)) project.sentBackForRewriteCount = 0;
+    if (typeof project.testScreeningCompleted !== 'boolean') project.testScreeningCompleted = false;
+    if (!Number.isFinite(project.testScreeningWeek)) project.testScreeningWeek = null;
+    if (!Number.isFinite(project.testScreeningCriticalLow)) project.testScreeningCriticalLow = null;
+    if (!Number.isFinite(project.testScreeningCriticalHigh)) project.testScreeningCriticalHigh = null;
+    if (
+      project.testScreeningAudienceSentiment !== 'weak' &&
+      project.testScreeningAudienceSentiment !== 'mixed' &&
+      project.testScreeningAudienceSentiment !== 'strong'
+    ) {
+      project.testScreeningAudienceSentiment = null;
+    }
+    if (!Number.isFinite(project.reshootCount)) project.reshootCount = 0;
+    if (!Number.isFinite(project.trackingProjectionOpening)) project.trackingProjectionOpening = null;
+    if (!Number.isFinite(project.trackingConfidence)) project.trackingConfidence = null;
+    if (!Number.isFinite(project.trackingLeverageAmount)) project.trackingLeverageAmount = 0;
+    if (typeof project.trackingSettled !== 'boolean') project.trackingSettled = false;
+    if (!Number.isFinite(project.merchandiseWeeksRemaining)) project.merchandiseWeeksRemaining = 0;
+    if (!Number.isFinite(project.merchandiseWeeklyRevenue)) project.merchandiseWeeklyRevenue = 0;
+    if (typeof project.adaptedFromIpId !== 'string' && project.adaptedFromIpId !== null) project.adaptedFromIpId = null;
   }
   if (!Array.isArray(manager.franchises)) manager.franchises = [];
   manager.franchises = manager.franchises
@@ -280,6 +312,67 @@ function sanitizeRestoredManager(manager: StudioManager): void {
         : ('neutral' as ChronicleEntryImpact),
     }))
     .slice(0, 100);
+  if (!Array.isArray(manager.releaseReports)) manager.releaseReports = [];
+  manager.releaseReports = manager.releaseReports
+    .filter((entry) => isRecord(entry) && typeof entry.title === 'string')
+    .map((entry) => ({
+      projectId: typeof entry.projectId === 'string' ? entry.projectId : 'unknown',
+      title: String(entry.title).slice(0, 100),
+      weekResolved: Number.isFinite(entry.weekResolved) ? Math.max(1, Math.round(entry.weekResolved as number)) : manager.currentWeek,
+      totalBudget: Number.isFinite(entry.totalBudget) ? Math.max(0, Math.round(entry.totalBudget as number)) : 0,
+      totalGross: Number.isFinite(entry.totalGross) ? Math.max(0, Math.round(entry.totalGross as number)) : 0,
+      studioNet: Number.isFinite(entry.studioNet) ? Math.round(entry.studioNet as number) : 0,
+      profit: Number.isFinite(entry.profit) ? Math.round(entry.profit as number) : 0,
+      roi: Number.isFinite(entry.roi) ? Number(entry.roi) : 0,
+      openingWeekend: Number.isFinite(entry.openingWeekend) ? Math.max(0, Math.round(entry.openingWeekend as number)) : 0,
+      critics: Number.isFinite(entry.critics) ? Math.max(0, Math.min(100, Math.round(entry.critics as number))) : 0,
+      audience: Number.isFinite(entry.audience) ? Math.max(0, Math.min(100, Math.round(entry.audience as number))) : 0,
+      outcome: entry.outcome === 'blockbuster' || entry.outcome === 'hit' || entry.outcome === 'flop' ? entry.outcome : 'hit',
+      wasRecordOpening: !!entry.wasRecordOpening,
+      breakdown: isRecord(entry.breakdown)
+        ? {
+            script: Number.isFinite(entry.breakdown.script) ? Math.round(entry.breakdown.script as number) : 0,
+            direction: Number.isFinite(entry.breakdown.direction) ? Math.round(entry.breakdown.direction as number) : 0,
+            starPower: Number.isFinite(entry.breakdown.starPower) ? Math.round(entry.breakdown.starPower as number) : 0,
+            marketing: Number.isFinite(entry.breakdown.marketing) ? Math.round(entry.breakdown.marketing as number) : 0,
+            timing: Number.isFinite(entry.breakdown.timing) ? Math.round(entry.breakdown.timing as number) : 0,
+            genreCycle: Number.isFinite(entry.breakdown.genreCycle) ? Math.round(entry.breakdown.genreCycle as number) : 0,
+          }
+        : { script: 0, direction: 0, starPower: 0, marketing: 0, timing: 0, genreCycle: 0 },
+    }))
+    .slice(0, 60);
+  if (!Array.isArray(manager.milestones)) manager.milestones = [];
+  manager.milestones = manager.milestones
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
+    .map((entry) => ({
+      id: entry.id,
+      title: String(entry.title),
+      description: typeof entry.description === 'string' ? entry.description : '',
+      unlockedWeek: Number.isFinite(entry.unlockedWeek) ? Math.max(1, Math.round(entry.unlockedWeek as number)) : manager.currentWeek,
+      value: Number.isFinite(entry.value) ? Number(entry.value) : undefined,
+    }))
+    .slice(0, 30);
+  if (!Array.isArray(manager.ownedIps)) manager.ownedIps = [];
+  manager.ownedIps = manager.ownedIps
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.name === 'string')
+    .map((entry) => ({
+      id: String(entry.id),
+      name: String(entry.name),
+      kind:
+        entry.kind === 'book' || entry.kind === 'game' || entry.kind === 'comic' || entry.kind === 'superhero'
+          ? entry.kind
+          : 'book',
+      genre: typeof entry.genre === 'string' ? entry.genre : 'drama',
+      acquisitionCost: Number.isFinite(entry.acquisitionCost) ? Math.max(0, Math.round(entry.acquisitionCost as number)) : 0,
+      qualityBonus: Number.isFinite(entry.qualityBonus) ? Number(entry.qualityBonus) : 0,
+      hypeBonus: Number.isFinite(entry.hypeBonus) ? Number(entry.hypeBonus) : 0,
+      prestigeBonus: Number.isFinite(entry.prestigeBonus) ? Number(entry.prestigeBonus) : 0,
+      commercialBonus: Number.isFinite(entry.commercialBonus) ? Number(entry.commercialBonus) : 0,
+      expiresWeek: Number.isFinite(entry.expiresWeek) ? Math.max(1, Math.round(entry.expiresWeek as number)) : manager.currentWeek + 8,
+      usedProjectId: typeof entry.usedProjectId === 'string' || entry.usedProjectId === null ? entry.usedProjectId : null,
+      major: !!entry.major,
+    }))
+    .slice(0, 20);
   if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
   if (!Array.isArray(manager.recentDecisionCategories)) manager.recentDecisionCategories = [];
 

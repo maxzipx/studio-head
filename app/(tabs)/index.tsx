@@ -57,12 +57,29 @@ function stanceLabel(value: string): string {
 }
 
 export default function HQScreen() {
-  const { manager, dismissReleaseReveal, endWeek, setTurnLength, resolveCrisis, resolveDecision, runOptionalAction, renameStudio, lastMessage } =
+  const {
+    manager,
+    dismissReleaseReveal,
+    endWeek,
+    advanceToNextDecision,
+    setTurnLength,
+    resolveCrisis,
+    resolveDecision,
+    runOptionalAction,
+    renameStudio,
+    upgradeMarketingTeam,
+    upgradeStudioCapacity,
+    lastMessage,
+  } =
     useGame();
   const reveal = manager.getNextReleaseReveal();
+  const isFinalReveal = !!reveal && manager.isFinalReleaseReveal(reveal.id);
+  const revealReport = reveal ? manager.getLatestReleaseReport(reveal.id) : null;
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
   const chronicle = manager.studioChronicle.slice(0, 8);
+  const milestones = manager.getActiveMilestones().slice(0, 6);
+  const weeklyExpenses = manager.estimateWeeklyBurn();
   const readyToAdvance = manager.canEndWeek ? 'Ready' : 'Blocked';
   const isGameOver = manager.isBankrupt;
   const hasLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
@@ -156,6 +173,13 @@ export default function HQScreen() {
         ) : null}
       </View>
 
+      <View style={styles.card}>
+        <Text style={styles.label}>Cashflow Dashboard</Text>
+        <Text style={styles.body}>Weekly Expenses: {money(weeklyExpenses)}</Text>
+        <Text style={styles.body}>Lifetime Revenue: {money(manager.lifetimeRevenue)}</Text>
+        <Text style={styles.body}>Lifetime Profit: {money(manager.lifetimeProfit)}</Text>
+      </View>
+
       {isGameOver ? (
         <View style={[styles.card, styles.gameOverCard]}>
           <Text style={styles.label}>Game Over</Text>
@@ -199,6 +223,21 @@ export default function HQScreen() {
             <Text style={styles.repLabel}>Audience</Text>
             <Text style={styles.repValue}>{manager.reputation.audience.toFixed(0)}</Text>
           </View>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Operations Capacity</Text>
+        <Text style={styles.body}>
+          Marketing Team: L{manager.marketingTeamLevel} | Capacity: {manager.projectCapacityUsed}/{manager.projectCapacityLimit}
+        </Text>
+        <View style={styles.actionsRow}>
+          <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={upgradeMarketingTeam}>
+            <Text style={styles.choiceTitle}>Upgrade Marketing Team</Text>
+          </Pressable>
+          <Pressable style={styles.choiceButton} disabled={isGameOver} onPress={upgradeStudioCapacity}>
+            <Text style={styles.choiceTitle}>Expand Studio Capacity</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -357,6 +396,17 @@ export default function HQScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.label}>Milestones</Text>
+        {milestones.length === 0 ? <Text style={styles.mutedBody}>No milestones unlocked yet.</Text> : null}
+        {milestones.map((milestone) => (
+          <View key={`${milestone.id}-${milestone.unlockedWeek}`} style={styles.rowLine}>
+            <Text style={styles.bodyStrong}>{milestone.title}</Text>
+            <Text style={styles.mutedBody}>W{milestone.unlockedWeek}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.label}>Studio Chronicle</Text>
         {chronicle.length === 0 ? (
           <Text style={styles.mutedBody}>No defining moments yet.</Text>
@@ -421,6 +471,13 @@ export default function HQScreen() {
       </Pressable>
 
       <Pressable
+        style={[styles.secondaryButton, !manager.canEndWeek || isGameOver ? styles.disabledSecondaryButton : null]}
+        disabled={!manager.canEndWeek || isGameOver}
+        onPress={advanceToNextDecision}>
+        <Text style={styles.secondaryButtonText}>Advance To Next Decision</Text>
+      </Pressable>
+
+      <Pressable
         style={[styles.primaryButton, !manager.canEndWeek || isGameOver ? styles.disabledButton : null]}
         disabled={!manager.canEndWeek || isGameOver}
         onPress={endWeek}>
@@ -461,13 +518,37 @@ export default function HQScreen() {
                   ],
                 },
               ]}>
-              <Text style={styles.modalTitle}>Opening Weekend Reveal</Text>
+              <Text style={styles.modalTitle}>{isFinalReveal ? 'Final Box Office Report' : 'Opening Weekend Reveal'}</Text>
               <Text style={styles.modalFilm}>{reveal.title}</Text>
-              <Text style={styles.modalStat}>Opening Weekend: {money(reveal.openingWeekendGross ?? 0)}</Text>
-              <Text style={styles.modalStat}>Critics: {reveal.criticalScore?.toFixed(0) ?? '--'}</Text>
-              <Text style={styles.modalStat}>Audience: {reveal.audienceScore?.toFixed(0) ?? '--'}</Text>
-              <Text style={styles.modalSub}>Partner: {reveal.distributionPartner ?? 'Pending'}</Text>
-              <Text style={styles.modalSub}>Run Length Forecast: {reveal.releaseWeeksRemaining} weeks</Text>
+              {isFinalReveal && revealReport ? (
+                <>
+                  <Text style={styles.modalStat}>Outcome: {revealReport.outcome.toUpperCase()}</Text>
+                  <Text style={styles.modalStat}>Total Gross: {money(revealReport.totalGross)}</Text>
+                  <Text style={styles.modalStat}>Studio Net: {money(revealReport.studioNet)}</Text>
+                  <Text style={styles.modalStat}>Profit / Loss: {money(revealReport.profit)}</Text>
+                  <Text style={styles.modalStat}>ROI: {revealReport.roi.toFixed(2)}x</Text>
+                  <Text style={styles.modalSub}>
+                    Drivers S:{revealReport.breakdown.script >= 0 ? '+' : ''}
+                    {revealReport.breakdown.script} D:{revealReport.breakdown.direction >= 0 ? '+' : ''}
+                    {revealReport.breakdown.direction} Star:{revealReport.breakdown.starPower >= 0 ? '+' : ''}
+                    {revealReport.breakdown.starPower}
+                  </Text>
+                  <Text style={styles.modalSub}>
+                    Mkt:{revealReport.breakdown.marketing >= 0 ? '+' : ''}
+                    {revealReport.breakdown.marketing} Time:{revealReport.breakdown.timing >= 0 ? '+' : ''}
+                    {revealReport.breakdown.timing} Cycle:{revealReport.breakdown.genreCycle >= 0 ? '+' : ''}
+                    {revealReport.breakdown.genreCycle}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.modalStat}>Opening Weekend: {money(reveal.openingWeekendGross ?? 0)}</Text>
+                  <Text style={styles.modalStat}>Critics: {reveal.criticalScore?.toFixed(0) ?? '--'}</Text>
+                  <Text style={styles.modalStat}>Audience: {reveal.audienceScore?.toFixed(0) ?? '--'}</Text>
+                  <Text style={styles.modalSub}>Partner: {reveal.distributionPartner ?? 'Pending'}</Text>
+                  <Text style={styles.modalSub}>Run Length Forecast: {reveal.releaseWeeksRemaining} weeks</Text>
+                </>
+              )}
 
               <Pressable style={styles.modalButton} onPress={() => dismissReleaseReveal(reveal.id)}>
                 <Text style={styles.modalButtonText}>Continue</Text>

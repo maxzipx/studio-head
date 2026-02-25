@@ -8,6 +8,7 @@ interface GameContextValue {
   tick: number;
   lastMessage: string | null;
   endWeek: () => void;
+  advanceToNextDecision: () => void;
   setTurnLength: (weeks: 1 | 2) => void;
   resolveCrisis: (crisisId: string, optionId: string) => void;
   resolveDecision: (decisionId: string, optionId: string) => void;
@@ -38,6 +39,14 @@ interface GameContextValue {
   runFranchiseBrandReset: (projectId: string) => void;
   runFranchiseLegacyCastingCampaign: (projectId: string) => void;
   runFranchiseHiatusPlanning: (projectId: string) => void;
+  runGreenlightReview: (projectId: string, approve: boolean) => void;
+  runTestScreening: (projectId: string) => void;
+  runReshoots: (projectId: string) => void;
+  runTrackingLeverage: (projectId: string) => void;
+  upgradeMarketingTeam: () => void;
+  upgradeStudioCapacity: () => void;
+  acquireIpRights: (ipId: string) => void;
+  developFromIp: (ipId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -120,6 +129,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           saveAndTick(
             `Turn advanced ${advanced} week${advanced === 1 ? '' : 's'}.${paused ? ' Paused by a blocking crisis.' : ''}`
           );
+        });
+      },
+      advanceToNextDecision: () => {
+        runWhenHydrated(() => {
+          const result = manager.advanceUntilDecision();
+          saveAndTick(result.message);
         });
       },
       setTurnLength: (weeks: 1 | 2) => {
@@ -279,6 +294,54 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       runFranchiseHiatusPlanning: (projectId: string) => {
         runWhenHydrated(() => {
           const result = manager.runFranchiseHiatusPlanning(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runGreenlightReview: (projectId: string, approve: boolean) => {
+        runWhenHydrated(() => {
+          const result = manager.runGreenlightReview(projectId, approve);
+          saveAndTick(result.message);
+        });
+      },
+      runTestScreening: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runTestScreening(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runReshoots: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runReshoots(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runTrackingLeverage: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runTrackingLeverage(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      upgradeMarketingTeam: () => {
+        runWhenHydrated(() => {
+          const result = manager.upgradeMarketingTeam();
+          saveAndTick(result.message);
+        });
+      },
+      upgradeStudioCapacity: () => {
+        runWhenHydrated(() => {
+          const result = manager.upgradeStudioCapacity();
+          saveAndTick(result.message);
+        });
+      },
+      acquireIpRights: (ipId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.acquireIpRights(ipId);
+          saveAndTick(result.message);
+        });
+      },
+      developFromIp: (ipId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.developProjectFromIp(ipId);
           saveAndTick(result.message);
         });
       },

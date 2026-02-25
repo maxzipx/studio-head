@@ -324,6 +324,24 @@ export interface MovieProject {
   sequelToProjectId: string | null;
   franchiseCarryoverHype: number;
   franchiseStrategy: FranchiseStrategy;
+  greenlightApproved?: boolean;
+  greenlightWeek?: number | null;
+  greenlightFeePaid?: number;
+  greenlightLockedCeiling?: number | null;
+  sentBackForRewriteCount?: number;
+  testScreeningCompleted?: boolean;
+  testScreeningWeek?: number | null;
+  testScreeningCriticalLow?: number | null;
+  testScreeningCriticalHigh?: number | null;
+  testScreeningAudienceSentiment?: 'weak' | 'mixed' | 'strong' | null;
+  reshootCount?: number;
+  trackingProjectionOpening?: number | null;
+  trackingConfidence?: number | null;
+  trackingLeverageAmount?: number;
+  trackingSettled?: boolean;
+  merchandiseWeeksRemaining?: number;
+  merchandiseWeeklyRevenue?: number;
+  adaptedFromIpId?: string | null;
 }
 
 export interface PlayerNegotiation {
@@ -496,4 +514,65 @@ export interface ChronicleEntry {
   detail?: string;
   projectTitle?: string;
   impact: ChronicleEntryImpact;
+}
+
+export type MilestoneId =
+  | 'firstHit'
+  | 'firstBlockbuster'
+  | 'boxOffice100m'
+  | 'lifetimeRevenue1b'
+  | 'highestGrossingFilm'
+  | 'lowestGrossingFilm';
+
+export interface MilestoneRecord {
+  id: MilestoneId;
+  title: string;
+  description: string;
+  unlockedWeek: number;
+  value?: number;
+}
+
+export type ReleaseOutcomeLabel = 'flop' | 'hit' | 'blockbuster';
+
+export interface ReleasePerformanceBreakdown {
+  script: number;
+  direction: number;
+  starPower: number;
+  marketing: number;
+  timing: number;
+  genreCycle: number;
+}
+
+export interface ReleaseReport {
+  projectId: string;
+  title: string;
+  weekResolved: number;
+  totalBudget: number;
+  totalGross: number;
+  studioNet: number;
+  profit: number;
+  roi: number;
+  openingWeekend: number;
+  critics: number;
+  audience: number;
+  outcome: ReleaseOutcomeLabel;
+  wasRecordOpening: boolean;
+  breakdown: ReleasePerformanceBreakdown;
+}
+
+export type IpKind = 'book' | 'game' | 'comic' | 'superhero';
+
+export interface OwnedIp {
+  id: string;
+  name: string;
+  kind: IpKind;
+  genre: MovieGenre;
+  acquisitionCost: number;
+  qualityBonus: number;
+  hypeBonus: number;
+  prestigeBonus: number;
+  commercialBonus: number;
+  expiresWeek: number;
+  usedProjectId: string | null;
+  major: boolean;
 }

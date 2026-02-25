@@ -26,6 +26,7 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
     if (!project.directorId) return { success: false, message: 'Attach a director before moving to pre-production.' };
     if (project.castIds.length < 1) return { success: false, message: 'Attach at least one cast lead before moving forward.' };
     if (project.scriptQuality < 6) return { success: false, message: 'Script quality is too low to greenlight.' };
+    if (!project.greenlightApproved) return { success: false, message: 'Complete greenlight review before moving to pre-production.' };
     project.phase = 'preProduction';
     project.scheduledWeeksRemaining = 8;
     return { success: true, message: `${project.title} moved to Pre-Production.` };
@@ -91,7 +92,9 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
     project.finalBoxOffice = projection.openingHigh;
     project.releaseWeeksRemaining = estimateReleaseRunWeeksForManager(manager, project);
     project.releaseResolved = false;
+    project.trackingSettled = false;
     project.projectedROI = projection.roi;
+    manager.adjustCash(project.openingWeekendGross * project.studioRevenueShare);
     manager.pendingReleaseReveals.push(project.id);
     manager.releaseTalent(project.id, 'released');
     return { success: true, message: `${project.title} released. Opening weekend posted.` };

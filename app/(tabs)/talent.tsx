@@ -8,6 +8,14 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function starDisplay(value: number): string {
+  const scaled = Math.max(0, Math.min(5, value / 2));
+  const full = Math.floor(scaled);
+  const hasHalf = scaled - full >= 0.5;
+  const empty = 5 - full - (hasHalf ? 1 : 0);
+  return `${'★'.repeat(full)}${hasHalf ? '⯨' : ''}${'☆'.repeat(empty)}`;
+}
+
 function chanceLabel(value: number): string {
   if (value >= 0.75) return 'Likely';
   if (value >= 0.5) return 'Even Odds';
@@ -57,6 +65,7 @@ export default function TalentScreen() {
   const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
+  const [showHelp, setShowHelp] = useState(false);
   const activeProject = selectedProjectId ? developmentProjects.find((project) => project.id === selectedProjectId) ?? null : null;
   const projectLedger = manager.activeProjects.filter((project) => project.phase !== 'released');
 
@@ -71,6 +80,17 @@ export default function TalentScreen() {
       <Text style={styles.title}>Talent Market</Text>
       <Text style={styles.subtitle}>Shared market with rival lock status and negotiation controls</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+
+      <Pressable style={styles.targetButton} onPress={() => setShowHelp((value) => !value)}>
+        <Text style={styles.targetButtonText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
+      </Pressable>
+      {showHelp ? (
+        <View style={styles.card}>
+          <Text style={styles.bodyStrong}>Negotiation Notes</Text>
+          <Text style={styles.muted}>Push the highlighted pressure point first to raise close chance fastest.</Text>
+          <Text style={styles.muted}>Trust and loyalty influence future negotiations. Repeated hardline rounds create lockouts.</Text>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Star vs Craft</Text>
@@ -219,6 +239,7 @@ export default function TalentScreen() {
             <Text style={styles.body}>
               {roleLabel(talent.role)} | Star {talent.starPower.toFixed(1)} | Craft {talent.craftScore.toFixed(1)}
             </Text>
+            <Text style={styles.muted}>Star Rating: {starDisplay(talent.starPower)}</Text>
             <Text style={styles.muted}>Status: {status}</Text>
             <Text style={styles.muted}>Agent: {talent.agentTier.toUpperCase()} | Ego {talent.egoLevel.toFixed(1)}</Text>
             <Text style={styles.muted}>

@@ -120,6 +120,15 @@ function operateProjects(manager: StudioManager): void {
           manager.negotiateAndAttachTalent(project.id, lead.id);
         }
       }
+      if (
+        !project.greenlightApproved &&
+        project.directorId &&
+        project.castIds.length > 0 &&
+        project.scriptQuality >= 6 &&
+        manager.cash > 1_000_000
+      ) {
+        manager.runGreenlightReview(project.id, true);
+      }
       manager.advanceProjectPhase(project.id);
       continue;
     }
@@ -276,16 +285,16 @@ describe('long-run balance harness', () => {
 
     expect(summary).toMatchInlineSnapshot(`
       {
-        "avgPendingCrisesMean": 0.2,
-        "awardsNomMean": 6.71,
-        "awardsWinMean": 1.17,
-        "bankruptRate": 0.875,
-        "cashMax": 5862692,
+        "avgPendingCrisesMean": 0.18,
+        "awardsNomMean": 15.67,
+        "awardsWinMean": 2.96,
+        "bankruptRate": 0.75,
+        "cashMax": 9351201,
         "cashMedian": 0,
         "cashMin": 0,
-        "heatMean": 78.71,
+        "heatMean": 92.96,
         "maxPendingCrises": 4,
-        "releasedMean": 2.71,
+        "releasedMean": 5.38,
         "releasedMin": 1,
       }
     `);

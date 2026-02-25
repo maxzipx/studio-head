@@ -67,6 +67,19 @@ export default function FinancialsScreen() {
         </View>
       </View>
 
+      <View style={styles.row}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Lifetime Revenue</Text>
+          <Text style={styles.body}>{money(manager.lifetimeRevenue)}</Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Lifetime Profit</Text>
+          <Text style={[styles.body, manager.lifetimeProfit >= 0 ? styles.positive : styles.negative]}>
+            {money(manager.lifetimeProfit)}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.label}>Project ROI Matrix</Text>
         {projects.map((project) => (

@@ -688,6 +688,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     result = manager.advanceProjectPhase(project!.id);
     expect(result.success).toBe(true);
     expect(project!.phase).toBe('preProduction');
@@ -892,6 +893,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     project!.marketingBudget = 1_000_000;
 
     manager.advanceProjectPhase(project!.id);
@@ -928,6 +930,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     project!.marketingBudget = 1_000_000;
 
     manager.advanceProjectPhase(project!.id);
@@ -1047,6 +1050,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     project!.marketingBudget = 1_000_000;
 
     manager.advanceProjectPhase(project!.id);
@@ -1087,6 +1091,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     project!.marketingBudget = 1_000_000;
 
     manager.advanceProjectPhase(project!.id);
@@ -1292,6 +1297,7 @@ describe('StudioManager', () => {
 
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    manager.runGreenlightReview(project!.id, true);
     project!.marketingBudget = 1_000_000;
 
     manager.advanceProjectPhase(project!.id);

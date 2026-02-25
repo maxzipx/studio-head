@@ -30,6 +30,7 @@ function advanceBlockers(project: {
   directorId: string | null;
   castIds: string[];
   scriptQuality: number;
+  greenlightApproved?: boolean;
   scheduledWeeksRemaining: number;
   marketingBudget: number;
   releaseWindow: string | null;
@@ -40,6 +41,7 @@ function advanceBlockers(project: {
     if (!project.directorId) blockers.push('Director not attached');
     if (project.castIds.length < 1) blockers.push('No lead actor attached');
     if (project.scriptQuality < 6) blockers.push(`Script quality too low (${project.scriptQuality.toFixed(1)} / min 6.0)`);
+    if (!project.greenlightApproved) blockers.push('Greenlight decision not approved');
   } else if (project.phase === 'preProduction' || project.phase === 'production' || project.phase === 'postProduction') {
     if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w remaining in phase`);
     if (project.phase === 'production' && crisisCount > 0) blockers.push(`${crisisCount} unresolved crisis`);
@@ -67,6 +69,10 @@ export default function ProjectDetailScreen() {
     runFestivalSubmission,
     runScriptSprint,
     runPostPolishPass,
+    runGreenlightReview,
+    runTestScreening,
+    runReshoots,
+    runTrackingLeverage,
     abandonProject,
     startSequel,
     setFranchiseStrategy,
@@ -76,6 +82,7 @@ export default function ProjectDetailScreen() {
   } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const project = manager.activeProjects.find((item) => item.id === projectId) ?? null;
   const projectionWeek = useMemo(() => {
@@ -112,7 +119,20 @@ export default function ProjectDetailScreen() {
     project.festivalStatus !== 'buzzed' &&
     manager.cash >= 140_000;
   const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
+  const canApproveGreenlight =
+    project.phase === 'development' &&
+    !!project.directorId &&
+    project.castIds.length > 0 &&
+    project.scriptQuality >= 6 &&
+    !project.greenlightApproved &&
+    manager.cash >= 220_000;
+  const canSendBack = project.phase === 'development' && !!project.directorId && project.castIds.length > 0 && project.scriptQuality >= 6;
   const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
+  const canTestScreening =
+    (project.phase === 'postProduction' || project.phase === 'distribution') &&
+    manager.cash >= 650_000;
+  const canReshoot = project.phase === 'postProduction' && !!project.testScreeningCompleted && manager.cash >= 850_000;
+  const canTrackingLeverage = project.phase === 'distribution' && (project.trackingLeverageAmount ?? 0) <= 0;
   const franchiseModifiers = manager.getFranchiseProjectionModifiers(project.id);
   const franchiseStatus = manager.getFranchiseStatus(project.id);
   const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
@@ -134,6 +154,7 @@ export default function ProjectDetailScreen() {
     project.phase !== 'production' &&
     project.phase !== 'released' &&
     manager.cash >= franchiseStatus.nextHiatusPlanCost;
+  const releaseReport = manager.getLatestReleaseReport(project.id);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -142,6 +163,16 @@ export default function ProjectDetailScreen() {
         {project.genre} | {project.phase} | Week {manager.currentWeek}
       </Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+      <Pressable style={styles.button} onPress={() => setShowHelp((value) => !value)}>
+        <Text style={styles.buttonText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
+      </Pressable>
+      {showHelp ? (
+        <View style={styles.card}>
+          <Text style={styles.muted}>Development requires explicit Greenlight approval before Pre-Production.</Text>
+          <Text style={styles.muted}>Use test screenings in Post to reduce release variance before launch.</Text>
+          <Text style={styles.muted}>Tracking leverage gives early cash but can claw back if opening misses.</Text>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Project State</Text>
@@ -151,6 +182,11 @@ export default function ProjectDetailScreen() {
         </Text>
         <Text style={styles.body}>Genre market demand: {genreDemand >= 1 ? '+' : ''}{Math.round((genreDemand - 1) * 100)}%</Text>
         <Text style={styles.body}>Editorial score: {project.editorialScore.toFixed(1)} / 10</Text>
+        {project.phase === 'development' ? (
+          <Text style={styles.body}>
+            Greenlight: {project.greenlightApproved ? `Approved (W${project.greenlightWeek ?? '-'})` : 'Pending explicit decision'}
+          </Text>
+        ) : null}
         {project.scheduledWeeksRemaining > 0 ? (
           <Text style={styles.body}>Weeks remaining in phase: {project.scheduledWeeksRemaining}</Text>
         ) : null}
@@ -238,6 +274,21 @@ export default function ProjectDetailScreen() {
             onPress={() => runScriptSprint(project.id)}>
             <Text style={styles.buttonText}>Script Sprint $100K (+0.5 quality, max 8.5)</Text>
           </Pressable>
+          <Text style={styles.muted}>Greenlight gate is mandatory before Pre-Production.</Text>
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.button, !canApproveGreenlight ? styles.buttonDisabled : null]}
+              disabled={!canApproveGreenlight}
+              onPress={() => runGreenlightReview(project.id, true)}>
+              <Text style={styles.buttonText}>Approve Greenlight $220K</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.button, !canSendBack ? styles.buttonDisabled : null]}
+              disabled={!canSendBack}
+              onPress={() => runGreenlightReview(project.id, false)}>
+              <Text style={styles.buttonText}>Send Back To Development</Text>
+            </Pressable>
+          </View>
           {isSequelProject ? (
             <>
               <Text style={styles.muted}>Franchise direction is a one-time commitment for this sequel.</Text>
@@ -343,6 +394,39 @@ export default function ProjectDetailScreen() {
         </View>
       ) : null}
 
+      {(project.phase === 'postProduction' || project.phase === 'distribution') ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Test Screenings</Text>
+          <Text style={styles.body}>
+            Status: {project.testScreeningCompleted ? `Completed (W${project.testScreeningWeek ?? '-'})` : 'Not run'}
+          </Text>
+          {project.testScreeningCompleted ? (
+            <>
+              <Text style={styles.body}>
+                Critic signal: {(project.testScreeningCriticalLow ?? 0).toFixed(0)} - {(project.testScreeningCriticalHigh ?? 0).toFixed(0)}
+              </Text>
+              <Text style={styles.body}>Audience sentiment: {project.testScreeningAudienceSentiment ?? 'mixed'}</Text>
+            </>
+          ) : (
+            <Text style={styles.muted}>Run once to reveal a pre-release quality band before launch.</Text>
+          )}
+          <Pressable
+            style={[styles.button, !canTestScreening ? styles.buttonDisabled : null]}
+            disabled={!canTestScreening}
+            onPress={() => runTestScreening(project.id)}>
+            <Text style={styles.buttonText}>Run Test Screening $650K</Text>
+          </Pressable>
+          {project.phase === 'postProduction' ? (
+            <Pressable
+              style={[styles.button, !canReshoot ? styles.buttonDisabled : null]}
+              disabled={!canReshoot}
+              onPress={() => runReshoots(project.id)}>
+              <Text style={styles.buttonText}>Order Reshoots $850K (+1w)</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       {(project.phase === 'postProduction' || project.phase === 'distribution' || project.phase === 'released') ? (
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Festival Circuit</Text>
@@ -368,20 +452,33 @@ export default function ProjectDetailScreen() {
         <Text style={styles.body}>Distribution partner: {project.distributionPartner ?? 'None'}</Text>
         <Text style={styles.body}>Marketing budget: {money(project.marketingBudget)}</Text>
         {project.phase === 'distribution' ? (
-          <View style={styles.actions}>
+          <>
+            <View style={styles.actions}>
+              <Pressable
+                style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+                disabled={!project.releaseWeek}
+                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
+                <Text style={styles.buttonText}>Release -1w</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+                disabled={!project.releaseWeek}
+                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
+                <Text style={styles.buttonText}>Release +1w</Text>
+              </Pressable>
+            </View>
             <Pressable
-              style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
-              disabled={!project.releaseWeek}
-              onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
-              <Text style={styles.buttonText}>Release -1w</Text>
+              style={[styles.button, !canTrackingLeverage ? styles.buttonDisabled : null]}
+              disabled={!canTrackingLeverage}
+              onPress={() => runTrackingLeverage(project.id)}>
+              <Text style={styles.buttonText}>Leverage Tracking Projection</Text>
             </Pressable>
-            <Pressable
-              style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
-              disabled={!project.releaseWeek}
-              onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
-              <Text style={styles.buttonText}>Release +1w</Text>
-            </Pressable>
-          </View>
+            {(project.trackingLeverageAmount ?? 0) > 0 ? (
+              <Text style={styles.muted}>
+                Leveraged: {money(project.trackingLeverageAmount ?? 0)} | confidence {Math.round((project.trackingConfidence ?? 0) * 100)}%
+              </Text>
+            ) : null}
+          </>
         ) : null}
 
         {offers.length > 0 ? (
@@ -443,6 +540,25 @@ export default function ProjectDetailScreen() {
           <Text style={styles.body}>Audience: {project.audienceScore?.toFixed(0) ?? '--'}</Text>
           <Text style={styles.body}>Awards: {project.awardsNominations} nomination(s), {project.awardsWins} win(s)</Text>
           <Text style={styles.body}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
+          {releaseReport ? (
+            <>
+              <Text style={styles.body}>
+                Outcome: {releaseReport.outcome.toUpperCase()} | Profit/Loss: {money(releaseReport.profit)}
+              </Text>
+              <Text style={styles.muted}>
+                Drivers S:{releaseReport.breakdown.script >= 0 ? '+' : ''}
+                {releaseReport.breakdown.script} D:{releaseReport.breakdown.direction >= 0 ? '+' : ''}
+                {releaseReport.breakdown.direction} Star:{releaseReport.breakdown.starPower >= 0 ? '+' : ''}
+                {releaseReport.breakdown.starPower}
+              </Text>
+              <Text style={styles.muted}>
+                Mkt:{releaseReport.breakdown.marketing >= 0 ? '+' : ''}
+                {releaseReport.breakdown.marketing} Time:{releaseReport.breakdown.timing >= 0 ? '+' : ''}
+                {releaseReport.breakdown.timing} Cycle:{releaseReport.breakdown.genreCycle >= 0 ? '+' : ''}
+                {releaseReport.breakdown.genreCycle}
+              </Text>
+            </>
+          ) : null}
           {sequelEligibility ? (
             <>
               <Text style={styles.body}>

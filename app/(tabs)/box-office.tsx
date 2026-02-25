@@ -7,48 +7,73 @@ function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function outcomeLabel(roi: number): string {
+  if (roi >= 3) return 'BLOCKBUSTER';
+  if (roi >= 1) return 'HIT';
+  return 'FLOP';
+}
+
 export default function BoxOfficeScreen() {
   const { manager, lastMessage } = useGame();
-  const released = manager.activeProjects.filter((project) => project.phase === 'released');
+  const released = manager.activeProjects
+    .filter((project) => project.phase === 'released')
+    .sort((a, b) => (b.finalBoxOffice ?? 0) - (a.finalBoxOffice ?? 0));
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Release & Aftermath</Text>
-      <Text style={styles.subtitle}>Opening weekend, run progression, final impact</Text>
+      <Text style={styles.title}>Film Vault</Text>
+      <Text style={styles.subtitle}>Completed catalog with outcome and economics</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+
+      <View style={styles.headerRow}>
+        <Text style={[styles.headerCell, styles.filmCol]}>Film</Text>
+        <Text style={styles.headerCell}>Budget</Text>
+        <Text style={styles.headerCell}>Box Office</Text>
+        <Text style={styles.headerCell}>Profit</Text>
+        <Text style={styles.headerCell}>Outcome</Text>
+      </View>
 
       {released.length === 0 ? (
         <View style={styles.card}>
           <Text style={styles.body}>No released projects yet.</Text>
-          <Text style={styles.meta}>Advance projects through Distribution and choose a deal.</Text>
+          <Text style={styles.meta}>Move a project through distribution and into release to populate the vault.</Text>
         </View>
       ) : null}
 
-      {released.map((project) => (
-        <View key={project.id} style={styles.card}>
-          <Text style={styles.projectTitle}>{project.title}</Text>
-          <Text style={styles.meta}>Partner: {project.distributionPartner ?? 'Unknown'}</Text>
-          <Text style={styles.meta}>Window: {project.releaseWindow ?? 'N/A'}</Text>
-          <Text style={styles.meta}>Opening: {money(project.openingWeekendGross ?? 0)}</Text>
-          <Text style={styles.meta}>Current Total: {money(project.finalBoxOffice ?? 0)}</Text>
-          <Text style={styles.meta}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
-          <Text style={styles.meta}>
-            Status: {project.releaseResolved ? 'Run Completed' : `Run Active (${project.releaseWeeksRemaining}w left)`}
-          </Text>
-          <Text style={styles.meta}>
-            Critics: {project.criticalScore?.toFixed(0) ?? '--'} | Audience: {project.audienceScore?.toFixed(0) ?? '--'}
-          </Text>
+      {released.map((project) => {
+        const report = manager.getLatestReleaseReport(project.id);
+        const totalBudget = report?.totalBudget ?? Math.round(project.budget.ceiling + project.marketingBudget);
+        const totalGross = report?.totalGross ?? Math.round(project.finalBoxOffice ?? 0);
+        const profit = report?.profit ?? Math.round(totalGross * project.studioRevenueShare - totalBudget);
+        const roi = report?.roi ?? project.projectedROI;
 
-          <View style={styles.history}>
-            <Text style={styles.historyTitle}>Weekly Gross</Text>
-            {project.weeklyGrossHistory.map((value, index) => (
-              <Text key={`${project.id}-${index}`} style={styles.historyLine}>
-                Week {index + 1}: {money(value)}
+        return (
+          <View key={project.id} style={styles.card}>
+            <View style={styles.tableRow}>
+              <Text style={[styles.bodyStrong, styles.filmCol]}>{project.title}</Text>
+              <Text style={styles.body}>{money(totalBudget)}</Text>
+              <Text style={styles.body}>{money(totalGross)}</Text>
+              <Text style={[styles.body, profit >= 0 ? styles.positive : styles.negative]}>{money(profit)}</Text>
+              <Text style={[styles.bodyStrong, roi >= 1 ? styles.positive : styles.negative]}>{outcomeLabel(roi)}</Text>
+            </View>
+            <Text style={styles.meta}>
+              ROI {roi.toFixed(2)}x | Critics {project.criticalScore?.toFixed(0) ?? '--'} | Audience {project.audienceScore?.toFixed(0) ?? '--'}
+            </Text>
+            <Text style={styles.meta}>
+              Partner {project.distributionPartner ?? 'Unknown'} | Opening {money(project.openingWeekendGross ?? 0)} | Awards {project.awardsNominations} nom / {project.awardsWins} win
+            </Text>
+            {report ? (
+              <Text style={styles.meta}>
+                Drivers S:{report.breakdown.script >= 0 ? '+' : ''}
+                {report.breakdown.script} D:{report.breakdown.direction >= 0 ? '+' : ''}
+                {report.breakdown.direction} Star:{report.breakdown.starPower >= 0 ? '+' : ''}
+                {report.breakdown.starPower} Mkt:{report.breakdown.marketing >= 0 ? '+' : ''}
+                {report.breakdown.marketing}
               </Text>
-            ))}
+            ) : null}
           </View>
-        </View>
-      ))}
+        );
+      })}
     </ScrollView>
   );
 }
@@ -59,6 +84,32 @@ const styles = StyleSheet.create({
   title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
   subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
   message: { color: tokens.accentTeal, fontSize: 13 },
+  headerRow: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  headerCell: {
+    color: tokens.textMuted,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    flex: 1,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  filmCol: {
+    flex: 1.7,
+  },
   card: {
     borderRadius: 12,
     borderWidth: 1,
@@ -67,17 +118,9 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 4,
   },
-  body: { color: tokens.textSecondary, fontSize: 14 },
-  projectTitle: { color: tokens.textPrimary, fontSize: 20, fontWeight: '700' },
+  body: { color: tokens.textSecondary, fontSize: 12, flex: 1 },
+  bodyStrong: { color: tokens.textPrimary, fontSize: 12, fontWeight: '700', flex: 1 },
   meta: { color: tokens.textMuted, fontSize: 12 },
-  history: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: tokens.border,
-    paddingTop: 8,
-    gap: 2,
-  },
-  historyTitle: { color: tokens.textPrimary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  historyLine: { color: tokens.textSecondary, fontSize: 12 },
+  positive: { color: tokens.accentTeal },
+  negative: { color: tokens.accentRed },
 });
-

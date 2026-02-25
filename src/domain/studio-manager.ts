@@ -110,10 +110,16 @@ import type {
   FranchiseStatusSnapshot,
   GenreCycleState,
   IndustryNewsItem,
+  IpKind,
+  MilestoneRecord,
   MovieGenre,
   MovieProject,
   NegotiationAction,
+  OwnedIp,
   PlayerNegotiation,
+  ReleaseOutcomeLabel,
+  ReleasePerformanceBreakdown,
+  ReleaseReport,
   RivalInteractionKind,
   RivalStudio,
   ScriptPitch,
@@ -243,6 +249,97 @@ interface NegotiationEvaluation {
   demand: NegotiationTerms;
 }
 
+const MILESTONE_LABELS: Record<MilestoneRecord['id'], { title: string; description: string }> = {
+  firstHit: {
+    title: 'First Hit',
+    description: 'Release your first film with at least 1.5x ROI.',
+  },
+  firstBlockbuster: {
+    title: 'First Blockbuster',
+    description: 'Release your first film with at least 3.0x ROI.',
+  },
+  boxOffice100m: {
+    title: '$100M Club',
+    description: 'Push a single title past $100M final gross.',
+  },
+  lifetimeRevenue1b: {
+    title: '$1B Lifetime Revenue',
+    description: 'Reach $1B cumulative box office across all releases.',
+  },
+  highestGrossingFilm: {
+    title: 'New House Record',
+    description: 'Set a new highest-grossing film record.',
+  },
+  lowestGrossingFilm: {
+    title: 'Rough Landing',
+    description: 'Set a new lowest-grossing film record.',
+  },
+};
+
+function releaseOutcomeFromRoi(roi: number): ReleaseOutcomeLabel {
+  if (roi >= 3) return 'blockbuster';
+  if (roi >= 1) return 'hit';
+  return 'flop';
+}
+
+function buildIpTemplate(kind: IpKind): {
+  qualityBonus: number;
+  hypeBonus: number;
+  prestigeBonus: number;
+  commercialBonus: number;
+  genre: MovieGenre;
+  namePool: string[];
+  major: boolean;
+  costRange: [number, number];
+} {
+  if (kind === 'book') {
+    return {
+      qualityBonus: 0.6,
+      hypeBonus: 6,
+      prestigeBonus: 9,
+      commercialBonus: 4,
+      genre: 'drama',
+      namePool: ['The Ash Archive', 'Vanta County', 'Glass Orchard'],
+      major: false,
+      costRange: [280_000, 620_000],
+    };
+  }
+  if (kind === 'game') {
+    return {
+      qualityBonus: 0.3,
+      hypeBonus: 10,
+      prestigeBonus: 2,
+      commercialBonus: 10,
+      genre: 'action',
+      namePool: ['Apex Frontier', 'Iron District', 'Null Protocol'],
+      major: false,
+      costRange: [450_000, 980_000],
+    };
+  }
+  if (kind === 'comic') {
+    return {
+      qualityBonus: 0.4,
+      hypeBonus: 8,
+      prestigeBonus: 4,
+      commercialBonus: 8,
+      genre: 'sciFi',
+      namePool: ['Solar Ashes', 'The Last Orbit', 'Zero Testament'],
+      major: false,
+      costRange: [380_000, 840_000],
+    };
+  }
+  return {
+    qualityBonus: 0.7,
+    hypeBonus: 14,
+    prestigeBonus: 5,
+    commercialBonus: 16,
+    genre: 'action',
+    namePool: ['Sentinel Prime Universe', 'Titan Guard Legacy', 'Nightshield Protocol'],
+    major: true,
+    costRange: [4_000_000, 8_000_000],
+  };
+}
+
 export class StudioManager {
   private readonly crisisRng: () => number;
   private readonly eventRng: () => number;
@@ -284,6 +381,15 @@ export class StudioManager {
   awardsSeasonsProcessed: number[] = [];
   genreCycles: Record<MovieGenre, GenreCycleState> = createInitialGenreCycles();
   studioChronicle: ChronicleEntry[] = [];
+  releaseReports: ReleaseReport[] = [];
+  pendingFinalReleaseReveals: string[] = [];
+  milestones: MilestoneRecord[] = [];
+  lifetimeRevenue = 0;
+  lifetimeProfit = 0;
+  lifetimeExpenses = 0;
+  marketingTeamLevel = 1;
+  ownedIps: OwnedIp[] = [];
+  studioCapacityUpgrades = 0;
 
   get studioHeat(): number {
     return Math.round(
@@ -322,6 +428,21 @@ export class StudioManager {
     return clamp(Math.round(this.studioHeat * 0.5 + cashScore + filmScore), 0, 100);
   }
 
+  get projectCapacityLimit(): number {
+    const baseByTier: Record<StudioTier, number> = {
+      indieStudio: 3,
+      establishedIndie: 4,
+      midTier: 6,
+      majorStudio: 8,
+      globalPowerhouse: 10,
+    };
+    return baseByTier[this.studioTier] + this.studioCapacityUpgrades;
+  }
+
+  get projectCapacityUsed(): number {
+    return this.activeProjects.filter((project) => project.phase !== 'released').length;
+  }
+
   adjustReputation(delta: number, pillar: keyof StudioReputation | 'all' = 'all'): void {
     if (pillar === 'all') {
       this.reputation.critics = clamp(this.reputation.critics + delta, 0, 100);
@@ -335,6 +456,9 @@ export class StudioManager {
 
   adjustCash(delta: number): void {
     if (!Number.isFinite(delta) || delta === 0) return;
+    if (delta > 0) this.lifetimeRevenue += Math.round(delta);
+    if (delta < 0) this.lifetimeExpenses += Math.round(Math.abs(delta));
+    this.lifetimeProfit = this.lifetimeRevenue - this.lifetimeExpenses;
     this.cash = Math.round(this.cash + delta);
     if (this.isBankrupt) {
       this.cash = Math.max(BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD, this.cash);
@@ -572,6 +696,7 @@ export class StudioManager {
     this.negotiationRng = input?.negotiationRng ?? Math.random;
     this.rivalRng = input?.rivalRng ?? Math.random;
     this.bindOpeningDecisionToLeadProject();
+    this.refreshIpMarketplace();
   }
 
   get canEndWeek(): boolean {
@@ -595,6 +720,355 @@ export class StudioManager {
     const sanitized = trimmed.slice(0, 32);
     this.studioName = sanitized;
     return { success: true, message: `Studio renamed to ${sanitized}.` };
+  }
+
+  advanceUntilDecision(maxWeeks = 26): {
+    success: boolean;
+    advancedWeeks: number;
+    reason: 'decision' | 'crisis' | 'release' | 'limit' | 'blocked' | 'bankrupt';
+    message: string;
+  } {
+    if (!this.canEndWeek) {
+      return {
+        success: false,
+        advancedWeeks: 0,
+        reason: 'blocked',
+        message: 'Resolve active crises before auto-advancing.',
+      };
+    }
+    if (this.isBankrupt) {
+      return {
+        success: false,
+        advancedWeeks: 0,
+        reason: 'bankrupt',
+        message: this.bankruptcyReason ?? 'Studio is bankrupt.',
+      };
+    }
+
+    const decisionStart = this.decisionQueue.length;
+    const releaseStart = this.pendingReleaseReveals.length + this.pendingFinalReleaseReveals.length;
+    const weekStart = this.currentWeek;
+    const hardLimit = Math.max(1, Math.min(52, Math.round(maxWeeks)));
+
+    for (let i = 0; i < hardLimit; i += 1) {
+      if (!this.canEndWeek || this.isBankrupt) break;
+      this.endWeek();
+      const decisionAdded = this.decisionQueue.length > decisionStart;
+      const releaseAdded = this.pendingReleaseReveals.length + this.pendingFinalReleaseReveals.length > releaseStart;
+      if (decisionAdded) {
+        return {
+          success: true,
+          advancedWeeks: this.currentWeek - weekStart,
+          reason: 'decision',
+          message: `Auto-advanced ${this.currentWeek - weekStart} week(s) until a new decision arrived.`,
+        };
+      }
+      if (!this.canEndWeek) {
+        return {
+          success: true,
+          advancedWeeks: this.currentWeek - weekStart,
+          reason: 'crisis',
+          message: `Auto-advanced ${this.currentWeek - weekStart} week(s) and paused for a crisis.`,
+        };
+      }
+      if (releaseAdded) {
+        return {
+          success: true,
+          advancedWeeks: this.currentWeek - weekStart,
+          reason: 'release',
+          message: `Auto-advanced ${this.currentWeek - weekStart} week(s) until a release update.`,
+        };
+      }
+      if (this.isBankrupt) {
+        return {
+          success: true,
+          advancedWeeks: this.currentWeek - weekStart,
+          reason: 'bankrupt',
+          message: this.bankruptcyReason ?? 'Studio is bankrupt.',
+        };
+      }
+    }
+
+    return {
+      success: true,
+      advancedWeeks: this.currentWeek - weekStart,
+      reason: 'limit',
+      message: `Auto-advanced ${this.currentWeek - weekStart} week(s) with no new blocker.`,
+    };
+  }
+
+  runGreenlightReview(projectId: string, approve: boolean): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'development') {
+      return { success: false, message: 'Greenlight review is only available during development.' };
+    }
+    if (!project.directorId || project.castIds.length < 1 || project.scriptQuality < 6) {
+      return { success: false, message: 'Project is not ready for a greenlight review yet.' };
+    }
+
+    if (!approve) {
+      project.greenlightApproved = false;
+      project.sentBackForRewriteCount = (project.sentBackForRewriteCount ?? 0) + 1;
+      project.scriptQuality = clamp(project.scriptQuality + 0.2, 0, 9.5);
+      project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
+      return {
+        success: true,
+        message: `${project.title} sent back for rewrite. Script +0.2, hype -1.`,
+      };
+    }
+
+    if (this.cash < ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE) {
+      return {
+        success: false,
+        message: `Insufficient cash for greenlight approval ($${Math.round(ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE / 1000)}K needed).`,
+      };
+    }
+    this.adjustCash(-ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE);
+    project.greenlightApproved = true;
+    project.greenlightWeek = this.currentWeek;
+    project.greenlightFeePaid = (project.greenlightFeePaid ?? 0) + ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE;
+    project.greenlightLockedCeiling = project.budget.ceiling;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message: `${project.title} greenlit. Approval fee paid and budget ceiling locked.`,
+    };
+  }
+
+  runTestScreening(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'postProduction' && project.phase !== 'distribution') {
+      return { success: false, message: 'Test screenings are only available in post-production or distribution.' };
+    }
+    if (this.cash < ACTION_BALANCE.TEST_SCREENING_COST) {
+      return { success: false, message: 'Insufficient cash for test screening.' };
+    }
+
+    const projection = this.getProjectedForProject(projectId);
+    if (!projection) return { success: false, message: 'Projection unavailable.' };
+    const confidence = clamp(0.58 + this.marketingTeamLevel * 0.08, 0.6, 0.9);
+    const variance = (1 - confidence) * 18;
+    const offset = (this.eventRng() - 0.5) * variance;
+    const center = clamp(projection.critical + offset, 20, 95);
+    const low = clamp(center - (7 + (1 - confidence) * 6), 10, 98);
+    const high = clamp(center + (7 + (1 - confidence) * 6), 12, 99);
+    const sentiment: MovieProject['testScreeningAudienceSentiment'] =
+      center >= 74 ? 'strong' : center >= 58 ? 'mixed' : 'weak';
+
+    this.adjustCash(-ACTION_BALANCE.TEST_SCREENING_COST);
+    project.testScreeningCompleted = true;
+    project.testScreeningWeek = this.currentWeek;
+    project.testScreeningCriticalLow = low;
+    project.testScreeningCriticalHigh = high;
+    project.testScreeningAudienceSentiment = sentiment;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message: `${project.title} test screening complete. Critics look ${low.toFixed(0)}-${high.toFixed(0)} with ${sentiment} audience sentiment.`,
+    };
+  }
+
+  runReshoots(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'postProduction') {
+      return { success: false, message: 'Reshoots are only available during post-production.' };
+    }
+    if (!project.testScreeningCompleted) {
+      return { success: false, message: 'Run a test screening first to justify reshoots.' };
+    }
+    if (this.cash < ACTION_BALANCE.RESHOOT_COST) {
+      return { success: false, message: 'Insufficient cash for reshoots.' };
+    }
+
+    this.adjustCash(-ACTION_BALANCE.RESHOOT_COST);
+    project.scriptQuality = clamp(project.scriptQuality + 0.25, 0, 10);
+    project.editorialScore = clamp(project.editorialScore + 0.4, 0, 10);
+    project.scheduledWeeksRemaining += ACTION_BALANCE.RESHOOT_SCHEDULE_WEEKS;
+    project.reshootCount = (project.reshootCount ?? 0) + 1;
+    this.evaluateBankruptcy();
+    return {
+      success: true,
+      message: `${project.title} reshoots approved. +1 week schedule, quality and editorial improved.`,
+    };
+  }
+
+  runTrackingLeverage(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'distribution') {
+      return { success: false, message: 'Tracking leverage is only available in distribution.' };
+    }
+    if ((project.trackingLeverageAmount ?? 0) > 0) {
+      return { success: false, message: 'Tracking leverage already used on this project.' };
+    }
+    const projection = this.getProjectedForProject(project.id);
+    if (!projection) return { success: false, message: 'Tracking unavailable right now.' };
+
+    const confidence = clamp(0.57 + this.marketingTeamLevel * 0.075, 0.6, 0.9);
+    const projectedOpening = projection.openingHigh * (0.86 + confidence * 0.24);
+    const leverageCap = projectedOpening * project.studioRevenueShare * ACTION_BALANCE.TRACKING_LEVERAGE_SHARE_CAP;
+    const advance = Math.round(leverageCap);
+    if (advance <= 0) return { success: false, message: 'Tracking confidence is too low for leverage this week.' };
+
+    project.trackingProjectionOpening = projectedOpening;
+    project.trackingConfidence = confidence;
+    project.trackingLeverageAmount = advance;
+    project.trackingSettled = false;
+    this.adjustCash(advance);
+    return {
+      success: true,
+      message: `Leveraged ${project.title} tracking for $${Math.round(advance / 1000)}K in early cash.`,
+    };
+  }
+
+  upgradeMarketingTeam(): { success: boolean; message: string } {
+    if (this.marketingTeamLevel >= ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL) {
+      return { success: false, message: 'Marketing team is already maxed.' };
+    }
+    const nextLevel = this.marketingTeamLevel + 1;
+    const cost = ACTION_BALANCE.MARKETING_TEAM_UPGRADE_BASE_COST * nextLevel;
+    if (this.cash < cost) return { success: false, message: `Insufficient cash to upgrade marketing team (${Math.round(cost / 1000)}K).` };
+    this.adjustCash(-cost);
+    this.marketingTeamLevel = nextLevel;
+    this.evaluateBankruptcy();
+    return { success: true, message: `Marketing team upgraded to level ${nextLevel}.` };
+  }
+
+  upgradeStudioCapacity(): { success: boolean; message: string } {
+    const next = this.studioCapacityUpgrades + 1;
+    const cost = 1_200_000 + next * 900_000;
+    if (this.cash < cost) {
+      return { success: false, message: `Insufficient cash for facility expansion (${Math.round(cost / 1000)}K needed).` };
+    }
+    this.adjustCash(-cost);
+    this.studioCapacityUpgrades = next;
+    this.evaluateBankruptcy();
+    return { success: true, message: `Studio capacity expanded. Active slot cap is now ${this.projectCapacityLimit}.` };
+  }
+
+  refreshIpMarketplace(forceMajor = false): void {
+    const pool: IpKind[] = forceMajor ? ['superhero'] : ['book', 'game', 'comic', 'book', 'game', 'comic', 'superhero'];
+    const kind = pool[Math.floor(this.eventRng() * pool.length)] ?? 'book';
+    const profile = buildIpTemplate(kind);
+    const [low, high] = profile.costRange;
+    const acquisitionCost = Math.round(low + this.eventRng() * (high - low));
+    const name = profile.namePool[Math.floor(this.eventRng() * profile.namePool.length)] ?? `Untitled ${kind} property`;
+    const expiresWeek = this.currentWeek + (profile.major ? 8 : 10);
+    const id = createId('ip');
+    this.ownedIps = this.ownedIps.filter((ip) => ip.expiresWeek >= this.currentWeek || ip.usedProjectId !== null);
+    if (this.ownedIps.some((ip) => ip.name === name && ip.usedProjectId === null)) return;
+    this.ownedIps.unshift({
+      id,
+      name,
+      kind,
+      genre: profile.genre,
+      acquisitionCost,
+      qualityBonus: profile.qualityBonus,
+      hypeBonus: profile.hypeBonus,
+      prestigeBonus: profile.prestigeBonus,
+      commercialBonus: profile.commercialBonus,
+      expiresWeek,
+      usedProjectId: null,
+      major: profile.major,
+    });
+    this.ownedIps = this.ownedIps.slice(0, 12);
+  }
+
+  acquireIpRights(ipId: string): { success: boolean; message: string } {
+    const ip = this.ownedIps.find((entry) => entry.id === ipId);
+    if (!ip) return { success: false, message: 'IP opportunity not found.' };
+    if (ip.usedProjectId) return { success: false, message: 'IP already adapted.' };
+    if (ip.expiresWeek < this.currentWeek) return { success: false, message: 'IP option has expired.' };
+    if (this.storyFlags[`owned_ip_${ip.id}`]) return { success: false, message: 'Rights are already under your control.' };
+    if (ip.major && this.reputation.distributor < 55) {
+      return { success: false, message: 'Major IP requires stronger distributor reputation (55+).' };
+    }
+    if (this.cash < ip.acquisitionCost) return { success: false, message: 'Insufficient cash to acquire IP rights.' };
+    this.adjustCash(-ip.acquisitionCost);
+    this.storyFlags[`owned_ip_${ip.id}`] = 1;
+    this.evaluateBankruptcy();
+    return { success: true, message: `${ip.name} rights secured.` };
+  }
+
+  developProjectFromIp(ipId: string): { success: boolean; message: string; projectId?: string } {
+    const ip = this.ownedIps.find((entry) => entry.id === ipId);
+    if (!ip) return { success: false, message: 'IP not found.' };
+    if (ip.expiresWeek < this.currentWeek) return { success: false, message: 'IP rights window has expired.' };
+    if (ip.usedProjectId) return { success: false, message: 'This IP is already in development.' };
+    if (!this.storyFlags[`owned_ip_${ip.id}`]) return { success: false, message: 'Acquire rights first.' };
+    if (this.projectCapacityUsed >= this.projectCapacityLimit) {
+      return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
+    }
+    const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
+    const project: MovieProject = {
+      id: createId('project'),
+      title: `${ip.name}: Adaptation`,
+      genre: ip.genre,
+      phase: 'development',
+      budget: {
+        ceiling: budget,
+        aboveTheLine: budget * 0.3,
+        belowTheLine: budget * 0.5,
+        postProduction: budget * 0.15,
+        contingency: budget * 0.1,
+        overrunRisk: 0.27,
+        actualSpend: Math.round(ip.acquisitionCost * 0.4),
+      },
+      scriptQuality: clamp(6.1 + ip.qualityBonus, 0, 9.2),
+      conceptStrength: clamp(6.4 + ip.commercialBonus * 0.12, 0, 9.5),
+      editorialScore: 5,
+      postPolishPasses: 0,
+      directorId: null,
+      castIds: [],
+      productionStatus: 'onTrack',
+      scheduledWeeksRemaining: 6,
+      hypeScore: clamp(8 + ip.hypeBonus, 0, 100),
+      marketingBudget: 0,
+      releaseWindow: null,
+      releaseWeek: null,
+      distributionPartner: null,
+      studioRevenueShare: 0.52,
+      projectedROI: 1,
+      openingWeekendGross: null,
+      weeklyGrossHistory: [],
+      releaseWeeksRemaining: 0,
+      releaseResolved: false,
+      finalBoxOffice: null,
+      criticalScore: null,
+      audienceScore: null,
+      awardsNominations: 0,
+      awardsWins: 0,
+      festivalStatus: 'none',
+      festivalTarget: null,
+      festivalSubmissionWeek: null,
+      festivalResolutionWeek: null,
+      festivalBuzz: 0,
+      prestige: clamp(40 + ip.prestigeBonus, 0, 100),
+      commercialAppeal: clamp(45 + ip.commercialBonus, 0, 100),
+      originality: clamp(38 + ip.qualityBonus * 5, 0, 100),
+      controversy: 10,
+      franchiseId: null,
+      franchiseEpisode: null,
+      sequelToProjectId: null,
+      franchiseCarryoverHype: 0,
+      franchiseStrategy: 'none',
+      greenlightApproved: false,
+      adaptedFromIpId: ip.id,
+    };
+    this.activeProjects.push(project);
+    ip.usedProjectId = project.id;
+    return { success: true, message: `${project.title} entered development from ${ip.name}.`, projectId: project.id };
+  }
+
+  getActiveMilestones(): MilestoneRecord[] {
+    return [...this.milestones].sort((a, b) => b.unlockedWeek - a.unlockedWeek);
+  }
+
+  getLatestReleaseReport(projectId: string): ReleaseReport | null {
+    return this.releaseReports.find((report) => report.projectId === projectId) ?? null;
   }
 
   getGenreDemandMultiplier(genre: MovieGenre): number {
@@ -729,13 +1203,18 @@ export class StudioManager {
       return { success: false, message: 'Insufficient cash for optional campaign action.' };
     }
 
-    project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
-    project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
+    const bonusLevels = Math.max(0, this.marketingTeamLevel - 1);
+    const hypeGain =
+      ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
+    const marketingGain =
+      ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
+    project.hypeScore = clamp(project.hypeScore + hypeGain, 0, 100);
+    project.marketingBudget += marketingGain;
     this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
     this.evaluateBankruptcy();
     return {
       success: true,
-      message: `Optional campaign executed on ${project.title}. Hype +${ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST} and marketing +$180K.`,
+      message: `Optional campaign executed on ${project.title}. Hype +${Math.round(hypeGain)} and marketing +$${Math.round(marketingGain / 1000)}K.`,
     };
   }
 
@@ -746,11 +1225,19 @@ export class StudioManager {
       return { success: false, message: 'Marketing push not available after distribution begins.' };
     }
     if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
-    project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
-    project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
+    const bonusLevels = Math.max(0, this.marketingTeamLevel - 1);
+    const hypeGain =
+      ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
+    const marketingGain =
+      ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
+    project.hypeScore = clamp(project.hypeScore + hypeGain, 0, 100);
+    project.marketingBudget += marketingGain;
     this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
     this.evaluateBankruptcy();
-    return { success: true, message: `Marketing push on ${project.title}. Hype +5, marketing +$180K.` };
+    return {
+      success: true,
+      message: `Marketing push on ${project.title}. Hype +${Math.round(hypeGain)}, marketing +$${Math.round(marketingGain / 1000)}K.`,
+    };
   }
 
   runScriptDevelopmentSprint(projectId: string): { success: boolean; message: string } {
@@ -867,13 +1354,18 @@ export class StudioManager {
   }
 
   getNextReleaseReveal(): MovieProject | null {
-    const nextId = this.pendingReleaseReveals[0];
+    const nextId = this.pendingFinalReleaseReveals[0] ?? this.pendingReleaseReveals[0];
     if (!nextId) return null;
     return this.activeProjects.find((project) => project.id === nextId) ?? null;
   }
 
+  isFinalReleaseReveal(projectId: string): boolean {
+    return this.pendingFinalReleaseReveals.includes(projectId);
+  }
+
   dismissReleaseReveal(projectId: string): void {
     this.pendingReleaseReveals = this.pendingReleaseReveals.filter((idValue) => idValue !== projectId);
+    this.pendingFinalReleaseReveals = this.pendingFinalReleaseReveals.filter((idValue) => idValue !== projectId);
   }
 
   getSequelEligibility(projectId: string): SequelEligibility | null {
@@ -885,6 +1377,12 @@ export class StudioManager {
   }
 
   startSequel(projectId: string): { success: boolean; message: string; projectId?: string } {
+    if (this.projectCapacityUsed >= this.projectCapacityLimit) {
+      return {
+        success: false,
+        message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand capacity before starting a sequel.`,
+      };
+    }
     return startSequelForManager(this, projectId);
   }
 
@@ -920,6 +1418,12 @@ export class StudioManager {
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
     const pitch = this.scriptMarket.find((item) => item.id === scriptId);
     if (!pitch) return { success: false, message: 'Script not found.' };
+    if (this.projectCapacityUsed >= this.projectCapacityLimit) {
+      return {
+        success: false,
+        message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Upgrade capacity before adding projects.`,
+      };
+    }
     if (this.cash < pitch.askingPrice) return { success: false, message: 'Insufficient funds for script acquisition.' };
 
     this.adjustCash(-pitch.askingPrice);
@@ -987,8 +1491,27 @@ export class StudioManager {
       sequelToProjectId: null,
       franchiseCarryoverHype: 0,
       franchiseStrategy: 'none',
+      greenlightApproved: false,
+      greenlightWeek: null,
+      greenlightFeePaid: 0,
+      greenlightLockedCeiling: null,
+      sentBackForRewriteCount: 0,
+      testScreeningCompleted: false,
+      testScreeningWeek: null,
+      testScreeningCriticalLow: null,
+      testScreeningCriticalHigh: null,
+      testScreeningAudienceSentiment: null,
+      reshootCount: 0,
+      trackingProjectionOpening: null,
+      trackingConfidence: null,
+      trackingLeverageAmount: 0,
+      trackingSettled: false,
+      merchandiseWeeksRemaining: 0,
+      merchandiseWeeklyRevenue: 0,
+      adaptedFromIpId: null,
     };
     this.activeProjects.push(project);
+    if (this.currentWeek % 7 === 0) this.refreshIpMarketplace();
     return { success: true, message: `Acquired "${pitch.title}".`, projectId: project.id };
   }
 
@@ -1117,6 +1640,13 @@ export class StudioManager {
     this.tickDecisionExpiry(events);
     this.tickScriptMarketExpiry(events);
     this.refillScriptMarket(events);
+    if ((this.currentWeek + 1) % 6 === 0) {
+      this.refreshIpMarketplace(this.currentWeek % 26 === 0);
+      const latestIp = this.ownedIps[0];
+      if (latestIp) {
+        events.push(`IP market: ${latestIp.name} rights are now in play.`);
+      }
+    }
     this.tickDistributionWindows(events);
     this.rollForCrises(events);
     this.processRivalTalentAcquisitions(events);
@@ -1398,7 +1928,10 @@ export class StudioManager {
     const modifiers = this.getArcOutcomeModifiers();
     for (const project of this.activeProjects) {
       if (project.phase !== 'released') continue;
-      if (project.releaseResolved) continue;
+      if (project.releaseResolved) {
+        this.tickMerchandiseRevenue(project, events);
+        continue;
+      }
       if (!project.finalBoxOffice || !project.openingWeekendGross) continue;
 
       if (project.releaseWeeksRemaining > 0) {
@@ -1408,6 +1941,7 @@ export class StudioManager {
         const weekly = Math.max(250_000, lastWeek * decayFactor);
         project.weeklyGrossHistory.push(weekly);
         project.finalBoxOffice += weekly;
+        this.adjustCash(weekly * project.studioRevenueShare);
         project.releaseWeeksRemaining -= 1;
       }
 
@@ -1427,12 +1961,19 @@ export class StudioManager {
         this.adjustReputation(criticsDelta, 'critics');
         this.adjustReputation(audienceDelta, 'audience');
         project.releaseResolved = true;
+        this.settleTrackingLeverage(project, events);
+        this.maybeStartMerchandiseStream(project, events);
         markFranchiseReleaseForManager(this, project.id);
         events.push(
           `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
         );
         const roiValue = project.projectedROI;
         const grossM = project.finalBoxOffice ? (project.finalBoxOffice / 1_000_000).toFixed(1) : '?';
+        const report = this.buildReleaseReport(project);
+        this.releaseReports.unshift(report);
+        this.releaseReports = this.releaseReports.slice(0, 60);
+        this.pendingFinalReleaseReveals.push(project.id);
+        this.checkMilestones(report, events);
         this.addChronicleEntry({
           week: this.currentWeek,
           type: 'filmRelease',
@@ -1444,6 +1985,132 @@ export class StudioManager {
         this.checkRivalReleaseResponses(project, events);
       }
     }
+  }
+
+  private buildReleaseReport(project: MovieProject): ReleaseReport {
+    const totalBudget = Math.round(project.budget.ceiling + project.marketingBudget);
+    const totalGross = Math.round(project.finalBoxOffice ?? 0);
+    const studioNet = Math.round(totalGross * project.studioRevenueShare);
+    const profit = studioNet - totalBudget;
+    const roi = studioNet / Math.max(1, totalBudget);
+    const breakdown = this.buildReleaseBreakdown(project);
+    const previousBest = this.releaseReports.reduce((max, report) => Math.max(max, report.openingWeekend), 0);
+    return {
+      projectId: project.id,
+      title: project.title,
+      weekResolved: this.currentWeek,
+      totalBudget,
+      totalGross,
+      studioNet,
+      profit,
+      roi,
+      openingWeekend: Math.round(project.openingWeekendGross ?? 0),
+      critics: Math.round(project.criticalScore ?? 0),
+      audience: Math.round(project.audienceScore ?? 0),
+      outcome: releaseOutcomeFromRoi(roi),
+      wasRecordOpening: (project.openingWeekendGross ?? 0) > previousBest,
+      breakdown,
+    };
+  }
+
+  private buildReleaseBreakdown(project: MovieProject): ReleasePerformanceBreakdown {
+    const director = project.directorId ? this.talentPool.find((talent) => talent.id === project.directorId) : null;
+    const lead = project.castIds
+      .map((talentId) => this.talentPool.find((talent) => talent.id === talentId))
+      .find((talent) => talent?.role === 'leadActor');
+    const script = clamp((project.scriptQuality - 5.5) * 7, -18, 18);
+    const direction = clamp(((director?.craftScore ?? 6) - 6) * 5, -14, 16);
+    const starPower = clamp(((lead?.starPower ?? 5.5) - 5.5) * 6, -14, 18);
+    const marketingRatio = project.marketingBudget / Math.max(1, project.budget.ceiling);
+    const marketing = clamp((marketingRatio - 0.1) * 80 + project.hypeScore * 0.09, -12, 20);
+    const cycle = this.getGenreDemandMultiplier(project.genre);
+    const timing = clamp(
+      (cycle - 1) * 55 + this.calendarPressureMultiplier(project.releaseWeek ?? this.currentWeek, project.genre) * 8 - 8,
+      -14,
+      16
+    );
+    const genreCycle = clamp((cycle - 1) * 100, -16, 16);
+    return {
+      script: Math.round(script),
+      direction: Math.round(direction),
+      starPower: Math.round(starPower),
+      marketing: Math.round(marketing),
+      timing: Math.round(timing),
+      genreCycle: Math.round(genreCycle),
+    };
+  }
+
+  private tickMerchandiseRevenue(project: MovieProject, events: string[]): void {
+    if ((project.merchandiseWeeksRemaining ?? 0) <= 0) return;
+    const weekly = Math.round(project.merchandiseWeeklyRevenue ?? 0);
+    if (weekly <= 0) {
+      project.merchandiseWeeksRemaining = 0;
+      return;
+    }
+    this.adjustCash(weekly);
+    project.merchandiseWeeksRemaining = Math.max(0, (project.merchandiseWeeksRemaining ?? 0) - 1);
+    if ((project.merchandiseWeeksRemaining ?? 0) === 0) {
+      events.push(`${project.title} merchandise tail concluded.`);
+    }
+  }
+
+  private maybeStartMerchandiseStream(project: MovieProject, events: string[]): void {
+    const commercialGenres: MovieGenre[] = ['action', 'animation', 'sciFi', 'comedy'];
+    if (!commercialGenres.includes(project.genre)) return;
+    const audience = project.audienceScore ?? 50;
+    if (audience < 58) return;
+    const base = (project.finalBoxOffice ?? 0) * 0.022;
+    const weekly = Math.round(base * (project.commercialAppeal / 100) / 6);
+    if (weekly <= 0) return;
+    project.merchandiseWeeklyRevenue = weekly;
+    project.merchandiseWeeksRemaining = 6;
+    events.push(`${project.title} opened a 6-week merchandise tail (${Math.round(weekly / 1000)}K/week).`);
+  }
+
+  private settleTrackingLeverage(project: MovieProject, events: string[]): void {
+    const leverage = Math.round(project.trackingLeverageAmount ?? 0);
+    if (leverage <= 0 || project.trackingSettled) return;
+    const realized = Math.round(
+      (project.openingWeekendGross ?? 0) *
+      project.studioRevenueShare *
+      ACTION_BALANCE.TRACKING_LEVERAGE_SHARE_CAP
+    );
+    const clawback = Math.max(0, leverage - realized);
+    if (clawback > 0) {
+      this.adjustCash(-clawback);
+      events.push(`${project.title} tracking leverage missed. Clawback ${Math.round(clawback / 1000)}K.`);
+    } else {
+      events.push(`${project.title} tracking leverage cleared with no clawback.`);
+    }
+    project.trackingSettled = true;
+  }
+
+  private checkMilestones(report: ReleaseReport, events: string[]): void {
+    const totalGrossAll = this.releaseReports.reduce((sum, item) => sum + item.totalGross, 0);
+    const has = (id: MilestoneRecord['id']) => this.milestones.some((item) => item.id === id);
+    const unlock = (id: MilestoneRecord['id'], value?: number): void => {
+      if (has(id)) return;
+      const label = MILESTONE_LABELS[id];
+      this.milestones.unshift({
+        id,
+        title: label.title,
+        description: label.description,
+        unlockedWeek: this.currentWeek,
+        value,
+      });
+      this.milestones = this.milestones.slice(0, 30);
+      events.push(`Milestone unlocked: ${label.title}.`);
+    };
+
+    if (report.roi >= 1.5) unlock('firstHit', report.roi);
+    if (report.roi >= 3) unlock('firstBlockbuster', report.roi);
+    if (report.totalGross >= 100_000_000) unlock('boxOffice100m', report.totalGross);
+    if (totalGrossAll >= 1_000_000_000) unlock('lifetimeRevenue1b', totalGrossAll);
+
+    const bestGross = this.releaseReports.reduce((max, item) => Math.max(max, item.totalGross), 0);
+    const worstGross = this.releaseReports.reduce((min, item) => Math.min(min, item.totalGross), Number.POSITIVE_INFINITY);
+    if (report.totalGross >= bestGross) unlock('highestGrossingFilm', report.totalGross);
+    if (report.totalGross <= worstGross) unlock('lowestGrossingFilm', report.totalGross);
   }
 
   private processAnnualAwards(events: string[]): void {

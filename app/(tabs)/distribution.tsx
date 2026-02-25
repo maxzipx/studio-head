@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
@@ -13,6 +14,7 @@ function signedMoney(amount: number): string {
 
 export default function DistributionScreen() {
   const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGame();
+  const [showHelp, setShowHelp] = useState(false);
   const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
@@ -59,6 +61,15 @@ export default function DistributionScreen() {
       <Text style={styles.title}>Distribution Deals</Text>
       <Text style={styles.subtitle}>Negotiate offers, manage calendar pressure, and confirm release timing</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
+      <Pressable style={styles.button} onPress={() => setShowHelp((value) => !value)}>
+        <Text style={styles.buttonText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
+      </Pressable>
+      {showHelp ? (
+        <View style={styles.card}>
+          <Text style={styles.body}>Checklist: lock a deal, set release week, verify opening forecast, then release.</Text>
+          <Text style={styles.meta}>Counter once for better terms. Walking away hurts distributor reputation.</Text>
+        </View>
+      ) : null}
 
       {projects.length === 0 ? (
         <View style={styles.card}>
