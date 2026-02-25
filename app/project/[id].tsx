@@ -18,6 +18,13 @@ function resolveParam(value: string | string[] | undefined): string {
   return value ?? '';
 }
 
+function franchiseStrategyLabel(strategy: string): string {
+  if (strategy === 'safe') return 'Safe Continuation';
+  if (strategy === 'reinvention') return 'Reinvention';
+  if (strategy === 'balanced') return 'Balanced';
+  return 'Standalone';
+}
+
 function advanceBlockers(project: {
   phase: string;
   directorId: string | null;
@@ -61,6 +68,8 @@ export default function ProjectDetailScreen() {
     runScriptSprint,
     runPostPolishPass,
     abandonProject,
+    startSequel,
+    setFranchiseStrategy,
   } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
@@ -101,6 +110,13 @@ export default function ProjectDetailScreen() {
     manager.cash >= 140_000;
   const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
   const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
+  const franchiseModifiers = manager.getFranchiseProjectionModifiers(project.id);
+  const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
+  const isSequelProject = !!project.franchiseId && (project.franchiseEpisode ?? 0) > 1;
+  const canSetStrategy =
+    isSequelProject &&
+    (project.phase === 'development' || project.phase === 'preProduction') &&
+    project.franchiseStrategy === 'balanced';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -123,6 +139,30 @@ export default function ProjectDetailScreen() {
         ) : null}
       </View>
 
+      {project.franchiseId ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Franchise Profile</Text>
+          <Text style={styles.body}>
+            Episode {project.franchiseEpisode ?? 1} | Strategy: {franchiseStrategyLabel(project.franchiseStrategy)}
+          </Text>
+          {franchiseModifiers ? (
+            <>
+              <Text style={styles.body}>
+                Momentum {franchiseModifiers.momentum.toFixed(0)} | Fatigue {franchiseModifiers.fatigue.toFixed(0)}
+              </Text>
+              <Text style={styles.body}>
+                Sequel pressure: Opening {(franchiseModifiers.openingMultiplier * 100).toFixed(0)}% | Critic delta {franchiseModifiers.criticalDelta >= 0 ? '+' : ''}
+                {franchiseModifiers.criticalDelta.toFixed(1)} | Audience delta {franchiseModifiers.audienceDelta >= 0 ? '+' : ''}
+                {franchiseModifiers.audienceDelta.toFixed(1)}
+              </Text>
+              <Text style={styles.muted}>
+                Carryover package: Director {franchiseModifiers.returningDirector ? 'returning' : 'new'} | Shared cast {franchiseModifiers.returningCastCount}
+              </Text>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       {project.phase === 'development' ? (
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Script Development</Text>
@@ -133,6 +173,25 @@ export default function ProjectDetailScreen() {
             onPress={() => runScriptSprint(project.id)}>
             <Text style={styles.buttonText}>Script Sprint $100K (+0.5 quality, max 8.5)</Text>
           </Pressable>
+          {isSequelProject ? (
+            <>
+              <Text style={styles.muted}>Franchise direction is a one-time commitment for this sequel.</Text>
+              <View style={styles.actions}>
+                <Pressable
+                  style={[styles.button, !canSetStrategy ? styles.buttonDisabled : null]}
+                  disabled={!canSetStrategy}
+                  onPress={() => setFranchiseStrategy(project.id, 'safe')}>
+                  <Text style={styles.buttonText}>Set Safe Continuation ($90K)</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.button, !canSetStrategy ? styles.buttonDisabled : null]}
+                  disabled={!canSetStrategy}
+                  onPress={() => setFranchiseStrategy(project.id, 'reinvention')}>
+                  <Text style={styles.buttonText}>Set Reinvention ($220K)</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
         </View>
       ) : null}
 
@@ -319,6 +378,25 @@ export default function ProjectDetailScreen() {
           <Text style={styles.body}>Audience: {project.audienceScore?.toFixed(0) ?? '--'}</Text>
           <Text style={styles.body}>Awards: {project.awardsNominations} nomination(s), {project.awardsWins} win(s)</Text>
           <Text style={styles.body}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
+          {sequelEligibility ? (
+            <>
+              <Text style={styles.body}>
+                Next sequel: Episode {sequelEligibility.nextEpisode} | Upfront {money(sequelEligibility.upfrontCost)}
+              </Text>
+              <Text style={styles.muted}>
+                Momentum {sequelEligibility.projectedMomentum.toFixed(0)} | Fatigue {sequelEligibility.projectedFatigue.toFixed(0)} | Carryover hype {sequelEligibility.carryoverHype.toFixed(0)}
+              </Text>
+              {!sequelEligibility.eligible && sequelEligibility.reason ? (
+                <Text style={styles.warning}>{sequelEligibility.reason}</Text>
+              ) : null}
+              <Pressable
+                style={[styles.button, !sequelEligibility.eligible ? styles.buttonDisabled : null]}
+                disabled={!sequelEligibility.eligible}
+                onPress={() => startSequel(project.id)}>
+                <Text style={styles.buttonText}>Start Sequel Development</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       ) : null}
 

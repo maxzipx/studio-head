@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { MEMORY_RULES, STUDIO_STARTING } from '../domain/balance-constants';
 import { StudioManager } from '../domain/studio-manager';
-import type { MovieGenre } from '../domain/types';
+import type { ChronicleEntryImpact, ChronicleEntryType, MovieGenre } from '../domain/types';
 
 const SAVE_KEY = 'pg.save.v1';
 const SAVE_VERSION = 1;
@@ -95,6 +95,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     }
     if (!Number.isFinite(project.franchiseCarryoverHype)) project.franchiseCarryoverHype = 0;
     project.franchiseCarryoverHype = Math.min(100, Math.max(0, Math.round(project.franchiseCarryoverHype)));
+    if (!['none', 'safe', 'balanced', 'reinvention'].includes(project.franchiseStrategy)) {
+      project.franchiseStrategy = project.franchiseId ? 'balanced' : 'none';
+    }
   }
   if (!Array.isArray(manager.franchises)) manager.franchises = [];
   manager.franchises = manager.franchises
@@ -226,6 +229,23 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .filter((value) => Number.isFinite(value))
     .map((value) => Math.max(1, Math.round(value)))
     .slice(-20);
+  if (!Array.isArray(manager.studioChronicle)) manager.studioChronicle = [];
+  manager.studioChronicle = manager.studioChronicle
+    .filter((entry) => isRecord(entry) && typeof entry.headline === 'string')
+    .map((entry) => ({
+      id: typeof entry.id === 'string' ? entry.id : `chron-${Math.random().toString(36).slice(2, 10)}`,
+      week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
+      type: (['filmRelease', 'arcResolution', 'tierAdvance', 'awardsOutcome', 'festivalOutcome', 'crisisResolved'] as string[]).includes(entry.type as string)
+        ? (entry.type as ChronicleEntryType)
+        : ('filmRelease' as ChronicleEntryType),
+      headline: String(entry.headline).slice(0, 200),
+      ...(typeof entry.detail === 'string' ? { detail: entry.detail.slice(0, 200) } : {}),
+      ...(typeof entry.projectTitle === 'string' ? { projectTitle: entry.projectTitle } : {}),
+      impact: (['positive', 'negative', 'neutral'] as string[]).includes(entry.impact as string)
+        ? (entry.impact as ChronicleEntryImpact)
+        : ('neutral' as ChronicleEntryImpact),
+    }))
+    .slice(0, 100);
   if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
   if (!Array.isArray(manager.recentDecisionCategories)) manager.recentDecisionCategories = [];
 

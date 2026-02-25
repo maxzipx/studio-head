@@ -73,10 +73,12 @@ import {
   tickRivalHeatForManager,
 } from './studio-manager.rivals';
 import {
+  getFranchiseProjectionModifiersForManager,
   getSequelCandidatesForManager,
   getSequelEligibilityForManager,
   markFranchiseReleaseForManager,
   removeProjectFromFranchiseForManager,
+  setFranchiseStrategyForManager,
   startSequelForManager,
 } from './studio-manager.franchise';
 import { getEventDeck } from './event-deck';
@@ -87,14 +89,18 @@ import {
   createSeedScriptMarket,
   createSeedTalentPool,
 } from './seeds';
+import { STUDIO_TIER_LABELS } from './types';
 import type {
   AwardsSeasonRecord,
+  ChronicleEntry,
   CrisisEvent,
   DecisionCategory,
   DecisionItem,
   DistributionOffer,
   EventTemplate,
   FranchiseTrack,
+  FranchiseProjectionModifiers,
+  FranchiseStrategy,
   GenreCycleState,
   IndustryNewsItem,
   MovieGenre,
@@ -148,6 +154,25 @@ const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
   uta: 1.2,
   wme: 1.3,
   caa: 1.4,
+};
+
+const ARC_LABELS: Record<string, string> = {
+  'financier-control': 'Investor Pressure',
+  'leak-piracy': 'Leak Fallout',
+  'awards-circuit': 'Awards Run',
+  'talent-meltdown': 'Volatile Star Cycle',
+  'exhibitor-war': 'Theater Access Battle',
+  'franchise-pivot': 'Universe Gamble',
+  'streaming-pivot': 'Streaming Crossroads',
+  'passion-project': "The Director's Vision",
+};
+
+const TIER_RANK: Record<StudioTier, number> = {
+  indieStudio: 0,
+  establishedIndie: 1,
+  midTier: 2,
+  majorStudio: 3,
+  globalPowerhouse: 4,
 };
 
 interface ArcOutcomeModifiers {
@@ -214,6 +239,7 @@ export class StudioManager {
   awardsHistory: AwardsSeasonRecord[] = [];
   awardsSeasonsProcessed: number[] = [];
   genreCycles: Record<MovieGenre, GenreCycleState> = createInitialGenreCycles();
+  studioChronicle: ChronicleEntry[] = [];
 
   get studioHeat(): number {
     return Math.round(
@@ -702,6 +728,19 @@ export class StudioManager {
     return startSequelForManager(this, projectId);
   }
 
+  setFranchiseStrategy(
+    projectId: string,
+    strategy: Exclude<FranchiseStrategy, 'none'>
+  ): { success: boolean; message: string } {
+    return setFranchiseStrategyForManager(this, projectId, strategy);
+  }
+
+  getFranchiseProjectionModifiers(projectId: string): FranchiseProjectionModifiers | null {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return null;
+    return getFranchiseProjectionModifiersForManager(this, project);
+  }
+
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
     const pitch = this.scriptMarket.find((item) => item.id === scriptId);
     if (!pitch) return { success: false, message: 'Script not found.' };
@@ -771,6 +810,7 @@ export class StudioManager {
       franchiseEpisode: null,
       sequelToProjectId: null,
       franchiseCarryoverHype: 0,
+      franchiseStrategy: 'none',
     };
     this.activeProjects.push(project);
     return { success: true, message: `Acquired "${pitch.title}".`, projectId: project.id };
@@ -866,6 +906,15 @@ export class StudioManager {
     this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
     if (decision.arcId) {
       this.applyArcMutation(decision.arcId, option);
+      if (option.resolveArc || option.failArc) {
+        this.addChronicleEntry({
+          week: this.currentWeek,
+          type: 'arcResolution',
+          headline: `${ARC_LABELS[decision.arcId] ?? decision.arcId} — ${option.resolveArc ? 'resolved' : 'failed'}`,
+          detail: `"${option.label}"`,
+          impact: option.resolveArc ? 'positive' : 'negative',
+        });
+      }
     }
     this.applyRivalDecisionMemory(decision, option);
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
@@ -877,6 +926,7 @@ export class StudioManager {
     }
 
     const cashBefore = this.cash;
+    const tierBefore = this.studioTier;
     const events: string[] = [];
 
     const burn = this.applyWeeklyBurn();
@@ -914,6 +964,15 @@ export class StudioManager {
 
     if (!this.firstSessionComplete && this.currentWeek > SESSION_RULES.FIRST_SESSION_COMPLETE_WEEK) {
       this.firstSessionComplete = true;
+    }
+    if (this.studioTier !== tierBefore) {
+      const movedUp = TIER_RANK[this.studioTier] > TIER_RANK[tierBefore];
+      this.addChronicleEntry({
+        week: this.currentWeek,
+        type: 'tierAdvance',
+        headline: `${movedUp ? 'Promoted to' : 'Dropped to'} ${STUDIO_TIER_LABELS[this.studioTier]}`,
+        impact: movedUp ? 'positive' : 'negative',
+      });
     }
     this.evaluateBankruptcy(events);
 
@@ -994,7 +1053,8 @@ export class StudioManager {
   } {
     const director = this.talentPool.find((item) => item.id === project.directorId);
     const lead = this.talentPool.find((item) => project.castIds.includes(item.id) && item.role === 'leadActor');
-    const critical = projectedCriticalScore({
+    const franchiseModifiers = getFranchiseProjectionModifiersForManager(this, project);
+    const baseCritical = projectedCriticalScore({
       scriptQuality: project.scriptQuality,
       directorCraft: director?.craftScore ?? 6,
       leadActorCraft: lead?.craftScore ?? 6,
@@ -1004,6 +1064,7 @@ export class StudioManager {
       crisisPenalty: project.productionStatus === 'inCrisis' ? 8 : 0,
       chemistryPenalty: 0,
     });
+    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta, 0, 100);
 
     const opening = projectedOpeningWeekendRange({
       genre: project.genre,
@@ -1014,14 +1075,16 @@ export class StudioManager {
       seasonalMultiplier: this.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
-    const openingLow = opening.low * pressure;
-    const openingHigh = opening.high * pressure;
-    const openingMid = opening.midpoint * pressure;
+    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier;
+    const openingLow = opening.low * combinedOpeningMultiplier;
+    const openingHigh = opening.high * combinedOpeningMultiplier;
+    const openingMid = opening.midpoint * combinedOpeningMultiplier;
+    const audienceProjection = clamp(critical + 4 + franchiseModifiers.audienceDelta, 0, 100);
 
     const roi = projectedROI({
       openingWeekend: openingMid,
       criticalScore: critical,
-      audienceScore: clamp(critical + 4, 0, 100),
+      audienceScore: audienceProjection,
       genre: project.genre,
       totalCost: project.budget.ceiling + project.marketingBudget,
     });
@@ -1039,6 +1102,11 @@ export class StudioManager {
 
   private projectedBurnForProject(project: MovieProject, burnMultiplier: number): number {
     return project.budget.ceiling * phaseBurnMultiplier(project.phase) * burnMultiplier;
+  }
+
+  private addChronicleEntry(entry: Omit<ChronicleEntry, 'id'>): void {
+    this.studioChronicle.unshift({ id: createId('chron'), ...entry });
+    this.studioChronicle = this.studioChronicle.slice(0, 100);
   }
 
   private applyWeeklyBurn(): number {
@@ -1186,6 +1254,16 @@ export class StudioManager {
         events.push(
           `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
         );
+        const roiValue = project.projectedROI;
+        const grossM = project.finalBoxOffice ? (project.finalBoxOffice / 1_000_000).toFixed(1) : '?';
+        this.addChronicleEntry({
+          week: this.currentWeek,
+          type: 'filmRelease',
+          headline: `${project.title} closed at $${grossM}M domestic`,
+          detail: `ROI ${roiValue.toFixed(1)}x · Score ${project.criticalScore ?? '?'}`,
+          projectTitle: project.title,
+          impact: roiValue >= 2.0 ? 'positive' : roiValue < 1.0 ? 'negative' : 'neutral',
+        });
         this.checkRivalReleaseResponses(project, events);
       }
     }
@@ -1316,6 +1394,14 @@ export class StudioManager {
     this.awardsHistory = this.awardsHistory.slice(0, 24);
     this.awardsSeasonsProcessed.push(seasonYear);
     this.awardsSeasonsProcessed = this.awardsSeasonsProcessed.slice(-20);
+    if (totalNominations > 0 || totalWins > 0) {
+      this.addChronicleEntry({
+        week: this.currentWeek,
+        type: 'awardsOutcome',
+        headline,
+        impact: totalWins > 0 ? 'positive' : 'neutral',
+      });
+    }
     events.push(
       `${headline} Reputation: Critics ${Math.round(criticsDelta) >= 0 ? '+' : ''}${Math.round(criticsDelta)}, Talent ${Math.round(talentDelta) >= 0 ? '+' : ''}${Math.round(talentDelta)}.`
     );
@@ -1394,6 +1480,13 @@ export class StudioManager {
             projectId: project.id,
           });
         }
+        this.addChronicleEntry({
+          week: this.currentWeek,
+          type: 'festivalOutcome',
+          headline: `${project.title} ${buzzed ? 'broke out' : 'screened'} at ${project.festivalTarget ?? 'festival circuit'}`,
+          projectTitle: project.title,
+          impact: buzzed ? 'positive' : 'neutral',
+        });
         events.push(
           `${project.title} ${buzzed ? 'broke out' : 'landed'} at ${project.festivalTarget ?? 'festival circuit'} (${nextStatus}). Critics ${buzzed ? '+4' : '+2'}.`
         );

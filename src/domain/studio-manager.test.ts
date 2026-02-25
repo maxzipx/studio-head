@@ -234,6 +234,63 @@ describe('StudioManager', () => {
     expect(second.message).toContain('Finish');
   });
 
+  it('applies franchise strategy and returning package effects to sequel projections', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects[0];
+    const director = manager.talentPool.find((talent) => talent.role === 'director');
+    const lead = manager.talentPool.find((talent) => talent.role === 'leadActor');
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 2;
+    baseProject.criticalScore = 78;
+    baseProject.audienceScore = 80;
+    baseProject.projectedROI = 1.7;
+    baseProject.directorId = director!.id;
+    baseProject.castIds = [lead!.id];
+
+    const sequelStart = manager.startSequel(baseProject.id);
+    expect(sequelStart.success).toBe(true);
+    const sequel = manager.activeProjects.find((project) => project.id === sequelStart.projectId);
+    expect(sequel).toBeTruthy();
+
+    const baseModifiers = manager.getFranchiseProjectionModifiers(sequel!.id);
+    expect(baseModifiers?.strategy).toBe('balanced');
+    expect(baseModifiers?.returningDirector).toBe(false);
+    expect(baseModifiers?.returningCastCount).toBe(0);
+
+    sequel!.directorId = director!.id;
+    sequel!.castIds = [lead!.id];
+    const returningModifiers = manager.getFranchiseProjectionModifiers(sequel!.id);
+    expect(returningModifiers?.returningDirector).toBe(true);
+    expect((returningModifiers?.returningCastCount ?? 0)).toBeGreaterThan(0);
+
+    const projectionBefore = manager.getProjectedForProject(sequel!.id);
+    const cashBefore = manager.cash;
+    const setStrategy = manager.setFranchiseStrategy(sequel!.id, 'reinvention');
+    expect(setStrategy.success).toBe(true);
+    expect(manager.cash).toBeLessThan(cashBefore);
+    expect(sequel!.franchiseStrategy).toBe('reinvention');
+    const projectionAfter = manager.getProjectedForProject(sequel!.id);
+    expect((projectionAfter?.critical ?? 0)).toBeGreaterThan(projectionBefore?.critical ?? 0);
+
+    const locked = manager.setFranchiseStrategy(sequel!.id, 'safe');
+    expect(locked.success).toBe(false);
+    expect(locked.message).toContain('locked');
+  });
+
+  it('blocks franchise strategy changes on non-sequel projects', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects.find((project) => project.phase === 'development');
+    expect(baseProject).toBeTruthy();
+
+    const result = manager.setFranchiseStrategy(baseProject!.id, 'safe');
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('sequel');
+  });
+
   it('attaches available talent through negotiation', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
@@ -1354,5 +1411,6 @@ describe('StudioManager', () => {
     (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
     expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
   });
+
 });
 

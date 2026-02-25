@@ -1,6 +1,13 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import { createId } from './id';
-import type { FranchiseTrack, MovieProject, SequelCandidate, SequelEligibility } from './types';
+import type {
+  FranchiseProjectionModifiers,
+  FranchiseStrategy,
+  FranchiseTrack,
+  MovieProject,
+  SequelCandidate,
+  SequelEligibility,
+} from './types';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -64,6 +71,12 @@ function deriveUpfrontSequelCost(genre: MovieProject['genre']): number {
   return Math.round(baseline * 0.035 + 220_000);
 }
 
+const FRANCHISE_STRATEGY_COST: Record<Exclude<FranchiseStrategy, 'none'>, number> = {
+  safe: 90_000,
+  balanced: 0,
+  reinvention: 220_000,
+};
+
 function ensureFranchiseForBase(manager: any, baseProject: MovieProject): FranchiseTrack {
   if (baseProject.franchiseId) {
     const existing = manager.franchises.find((item: FranchiseTrack) => item.id === baseProject.franchiseId);
@@ -88,6 +101,7 @@ function ensureFranchiseForBase(manager: any, baseProject: MovieProject): Franch
   baseProject.franchiseEpisode = baseProject.franchiseEpisode ?? 1;
   baseProject.sequelToProjectId = null;
   baseProject.franchiseCarryoverHype = baseProject.franchiseCarryoverHype ?? 0;
+  baseProject.franchiseStrategy = baseProject.franchiseStrategy ?? 'none';
   manager.franchises.push(franchise);
   return franchise;
 }
@@ -282,6 +296,7 @@ export function startSequelForManager(
     franchiseEpisode: sequelNumber,
     sequelToProjectId: baseProject.id,
     franchiseCarryoverHype: eligibility.carryoverHype,
+    franchiseStrategy: 'balanced',
   };
 
   manager.activeProjects.push(sequel);
@@ -296,6 +311,153 @@ export function startSequelForManager(
     success: true,
     message: `Sequel greenlit: ${sequel.title}. Development opened for $${Math.round(eligibility.upfrontCost / 1000)}K.`,
     projectId: sequel.id,
+  };
+}
+
+function strategyOpeningBonus(strategy: FranchiseStrategy): number {
+  if (strategy === 'safe') return 0.08;
+  if (strategy === 'reinvention') return -0.05;
+  return 0;
+}
+
+function strategyCriticalBonus(strategy: FranchiseStrategy): number {
+  if (strategy === 'safe') return -2;
+  if (strategy === 'reinvention') return 4;
+  return 0;
+}
+
+function strategyAudienceBonus(strategy: FranchiseStrategy): number {
+  if (strategy === 'safe') return 5;
+  if (strategy === 'reinvention') return -2;
+  return 0;
+}
+
+export function getFranchiseProjectionModifiersForManager(
+  manager: any,
+  project: MovieProject
+): FranchiseProjectionModifiers {
+  const strategy = project.franchiseStrategy ?? (project.franchiseId ? 'balanced' : 'none');
+  if (!project.franchiseId) {
+    return {
+      momentum: 50,
+      fatigue: 0,
+      strategy: 'none',
+      returningDirector: false,
+      returningCastCount: 0,
+      openingMultiplier: 1,
+      criticalDelta: 0,
+      audienceDelta: 0,
+    };
+  }
+
+  const franchise = manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId);
+  const momentum = franchise?.momentum ?? 50;
+  const fatigue = franchise?.fatigue ?? 8;
+  const predecessor = project.sequelToProjectId
+    ? manager.activeProjects.find((item: MovieProject) => item.id === project.sequelToProjectId)
+    : null;
+
+  const returningDirector =
+    !!(project.directorId && predecessor?.directorId && project.directorId === predecessor.directorId);
+  const returningCastCount = predecessor
+    ? project.castIds.filter((idValue: string) => predecessor.castIds.includes(idValue)).length
+    : 0;
+
+  const openingMultiplier = clamp(
+    1 +
+      (momentum - 50) * 0.006 +
+      -fatigue * 0.0045 +
+      strategyOpeningBonus(strategy) +
+      (returningDirector ? 0.06 : 0) +
+      Math.min(2, returningCastCount) * 0.03,
+    0.62,
+    1.45
+  );
+  const criticalDelta = clamp(
+    (momentum - 50) * 0.08 +
+      -fatigue * 0.06 +
+      strategyCriticalBonus(strategy) +
+      (returningDirector ? 1.5 : 0) +
+      Math.min(2, returningCastCount) * 0.7,
+    -16,
+    18
+  );
+  const audienceDelta = clamp(
+    (momentum - 50) * 0.09 +
+      -fatigue * 0.07 +
+      strategyAudienceBonus(strategy) +
+      (returningDirector ? 2 : 0) +
+      Math.min(2, returningCastCount) * 1,
+    -20,
+    20
+  );
+
+  return {
+    momentum,
+    fatigue,
+    strategy,
+    returningDirector,
+    returningCastCount,
+    openingMultiplier,
+    criticalDelta,
+    audienceDelta,
+  };
+}
+
+export function setFranchiseStrategyForManager(
+  manager: any,
+  projectId: string,
+  strategy: Exclude<FranchiseStrategy, 'none'>
+): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId);
+  if (!project) return { success: false, message: 'Project not found.' };
+  if (!project.franchiseId || !project.franchiseEpisode || project.franchiseEpisode <= 1) {
+    return { success: false, message: 'Franchise strategy only applies to sequel projects.' };
+  }
+  if (project.phase !== 'development' && project.phase !== 'preProduction') {
+    return { success: false, message: 'Franchise strategy can only be set during development or pre-production.' };
+  }
+
+  const currentStrategy = project.franchiseStrategy ?? 'balanced';
+  if (currentStrategy === strategy) {
+    return { success: true, message: `${project.title} is already set to ${strategy}.` };
+  }
+  if (currentStrategy !== 'balanced') {
+    return {
+      success: false,
+      message: `Franchise strategy is locked after first commitment (${currentStrategy}).`,
+    };
+  }
+
+  const cost = FRANCHISE_STRATEGY_COST[strategy];
+  if (cost > 0 && manager.cash < cost) {
+    return { success: false, message: `Insufficient cash to set ${strategy} strategy (${Math.round(cost / 1000)}K needed).` };
+  }
+  if (cost > 0) {
+    manager.adjustCash(-cost);
+  }
+
+  if (strategy === 'safe') {
+    project.commercialAppeal = clamp(project.commercialAppeal + 6, 0, 100);
+    project.originality = clamp(project.originality - 4, 0, 100);
+    project.hypeScore = clamp(project.hypeScore + 3, 0, 100);
+    project.controversy = clamp(project.controversy - 2, 0, 100);
+  } else if (strategy === 'reinvention') {
+    project.scriptQuality = clamp(project.scriptQuality + 0.4, 0, 10);
+    project.originality = clamp(project.originality + 10, 0, 100);
+    project.prestige = clamp(project.prestige + 6, 0, 100);
+    project.commercialAppeal = clamp(project.commercialAppeal - 4, 0, 100);
+    project.controversy = clamp(project.controversy + 3, 0, 100);
+  }
+
+  project.franchiseStrategy = strategy;
+  manager.evaluateBankruptcy?.();
+  return {
+    success: true,
+    message:
+      strategy === 'safe'
+        ? `Set ${project.title} to Safe Continuation. Familiar beats prioritized.`
+        : `Set ${project.title} to Reinvention. Risky creative reset greenlit.`,
   };
 }
 

@@ -33,6 +33,8 @@ interface GameContextValue {
   runScriptSprint: (projectId: string) => void;
   runPostPolishPass: (projectId: string) => void;
   abandonProject: (projectId: string) => void;
+  startSequel: (projectId: string) => void;
+  setFranchiseStrategy: (projectId: string, strategy: 'safe' | 'balanced' | 'reinvention') => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -244,6 +246,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       abandonProject: (projectId: string) => {
         runWhenHydrated(() => {
           const result = manager.abandonProject(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      startSequel: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.startSequel(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      setFranchiseStrategy: (projectId: string, strategy: 'safe' | 'balanced' | 'reinvention') => {
+        runWhenHydrated(() => {
+          const result = manager.setFranchiseStrategy(projectId, strategy);
           saveAndTick(result.message);
         });
       },

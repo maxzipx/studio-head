@@ -136,6 +136,7 @@ export function createSeedProjects(): MovieProject[] {
       franchiseEpisode: null,
       sequelToProjectId: null,
       franchiseCarryoverHype: 0,
+      franchiseStrategy: 'none',
     },
     {
       id: createId('project'),
@@ -188,6 +189,7 @@ export function createSeedProjects(): MovieProject[] {
       franchiseEpisode: null,
       sequelToProjectId: null,
       franchiseCarryoverHype: 0,
+      franchiseStrategy: 'none',
     },
   ];
 }

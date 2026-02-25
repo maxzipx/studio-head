@@ -144,6 +144,19 @@ export interface SequelCandidate extends SequelEligibility {
   genre: MovieGenre;
 }
 
+export type FranchiseStrategy = 'none' | 'safe' | 'balanced' | 'reinvention';
+
+export interface FranchiseProjectionModifiers {
+  momentum: number;
+  fatigue: number;
+  strategy: FranchiseStrategy;
+  returningDirector: boolean;
+  returningCastCount: number;
+  openingMultiplier: number;
+  criticalDelta: number;
+  audienceDelta: number;
+}
+
 export interface CrisisOption {
   id: string;
   label: string;
@@ -281,6 +294,7 @@ export interface MovieProject {
   franchiseEpisode: number | null;
   sequelToProjectId: string | null;
   franchiseCarryoverHype: number;
+  franchiseStrategy: FranchiseStrategy;
 }
 
 export interface PlayerNegotiation {
@@ -429,4 +443,24 @@ export interface AwardsSeasonRecord {
   showName: string;
   results: AwardsProjectResult[];
   headline: string;
+}
+
+export type ChronicleEntryType =
+  | 'filmRelease'
+  | 'arcResolution'
+  | 'tierAdvance'
+  | 'awardsOutcome'
+  | 'festivalOutcome'
+  | 'crisisResolved';
+
+export type ChronicleEntryImpact = 'positive' | 'negative' | 'neutral';
+
+export interface ChronicleEntry {
+  id: string;
+  week: number;
+  type: ChronicleEntryType;
+  headline: string;
+  detail?: string;
+  projectTitle?: string;
+  impact: ChronicleEntryImpact;
 }

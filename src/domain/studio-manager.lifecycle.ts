@@ -81,9 +81,11 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
     }
     const projection = manager.getProjectedForProject(project.id);
     if (!projection) return { success: false, message: 'Projection unavailable.' };
+    const franchiseModifiers = manager.getFranchiseProjectionModifiers?.(project.id);
+    const audienceDelta = franchiseModifiers?.audienceDelta ?? 0;
     project.phase = 'released';
     project.criticalScore = projection.critical;
-    project.audienceScore = clamp(projection.critical + 4, 0, 100);
+    project.audienceScore = clamp(projection.critical + 4 + audienceDelta, 0, 100);
     project.openingWeekendGross = projection.openingHigh;
     project.weeklyGrossHistory = [projection.openingHigh];
     project.finalBoxOffice = projection.openingHigh;

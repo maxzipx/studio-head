@@ -102,6 +102,7 @@ describe('persistence restore', () => {
     delete firstProject.franchiseEpisode;
     delete firstProject.sequelToProjectId;
     delete firstProject.franchiseCarryoverHype;
+    delete firstProject.franchiseStrategy;
     snapshot.genreCycles = 'bad-data' as unknown as Record<string, unknown>;
     snapshot.franchises = 'bad-data' as unknown as never[];
     snapshot.awardsHistory = 'bad-data' as unknown as never[];
@@ -118,6 +119,7 @@ describe('persistence restore', () => {
     expect(restored.activeProjects[0].franchiseEpisode).toBeNull();
     expect(restored.activeProjects[0].sequelToProjectId).toBeNull();
     expect(restored.activeProjects[0].franchiseCarryoverHype).toBe(0);
+    expect(restored.activeProjects[0].franchiseStrategy).toBe('none');
     expect(Array.isArray(restored.franchises)).toBe(true);
     expect(typeof restored.genreCycles.action.demand).toBe('number');
     expect(Array.isArray(restored.awardsHistory)).toBe(true);

@@ -36,6 +36,17 @@ const ARC_LABELS: Record<string, string> = {
   'franchise-pivot': 'Universe Gamble',
   'leak-piracy': 'Leak Fallout',
   'talent-meltdown': 'Volatile Star Cycle',
+  'streaming-pivot': 'Streaming Crossroads',
+  'passion-project': "The Director's Vision",
+};
+
+const CHRONICLE_ICONS: Record<string, string> = {
+  filmRelease: '🎬',
+  arcResolution: '⭐',
+  tierAdvance: '📈',
+  awardsOutcome: '🏆',
+  festivalOutcome: '🎪',
+  crisisResolved: '🔧',
 };
 
 function stanceLabel(value: string): string {
@@ -51,6 +62,7 @@ export default function HQScreen() {
   const reveal = manager.getNextReleaseReveal();
   const leaderboard = manager.getIndustryHeatLeaderboard();
   const news = manager.industryNewsLog.slice(0, 6);
+  const chronicle = manager.studioChronicle.slice(0, 8);
   const readyToAdvance = manager.canEndWeek ? 'Ready' : 'Blocked';
   const isGameOver = manager.isBankrupt;
   const hasLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
@@ -342,6 +354,38 @@ export default function HQScreen() {
             {Math.round(entry.momentum * 1000) / 10}% momentum)
           </Text>
         ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Studio Chronicle</Text>
+        {chronicle.length === 0 ? (
+          <Text style={styles.mutedBody}>No defining moments yet.</Text>
+        ) : (
+          chronicle.map((entry) => (
+            <View key={entry.id} style={styles.chronicleEntry}>
+              <Text style={styles.chronicleWeekLabel}>
+                W{entry.week} {CHRONICLE_ICONS[entry.type] ?? '·'}
+              </Text>
+              <View style={styles.chronicleTextBlock}>
+                <Text
+                  style={[
+                    styles.chronicleHeadline,
+                    entry.impact === 'positive'
+                      ? styles.positiveText
+                      : entry.impact === 'negative'
+                        ? styles.negativeText
+                        : null,
+                  ]}
+                >
+                  {entry.headline}
+                </Text>
+                {entry.detail ? (
+                  <Text style={styles.chronicleDetail}>{entry.detail}</Text>
+                ) : null}
+              </View>
+            </View>
+          ))
+        )}
       </View>
 
       <View style={styles.card}>
@@ -732,5 +776,38 @@ const styles = StyleSheet.create({
     color: tokens.textMuted,
     fontSize: 12,
     fontWeight: '600',
+  },
+  chronicleEntry: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
+  chronicleWeekLabel: {
+    color: tokens.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    minWidth: 44,
+    paddingTop: 1,
+  },
+  chronicleTextBlock: {
+    flex: 1,
+  },
+  chronicleHeadline: {
+    color: tokens.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  chronicleDetail: {
+    color: tokens.textMuted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  positiveText: {
+    color: tokens.accentTeal,
+  },
+  negativeText: {
+    color: tokens.accentRed,
   },
 });
