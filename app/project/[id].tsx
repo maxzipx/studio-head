@@ -48,7 +48,20 @@ function advanceBlockers(project: {
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const projectId = resolveParam(id);
-  const { manager, lastMessage, advancePhase, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, runMarketingPush, runScriptSprint, runPostPolishPass, abandonProject } = useGame();
+  const {
+    manager,
+    lastMessage,
+    advancePhase,
+    setReleaseWeek,
+    acceptOffer,
+    counterOffer,
+    walkAwayOffer,
+    runMarketingPush,
+    runFestivalSubmission,
+    runScriptSprint,
+    runPostPolishPass,
+    abandonProject,
+  } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
 
@@ -79,6 +92,13 @@ export default function ProjectDetailScreen() {
   const offers = manager.getOffersForProject(project.id);
   const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
   const canPush = project.phase !== 'released' && manager.cash >= 180_000;
+  const genreDemand = manager.getGenreDemandMultiplier(project.genre);
+  const canFestivalSubmit =
+    (project.phase === 'postProduction' || project.phase === 'distribution') &&
+    project.festivalStatus !== 'submitted' &&
+    project.festivalStatus !== 'selected' &&
+    project.festivalStatus !== 'buzzed' &&
+    manager.cash >= 140_000;
   const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
   const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
 
@@ -96,6 +116,7 @@ export default function ProjectDetailScreen() {
         <Text style={styles.body}>
           Hype {project.hypeScore.toFixed(0)} | Script {project.scriptQuality.toFixed(1)}{project.phase === 'development' ? ' (min 6.0 to greenlight)' : ''} | Concept {project.conceptStrength.toFixed(1)} (drives critic score)
         </Text>
+        <Text style={styles.body}>Genre market demand: {genreDemand >= 1 ? '+' : ''}{Math.round((genreDemand - 1) * 100)}%</Text>
         <Text style={styles.body}>Editorial score: {project.editorialScore.toFixed(1)} / 10</Text>
         {project.scheduledWeeksRemaining > 0 ? (
           <Text style={styles.body}>Weeks remaining in phase: {project.scheduledWeeksRemaining}</Text>
@@ -150,6 +171,7 @@ export default function ProjectDetailScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Projection - what if release slips?</Text>
         <Text style={styles.body}>Scenario week: {projectionWeek}</Text>
+        <Text style={styles.body}>Genre cycle modifier: {genreDemand.toFixed(2)}x</Text>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value - 1)}>
             <Text style={styles.buttonText}>-1w</Text>
@@ -193,6 +215,24 @@ export default function ProjectDetailScreen() {
             disabled={!canPolishPass}
             onPress={() => runPostPolishPass(project.id)}>
             <Text style={styles.buttonText}>Polish Pass $120K (+2 editorial, max 9, 2 uses)</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {(project.phase === 'postProduction' || project.phase === 'distribution' || project.phase === 'released') ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Festival Circuit</Text>
+          <Text style={styles.body}>Status: {project.festivalStatus}</Text>
+          <Text style={styles.body}>Target: {project.festivalTarget ?? 'None'}</Text>
+          <Text style={styles.body}>Buzz: {project.festivalBuzz.toFixed(0)}</Text>
+          {project.festivalStatus === 'submitted' && project.festivalResolutionWeek ? (
+            <Text style={styles.muted}>Decision expected around week {project.festivalResolutionWeek}</Text>
+          ) : null}
+          <Pressable
+            style={[styles.button, !canFestivalSubmit ? styles.buttonDisabled : null]}
+            disabled={!canFestivalSubmit}
+            onPress={() => runFestivalSubmission(project.id)}>
+            <Text style={styles.buttonText}>Submit Festival Cut $140K</Text>
           </Pressable>
         </View>
       ) : null}
@@ -277,6 +317,7 @@ export default function ProjectDetailScreen() {
           <Text style={styles.body}>Current gross: {money(project.finalBoxOffice ?? 0)}</Text>
           <Text style={styles.body}>Critics: {project.criticalScore?.toFixed(0) ?? '--'}</Text>
           <Text style={styles.body}>Audience: {project.audienceScore?.toFixed(0) ?? '--'}</Text>
+          <Text style={styles.body}>Awards: {project.awardsNominations} nomination(s), {project.awardsWins} win(s)</Text>
           <Text style={styles.body}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
         </View>
       ) : null}

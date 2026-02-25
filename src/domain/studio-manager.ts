@@ -2,6 +2,7 @@ import {
   ACTION_BALANCE,
   AWARDS_RULES,
   BANKRUPTCY_RULES,
+  FESTIVAL_RULES,
   MEMORY_RULES,
   PROJECT_BALANCE,
   SESSION_RULES,
@@ -86,6 +87,7 @@ import type {
   DecisionItem,
   DistributionOffer,
   EventTemplate,
+  GenreCycleState,
   IndustryNewsItem,
   MovieGenre,
   MovieProject,
@@ -114,6 +116,21 @@ function phaseBurnMultiplier(phase: MovieProject['phase']): number {
 
 function initialBudgetForGenre(genre: MovieGenre): number {
   return PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[genre];
+}
+
+const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
+
+function createInitialGenreCycles(): Record<MovieGenre, GenreCycleState> {
+  return {
+    action: { demand: 1.02, momentum: 0.004 },
+    drama: { demand: 0.98, momentum: 0.002 },
+    comedy: { demand: 1, momentum: 0.001 },
+    horror: { demand: 1.04, momentum: 0.003 },
+    thriller: { demand: 1.01, momentum: 0.002 },
+    sciFi: { demand: 1.03, momentum: 0.003 },
+    animation: { demand: 0.99, momentum: 0.001 },
+    documentary: { demand: 0.95, momentum: 0.001 },
+  };
 }
 
 const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
@@ -185,6 +202,7 @@ export class StudioManager {
   lastWeekSummary: WeekSummary | null = null;
   awardsHistory: AwardsSeasonRecord[] = [];
   awardsSeasonsProcessed: number[] = [];
+  genreCycles: Record<MovieGenre, GenreCycleState> = createInitialGenreCycles();
 
   get studioHeat(): number {
     return Math.round(
@@ -389,6 +407,18 @@ export class StudioManager {
     return { success: true, message: `Studio renamed to ${sanitized}.` };
   }
 
+  getGenreDemandMultiplier(genre: MovieGenre): number {
+    return this.genreCycles[genre]?.demand ?? 1;
+  }
+
+  getGenreCycleSnapshot(): { genre: MovieGenre; demand: number; momentum: number }[] {
+    return MOVIE_GENRES.map((genre) => ({
+      genre,
+      demand: this.getGenreDemandMultiplier(genre),
+      momentum: this.genreCycles[genre]?.momentum ?? 0,
+    })).sort((a, b) => b.demand - a.demand);
+  }
+
   getAvailableTalentForRole(role: TalentRole): Talent[] {
     return this.talentPool.filter((talent) => talent.role === role && talent.availability === 'available');
   }
@@ -451,6 +481,7 @@ export class StudioManager {
       starPower: bestLead?.starPower ?? 5.5,
       marketingBudget: budget * 0.12,
       totalBudget: budget,
+      seasonalMultiplier: this.getGenreDemandMultiplier(script.genre),
     });
     const expectedROI = projectedROI({
       openingWeekend: opening.midpoint,
@@ -572,6 +603,37 @@ export class StudioManager {
     };
   }
 
+  runFestivalSubmission(projectId: string): { success: boolean; message: string } {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return { success: false, message: 'Project not found.' };
+    if (project.phase !== 'postProduction' && project.phase !== 'distribution') {
+      return { success: false, message: 'Festival submissions are only available in post-production or distribution.' };
+    }
+    if (project.festivalStatus === 'submitted' && project.festivalResolutionWeek && this.currentWeek < project.festivalResolutionWeek) {
+      return { success: false, message: `${project.title} already has a pending festival submission.` };
+    }
+    if (project.festivalStatus === 'selected' || project.festivalStatus === 'buzzed') {
+      return { success: false, message: `${project.title} already has a completed festival run.` };
+    }
+    if (this.cash < FESTIVAL_RULES.SUBMISSION_COST) {
+      return { success: false, message: `Insufficient cash for festival submission ($${Math.round(FESTIVAL_RULES.SUBMISSION_COST / 1000)}K needed).` };
+    }
+
+    const targetFestival = this.pickFestivalTarget(project);
+    this.adjustCash(-FESTIVAL_RULES.SUBMISSION_COST);
+    project.festivalStatus = 'submitted';
+    project.festivalTarget = targetFestival;
+    project.festivalSubmissionWeek = this.currentWeek;
+    project.festivalResolutionWeek = this.currentWeek + FESTIVAL_RULES.RESOLUTION_WEEKS;
+    project.hypeScore = clamp(project.hypeScore + 1, 0, 100);
+    this.evaluateBankruptcy();
+
+    return {
+      success: true,
+      message: `${project.title} submitted to ${targetFestival}. Results expected around week ${project.festivalResolutionWeek}.`,
+    };
+  }
+
   abandonProject(projectId: string): { success: boolean; message: string } {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return { success: false, message: 'Project not found.' };
@@ -660,6 +722,11 @@ export class StudioManager {
       audienceScore: null,
       awardsNominations: 0,
       awardsWins: 0,
+      festivalStatus: 'none',
+      festivalTarget: null,
+      festivalSubmissionWeek: null,
+      festivalResolutionWeek: null,
+      festivalBuzz: 0,
       prestige: clamp(
         Math.round(pitch.scriptQuality * 7 + (pitch.genre === 'drama' || pitch.genre === 'documentary' ? 18 : 0)),
         0, 100
@@ -787,6 +854,8 @@ export class StudioManager {
     }
 
     this.applyHypeDecay();
+    this.tickGenreCycles(events);
+    this.resolveFestivalCircuit(events);
     this.updateTalentAvailability();
     this.tickDecisionExpiry(events);
     this.tickScriptMarketExpiry(events);
@@ -910,6 +979,7 @@ export class StudioManager {
       starPower: lead?.starPower ?? 5.5,
       marketingBudget: project.marketingBudget,
       totalBudget: project.budget.ceiling,
+      seasonalMultiplier: this.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
     const openingLow = opening.low * pressure;
@@ -1114,11 +1184,19 @@ export class StudioManager {
 
     const awardsArc = this.storyArcs['awards-circuit'];
     const baseCampaignBoost = this.hasStoryFlag('awards_campaign') ? 8 : 0;
-    const baseFestivalBoost = this.hasStoryFlag('festival_selected') ? 4 : 0;
+    const baselineFestivalBoost = this.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
 
     const results = eligibleProjects.map((project) => {
+      const projectFestivalBoost =
+        project.festivalStatus === 'buzzed'
+          ? 8 + project.festivalBuzz * 0.08
+          : project.festivalStatus === 'selected'
+            ? 4 + project.festivalBuzz * 0.05
+            : project.festivalStatus === 'snubbed'
+              ? -2
+              : baselineFestivalBoost;
       const score = awardsSeasonScore({
         criticalScore: project.criticalScore ?? 50,
         scriptQuality: project.scriptQuality,
@@ -1126,7 +1204,7 @@ export class StudioManager {
         prestige: project.prestige,
         controversy: project.controversy,
         campaignBoost: baseCampaignBoost + arcBoost,
-        festivalBoost: baseFestivalBoost,
+        festivalBoost: projectFestivalBoost,
         studioCriticsReputation: this.reputation.critics,
       });
       const nominationProbability = awardsNominationProbability(score);
@@ -1208,6 +1286,101 @@ export class StudioManager {
     events.push(
       `${headline} Reputation: Critics ${Math.round(criticsDelta) >= 0 ? '+' : ''}${Math.round(criticsDelta)}, Talent ${Math.round(talentDelta) >= 0 ? '+' : ''}${Math.round(talentDelta)}.`
     );
+  }
+
+  private tickGenreCycles(events: string[]): void {
+    for (const genre of MOVIE_GENRES) {
+      const state = this.genreCycles[genre] ?? { demand: 1, momentum: 0 };
+      const drift = (this.eventRng() - 0.5) * 0.014;
+      state.demand = clamp(state.demand + state.momentum + drift, 0.72, 1.35);
+      state.momentum = clamp(state.momentum * 0.88 + (this.eventRng() - 0.5) * 0.008, -0.05, 0.05);
+      this.genreCycles[genre] = state;
+    }
+
+    if (this.currentWeek % 9 === 0) {
+      const genre = MOVIE_GENRES[Math.floor(this.eventRng() * MOVIE_GENRES.length)];
+      const momentumShift = (this.eventRng() > 0.5 ? 1 : -1) * (0.01 + this.eventRng() * 0.015);
+      this.genreCycles[genre].momentum = clamp(this.genreCycles[genre].momentum + momentumShift, -0.05, 0.05);
+    }
+
+    if (this.currentWeek % 12 === 0) {
+      const snapshot = this.getGenreCycleSnapshot();
+      const hottest = snapshot[0];
+      const coolest = snapshot[snapshot.length - 1];
+      if (hottest && coolest && hottest.genre !== coolest.genre) {
+        events.push(
+          `Genre cycle shift: ${hottest.genre} heating (${Math.round((hottest.demand - 1) * 100)}%), ${coolest.genre} cooling (${Math.round((coolest.demand - 1) * 100)}%).`
+        );
+      }
+    }
+  }
+
+  private resolveFestivalCircuit(events: string[]): void {
+    for (const project of this.activeProjects) {
+      if (project.festivalStatus !== 'submitted') continue;
+      if (!project.festivalResolutionWeek || this.currentWeek < project.festivalResolutionWeek) continue;
+
+      const projection = this.getProjectedForProject(project.id);
+      const criticalAnchor = project.criticalScore ?? projection?.critical ?? 55;
+      const cycleBoost = (this.getGenreDemandMultiplier(project.genre) - 1) * 12;
+      const score = clamp(
+        criticalAnchor * 0.48 +
+          project.scriptQuality * 2.8 +
+          project.prestige * 0.2 +
+          project.originality * 0.18 +
+          project.festivalBuzz * 0.12 +
+          cycleBoost -
+          project.controversy * 0.15,
+        0,
+        100
+      );
+      const selectionChance = clamp(0.16 + score / 132, 0.08, 0.9);
+      const selected = this.eventRng() <= selectionChance;
+
+      if (selected) {
+        const buzzChance = clamp(0.15 + score / 170, 0.05, 0.78);
+        const buzzed = this.eventRng() <= buzzChance;
+        const nextStatus: MovieProject['festivalStatus'] = buzzed ? 'buzzed' : 'selected';
+        const buzzGain = buzzed ? 12 + Math.round(this.eventRng() * 6) : 6 + Math.round(this.eventRng() * 4);
+        project.festivalStatus = nextStatus;
+        project.festivalBuzz = clamp(project.festivalBuzz + buzzGain, 0, FESTIVAL_RULES.MAX_BUZZ);
+        project.hypeScore = clamp(project.hypeScore + (buzzed ? 6 : 3), 0, 100);
+        this.adjustReputation(buzzed ? 4 : 2, 'critics');
+        this.adjustReputation(buzzed ? 2 : 1, 'audience');
+        this.storyFlags.festival_selected = (this.storyFlags.festival_selected ?? 0) + 1;
+        if (buzzed) {
+          this.storyFlags.awards_campaign = (this.storyFlags.awards_campaign ?? 0) + 1;
+        }
+        const prestigeRival = this.rivals.find((rival) => rival.personality === 'prestigeHunter');
+        if (prestigeRival) {
+          this.recordRivalInteraction(prestigeRival, {
+            kind: 'prestigePressure',
+            hostilityDelta: buzzed ? 3 : 2,
+            respectDelta: 2,
+            note: `${project.title} generated ${buzzed ? 'major' : 'solid'} festival traction at ${project.festivalTarget ?? 'festival circuit'}.`,
+            projectId: project.id,
+          });
+        }
+        events.push(
+          `${project.title} ${buzzed ? 'broke out' : 'landed'} at ${project.festivalTarget ?? 'festival circuit'} (${nextStatus}). Critics ${buzzed ? '+4' : '+2'}.`
+        );
+      } else {
+        project.festivalStatus = 'snubbed';
+        project.festivalBuzz = Math.max(0, project.festivalBuzz - 2);
+        project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
+        this.adjustReputation(-1, 'critics');
+        events.push(`${project.title} was passed over at ${project.festivalTarget ?? 'festival circuit'}. Critics -1.`);
+      }
+
+      project.festivalResolutionWeek = null;
+    }
+  }
+
+  private pickFestivalTarget(project: MovieProject): string {
+    const prestigeBias = project.prestige + project.scriptQuality * 4 + project.originality * 0.18;
+    if (prestigeBias >= 78) return 'Cannes';
+    if (project.genre === 'documentary' || project.genre === 'drama') return 'Sundance';
+    return 'Toronto';
   }
 
   private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {

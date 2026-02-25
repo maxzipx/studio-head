@@ -93,6 +93,12 @@ describe('persistence restore', () => {
     const firstProject = (snapshot.activeProjects as Record<string, unknown>[])[0];
     delete firstProject.awardsNominations;
     delete firstProject.awardsWins;
+    delete firstProject.festivalStatus;
+    delete firstProject.festivalTarget;
+    delete firstProject.festivalSubmissionWeek;
+    delete firstProject.festivalResolutionWeek;
+    delete firstProject.festivalBuzz;
+    snapshot.genreCycles = 'bad-data' as unknown as Record<string, unknown>;
     snapshot.awardsHistory = 'bad-data' as unknown as never[];
     snapshot.awardsSeasonsProcessed = 'bad-data' as unknown as number[];
 
@@ -101,6 +107,9 @@ describe('persistence restore', () => {
     expect(restored.rivals[0].memory.interactionHistory).toEqual([]);
     expect(restored.activeProjects[0].awardsNominations).toBe(0);
     expect(restored.activeProjects[0].awardsWins).toBe(0);
+    expect(restored.activeProjects[0].festivalStatus).toBe('none');
+    expect(restored.activeProjects[0].festivalBuzz).toBe(0);
+    expect(typeof restored.genreCycles.action.demand).toBe('number');
     expect(Array.isArray(restored.awardsHistory)).toBe(true);
     expect(Array.isArray(restored.awardsSeasonsProcessed)).toBe(true);
   });

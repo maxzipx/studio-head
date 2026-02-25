@@ -47,7 +47,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 31,
               "phase": "production",
-              "projectedROI": 1.944,
+              "projectedROI": 1.965,
               "spend": 9860000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -56,7 +56,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 16,
               "phase": "development",
-              "projectedROI": 2.048,
+              "projectedROI": 2.008,
               "spend": 560000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -74,7 +74,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 29,
               "phase": "production",
-              "projectedROI": 1.908,
+              "projectedROI": 1.928,
               "spend": 10220000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -83,7 +83,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 14,
               "phase": "development",
-              "projectedROI": 2.003,
+              "projectedROI": 1.963,
               "spend": 620000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -101,7 +101,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 27,
               "phase": "production",
-              "projectedROI": 1.872,
+              "projectedROI": 1.889,
               "spend": 10580000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -110,7 +110,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 12,
               "phase": "development",
-              "projectedROI": 1.958,
+              "projectedROI": 1.917,
               "spend": 680000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -128,7 +128,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 25,
               "phase": "production",
-              "projectedROI": 1.837,
+              "projectedROI": 1.849,
               "spend": 10940000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -137,7 +137,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 10,
               "phase": "development",
-              "projectedROI": 1.914,
+              "projectedROI": 1.869,
               "spend": 740000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -177,7 +177,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 31,
               "phase": "production",
-              "projectedROI": 1.861,
+              "projectedROI": 1.881,
               "spend": 10310000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -186,7 +186,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 16,
               "phase": "development",
-              "projectedROI": 2.048,
+              "projectedROI": 2.008,
               "spend": 560000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -204,7 +204,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 29,
               "phase": "production",
-              "projectedROI": 1.828,
+              "projectedROI": 1.847,
               "spend": 11120000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -213,7 +213,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 14,
               "phase": "development",
-              "projectedROI": 2.003,
+              "projectedROI": 1.963,
               "spend": 620000,
               "status": "onTrack",
               "title": "Blue Ember",
@@ -231,7 +231,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 27,
               "phase": "production",
-              "projectedROI": 1.795,
+              "projectedROI": 1.811,
               "spend": 11930000,
               "status": "onTrack",
               "title": "Night Ledger",
@@ -240,7 +240,7 @@ describe('weekly outcome snapshots', () => {
             {
               "hype": 12,
               "phase": "development",
-              "projectedROI": 1.958,
+              "projectedROI": 1.917,
               "spend": 680000,
               "status": "onTrack",
               "title": "Blue Ember",

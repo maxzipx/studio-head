@@ -1121,6 +1121,45 @@ describe('StudioManager', () => {
     expect(project.releaseWeek).toBe(originalWeek);
   });
 
+  it('applies genre cycle demand multiplier to projections', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 1 });
+    const project = manager.activeProjects[0];
+    project.releaseWeek = manager.currentWeek + 4;
+
+    manager.genreCycles[project.genre].demand = 1.25;
+    const hotProjection = manager.getProjectedForProject(project.id);
+    manager.genreCycles[project.genre].demand = 0.8;
+    const coolProjection = manager.getProjectedForProject(project.id);
+
+    expect(hotProjection).toBeTruthy();
+    expect(coolProjection).toBeTruthy();
+    expect((hotProjection?.openingHigh ?? 0)).toBeGreaterThan(coolProjection?.openingHigh ?? 0);
+  });
+
+  it('submits to festival circuit and resolves into prestige outcomes', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1, negotiationRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development') ?? manager.activeProjects[0];
+    project.phase = 'postProduction';
+    project.prestige = 84;
+    project.scriptQuality = 8.5;
+    project.originality = 80;
+    project.controversy = 4;
+    const criticsBefore = manager.reputation.critics;
+
+    const submit = manager.runFestivalSubmission(project.id);
+    expect(submit.success).toBe(true);
+    expect(project.festivalStatus).toBe('submitted');
+    expect(project.festivalResolutionWeek).toBe(manager.currentWeek + 2);
+
+    manager.endWeek();
+    manager.endWeek();
+    manager.endWeek();
+
+    expect(['selected', 'buzzed']).toContain(project.festivalStatus);
+    expect(project.festivalBuzz).toBeGreaterThan(0);
+    expect(manager.reputation.critics).toBeGreaterThan(criticsBefore);
+  });
+
   it('applies rival personality pressure to matching arc families', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.5 });
     manager.rivals = [

@@ -77,3 +77,9 @@ export const AWARDS_RULES = {
   AWARDS_WEEK_IN_SEASON: 52,
   ELIGIBILITY_WINDOW_WEEKS: 52,
 } as const;
+
+export const FESTIVAL_RULES = {
+  SUBMISSION_COST: 140_000,
+  RESOLUTION_WEEKS: 2,
+  MAX_BUZZ: 100,
+} as const;

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { MEMORY_RULES, STUDIO_STARTING } from '../domain/balance-constants';
 import { StudioManager } from '../domain/studio-manager';
+import type { MovieGenre } from '../domain/types';
 
 const SAVE_KEY = 'pg.save.v1';
 const SAVE_VERSION = 1;
@@ -72,6 +73,16 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     if (!Number.isFinite(project.awardsWins)) project.awardsWins = 0;
     project.awardsNominations = Math.max(0, Math.round(project.awardsNominations));
     project.awardsWins = Math.max(0, Math.round(project.awardsWins));
+    if (!['none', 'submitted', 'selected', 'buzzed', 'snubbed'].includes(project.festivalStatus)) {
+      project.festivalStatus = 'none';
+    }
+    if (typeof project.festivalTarget !== 'string' && project.festivalTarget !== null) {
+      project.festivalTarget = null;
+    }
+    if (!Number.isFinite(project.festivalSubmissionWeek)) project.festivalSubmissionWeek = null;
+    if (!Number.isFinite(project.festivalResolutionWeek)) project.festivalResolutionWeek = null;
+    if (!Number.isFinite(project.festivalBuzz)) project.festivalBuzz = 0;
+    project.festivalBuzz = Math.min(100, Math.max(0, Math.round(project.festivalBuzz)));
   }
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
   for (const talent of manager.talentPool) {
@@ -144,6 +155,21 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     }
   }
   if (!Array.isArray(manager.industryNewsLog)) manager.industryNewsLog = [];
+  if (!isRecord(manager.genreCycles)) manager.genreCycles = defaults.genreCycles;
+  for (const genre of Object.keys(defaults.genreCycles) as MovieGenre[]) {
+    const defaultState = defaults.genreCycles[genre];
+    const raw = (manager.genreCycles as Record<string, unknown>)[genre];
+    if (!isRecord(raw)) {
+      manager.genreCycles[genre] = { ...defaultState };
+      continue;
+    }
+    const demand = Number.isFinite(raw.demand) ? Number(raw.demand) : defaultState.demand;
+    const momentum = Number.isFinite(raw.momentum) ? Number(raw.momentum) : defaultState.momentum;
+    manager.genreCycles[genre] = {
+      demand: Math.min(1.35, Math.max(0.72, demand)),
+      momentum: Math.min(0.05, Math.max(-0.05, momentum)),
+    };
+  }
   if (!Array.isArray(manager.awardsHistory)) manager.awardsHistory = [];
   manager.awardsHistory = manager.awardsHistory
     .filter((entry) => isRecord(entry) && Array.isArray(entry.results))

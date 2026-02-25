@@ -72,6 +72,9 @@ export default function HQScreen() {
     return manager.currentWeek + (AWARDS_RULES.SEASON_LENGTH_WEEKS - offset);
   })();
   const lastAwards = manager.awardsHistory[0];
+  const genreSnapshot = manager.getGenreCycleSnapshot();
+  const hotGenres = genreSnapshot.slice(0, 3);
+  const coolGenres = [...genreSnapshot].slice(-2).reverse();
   const rivalRelations = [...manager.rivals]
     .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
     .slice(0, 4);
@@ -321,6 +324,24 @@ export default function HQScreen() {
         ) : (
           <Text style={styles.mutedBody}>No awards seasons have resolved yet.</Text>
         )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Genre Cycles</Text>
+        <Text style={styles.bodyStrong}>Heating</Text>
+        {hotGenres.map((entry) => (
+          <Text key={`hot-${entry.genre}`} style={styles.mutedBody}>
+            {entry.genre}: {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}
+            {Math.round(entry.momentum * 1000) / 10}% momentum)
+          </Text>
+        ))}
+        <Text style={styles.bodyStrong}>Cooling</Text>
+        {coolGenres.map((entry) => (
+          <Text key={`cool-${entry.genre}`} style={styles.mutedBody}>
+            {entry.genre}: {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}
+            {Math.round(entry.momentum * 1000) / 10}% momentum)
+          </Text>
+        ))}
       </View>
 
       <View style={styles.card}>

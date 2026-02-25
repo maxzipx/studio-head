@@ -16,6 +16,8 @@ export type ProjectPhase =
   | 'distribution'
   | 'released';
 
+export type FestivalStatus = 'none' | 'submitted' | 'selected' | 'buzzed' | 'snubbed';
+
 export type ReleaseWindow =
   | 'wideTheatrical'
   | 'limitedTheatrical'
@@ -236,6 +238,11 @@ export interface MovieProject {
   audienceScore: number | null;
   awardsNominations: number;
   awardsWins: number;
+  festivalStatus: FestivalStatus;
+  festivalTarget: string | null;
+  festivalSubmissionWeek: number | null;
+  festivalResolutionWeek: number | null;
+  festivalBuzz: number;
   prestige: number;
   commercialAppeal: number;
   originality: number;
@@ -367,6 +374,11 @@ export interface StoryArcState {
   stage: number;
   status: 'active' | 'resolved' | 'failed';
   lastUpdatedWeek: number;
+}
+
+export interface GenreCycleState {
+  demand: number;
+  momentum: number;
 }
 
 export interface AwardsProjectResult {
