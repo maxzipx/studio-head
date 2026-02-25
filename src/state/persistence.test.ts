@@ -126,6 +126,30 @@ describe('persistence restore', () => {
     expect(Array.isArray(restored.awardsSeasonsProcessed)).toBe(true);
   });
 
+  it('backfills new franchise ops fields on legacy franchise entries', () => {
+    const manager = new StudioManager();
+    const baseProject = manager.activeProjects[0];
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 2;
+    baseProject.criticalScore = 74;
+    baseProject.audienceScore = 76;
+    manager.startSequel(baseProject.id);
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const firstFranchise = (snapshot.franchises as Record<string, unknown>[])[0];
+    delete firstFranchise.cadenceBufferWeeks;
+    delete firstFranchise.brandResetCount;
+    delete firstFranchise.legacyCastingCampaignCount;
+    delete firstFranchise.hiatusPlanCount;
+
+    const restored = restoreStudioManager(snapshot);
+    expect(restored.franchises[0].cadenceBufferWeeks).toBe(0);
+    expect(restored.franchises[0].brandResetCount).toBe(0);
+    expect(restored.franchises[0].legacyCastingCampaignCount).toBe(0);
+    expect(restored.franchises[0].hiatusPlanCount).toBe(0);
+  });
+
   it('sanitizes malformed genre shock fields on restore', () => {
     const manager = new StudioManager();
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;

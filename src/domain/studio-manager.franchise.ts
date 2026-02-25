@@ -1,6 +1,7 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import { createId } from './id';
 import type {
+  FranchiseStatusSnapshot,
   FranchiseProjectionModifiers,
   FranchiseStrategy,
   FranchiseTrack,
@@ -77,10 +78,78 @@ const FRANCHISE_STRATEGY_COST: Record<Exclude<FranchiseStrategy, 'none'>, number
   reinvention: 220_000,
 };
 
+const FRANCHISE_OPS_BALANCE = {
+  BRAND_RESET_BASE_COST: 150_000,
+  BRAND_RESET_STEP_COST: 40_000,
+  LEGACY_CASTING_BASE_COST: 130_000,
+  LEGACY_CASTING_STEP_COST: 35_000,
+  HIATUS_PLAN_BASE_COST: 90_000,
+  HIATUS_PLAN_STEP_COST: 20_000,
+} as const;
+
+const FRANCHISE_FLAG_LABELS: Record<string, string> = {
+  franchise_rights: 'Sequel Rights Secured',
+  franchise_room: 'Universe Room Active',
+  franchise_committed: 'Franchise-Committed Studio',
+  franchise_legacy_reviewed: 'Legacy Audit Complete',
+  franchise_original_director: 'Original Director Reattached',
+  franchise_fatigue_warning: 'Fatigue Warning Active',
+  franchise_spinoff_active: 'Spinoff In Development',
+  legacy_anchor_retired: 'Legacy Anchor Retired',
+  franchise_merch_deal: 'Exclusive Merchandise Deal',
+  franchise_global_campaign: 'Global Roadshow Campaign',
+  franchise_brand_reset: 'Brand Reset Program Active',
+  franchise_legacy_campaign: 'Legacy Casting Campaign Active',
+  franchise_hiatus_plan: 'Hiatus Planning Active',
+};
+
+function nextBrandResetCost(count: number): number {
+  return FRANCHISE_OPS_BALANCE.BRAND_RESET_BASE_COST + Math.max(0, count) * FRANCHISE_OPS_BALANCE.BRAND_RESET_STEP_COST;
+}
+
+function nextLegacyCastingCost(count: number): number {
+  return FRANCHISE_OPS_BALANCE.LEGACY_CASTING_BASE_COST + Math.max(0, count) * FRANCHISE_OPS_BALANCE.LEGACY_CASTING_STEP_COST;
+}
+
+function nextHiatusPlanCost(count: number): number {
+  return FRANCHISE_OPS_BALANCE.HIATUS_PLAN_BASE_COST + Math.max(0, count) * FRANCHISE_OPS_BALANCE.HIATUS_PLAN_STEP_COST;
+}
+
+function cadencePressureFromGap(
+  lastReleaseWeek: number | null,
+  projectedReleaseWeek: number,
+  cadenceBufferWeeks: number
+): { effectiveGapWeeks: number; cadencePressure: number } {
+  if (!lastReleaseWeek || projectedReleaseWeek <= lastReleaseWeek) {
+    const effectiveGapWeeks = 26 + cadenceBufferWeeks;
+    return { effectiveGapWeeks, cadencePressure: 0 };
+  }
+  const rawGapWeeks = projectedReleaseWeek - lastReleaseWeek;
+  const effectiveGapWeeks = Math.max(1, rawGapWeeks + cadenceBufferWeeks);
+  const cadencePressure = clamp((22 - effectiveGapWeeks) / 14, 0, 1.6);
+  return { effectiveGapWeeks, cadencePressure };
+}
+
+function episodePressure(episode: number): number {
+  const depth = Math.max(0, episode - 2);
+  return clamp(depth * 0.42 + Math.max(0, depth - 1) * 0.5, 0, 2.6);
+}
+
+function getProjectFranchiseTrack(manager: any, project: MovieProject): FranchiseTrack | null {
+  if (!project.franchiseId) return null;
+  return manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId) ?? null;
+}
+
 function ensureFranchiseForBase(manager: any, baseProject: MovieProject): FranchiseTrack {
   if (baseProject.franchiseId) {
     const existing = manager.franchises.find((item: FranchiseTrack) => item.id === baseProject.franchiseId);
-    if (existing) return existing;
+    if (existing) {
+      existing.cadenceBufferWeeks = clamp(existing.cadenceBufferWeeks ?? 0, 0, 40);
+      existing.brandResetCount = Math.max(0, Math.round(existing.brandResetCount ?? 0));
+      existing.legacyCastingCampaignCount = Math.max(0, Math.round(existing.legacyCastingCampaignCount ?? 0));
+      existing.hiatusPlanCount = Math.max(0, Math.round(existing.hiatusPlanCount ?? 0));
+      return existing;
+    }
   }
 
   const initialMomentum = deriveMomentum(baseProject, 8);
@@ -96,6 +165,10 @@ function ensureFranchiseForBase(manager: any, baseProject: MovieProject): Franch
     momentum: initialMomentum,
     fatigue: initialFatigue,
     lastReleaseWeek: baseProject.releaseWeek ?? manager.currentWeek,
+    cadenceBufferWeeks: 0,
+    brandResetCount: 0,
+    legacyCastingCampaignCount: 0,
+    hiatusPlanCount: 0,
   };
   baseProject.franchiseId = franchise.id;
   baseProject.franchiseEpisode = baseProject.franchiseEpisode ?? 1;
@@ -229,6 +302,11 @@ export function startSequelForManager(
     : null;
   if (!franchise) {
     franchise = ensureFranchiseForBase(manager, baseProject);
+  } else {
+    franchise.cadenceBufferWeeks = clamp(franchise.cadenceBufferWeeks ?? 0, 0, 40);
+    franchise.brandResetCount = Math.max(0, Math.round(franchise.brandResetCount ?? 0));
+    franchise.legacyCastingCampaignCount = Math.max(0, Math.round(franchise.legacyCastingCampaignCount ?? 0));
+    franchise.hiatusPlanCount = Math.max(0, Math.round(franchise.hiatusPlanCount ?? 0));
   }
 
   const sequelNumber = eligibility.nextEpisode;
@@ -334,25 +412,40 @@ function strategyAudienceBonus(strategy: FranchiseStrategy): number {
 
 export function getFranchiseProjectionModifiersForManager(
   manager: any,
-  project: MovieProject
+  project: MovieProject,
+  projectedReleaseWeek?: number
 ): FranchiseProjectionModifiers {
   const strategy = project.franchiseStrategy ?? (project.franchiseId ? 'balanced' : 'none');
+  const episode = Math.max(1, project.franchiseEpisode ?? 1);
   if (!project.franchiseId) {
     return {
       momentum: 50,
       fatigue: 0,
       strategy: 'none',
+      episode,
+      effectiveGapWeeks: 26,
+      cadencePressure: 0,
+      structuralPressure: 0,
       returningDirector: false,
       returningCastCount: 0,
       openingMultiplier: 1,
+      roiMultiplier: 1,
+      openingPenaltyPct: 0,
+      roiPenaltyPct: 0,
       criticalDelta: 0,
       audienceDelta: 0,
     };
   }
 
-  const franchise = manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId);
+  const franchise = getProjectFranchiseTrack(manager, project);
   const momentum = franchise?.momentum ?? 50;
   const fatigue = franchise?.fatigue ?? 8;
+  const cadenceBufferWeeks = clamp(Math.round(franchise?.cadenceBufferWeeks ?? 0), 0, 40);
+  const releaseWeek = Math.max(manager.currentWeek + 1, Math.round(projectedReleaseWeek ?? project.releaseWeek ?? manager.currentWeek + 4));
+  const cadence = cadencePressureFromGap(franchise?.lastReleaseWeek ?? null, releaseWeek, cadenceBufferWeeks);
+  const structuralPressure = clamp(episodePressure(episode) + cadence.cadencePressure, 0, 4.2);
+  const openingPenaltyPct = clamp(structuralPressure * 0.08, 0, 0.34);
+  const roiPenaltyPct = clamp(structuralPressure * 0.1, 0, 0.4);
   const predecessor = project.sequelToProjectId
     ? manager.activeProjects.find((item: MovieProject) => item.id === project.sequelToProjectId)
     : null;
@@ -369,16 +462,19 @@ export function getFranchiseProjectionModifiersForManager(
       -fatigue * 0.0045 +
       strategyOpeningBonus(strategy) +
       (returningDirector ? 0.06 : 0) +
-      Math.min(2, returningCastCount) * 0.03,
+      Math.min(2, returningCastCount) * 0.03 -
+      openingPenaltyPct,
     0.62,
     1.45
   );
+  const roiMultiplier = clamp(1 - roiPenaltyPct, 0.6, 1.12);
   const criticalDelta = clamp(
     (momentum - 50) * 0.08 +
       -fatigue * 0.06 +
       strategyCriticalBonus(strategy) +
       (returningDirector ? 1.5 : 0) +
-      Math.min(2, returningCastCount) * 0.7,
+      Math.min(2, returningCastCount) * 0.7 +
+      -structuralPressure * 1.4,
     -16,
     18
   );
@@ -387,7 +483,8 @@ export function getFranchiseProjectionModifiersForManager(
       -fatigue * 0.07 +
       strategyAudienceBonus(strategy) +
       (returningDirector ? 2 : 0) +
-      Math.min(2, returningCastCount) * 1,
+      Math.min(2, returningCastCount) * 1 +
+      -structuralPressure * 2.3,
     -20,
     20
   );
@@ -396,9 +493,16 @@ export function getFranchiseProjectionModifiersForManager(
     momentum,
     fatigue,
     strategy,
+    episode,
+    effectiveGapWeeks: cadence.effectiveGapWeeks,
+    cadencePressure: cadence.cadencePressure,
+    structuralPressure,
     returningDirector,
     returningCastCount,
     openingMultiplier,
+    roiMultiplier,
+    openingPenaltyPct,
+    roiPenaltyPct,
     criticalDelta,
     audienceDelta,
   };
@@ -461,6 +565,163 @@ export function setFranchiseStrategyForManager(
   };
 }
 
+export function runFranchiseBrandResetForManager(
+  manager: any,
+  projectId: string
+): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
+  if (!project) return { success: false, message: 'Project not found.' };
+  if (!project.franchiseId || (project.franchiseEpisode ?? 0) <= 1) {
+    return { success: false, message: 'Brand reset is available for sequel entries only.' };
+  }
+  if (project.phase !== 'development' && project.phase !== 'preProduction') {
+    return { success: false, message: 'Brand reset is only available in development or pre-production.' };
+  }
+
+  const franchise = getProjectFranchiseTrack(manager, project);
+  if (!franchise) return { success: false, message: 'Franchise record not found.' };
+
+  const priorCount = Math.max(0, franchise.brandResetCount ?? 0);
+  const cost = nextBrandResetCost(priorCount);
+  if (manager.cash < cost) {
+    return { success: false, message: `Insufficient cash for brand reset (${Math.round(cost / 1000)}K needed).` };
+  }
+
+  const fatigueRelief = clamp(10 - priorCount * 2, 4, 10);
+  const momentumTradeoff = clamp(2 + priorCount, 2, 6);
+
+  manager.adjustCash(-cost);
+  franchise.fatigue = clamp(franchise.fatigue - fatigueRelief, 0, 92);
+  franchise.momentum = clamp(franchise.momentum - momentumTradeoff, 8, 95);
+  franchise.brandResetCount = priorCount + 1;
+  project.scriptQuality = clamp(project.scriptQuality + 0.2, 0, 10);
+  project.originality = clamp(project.originality + 4, 0, 100);
+  project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
+  manager.storyFlags.franchise_brand_reset = (manager.storyFlags.franchise_brand_reset ?? 0) + 1;
+  manager.evaluateBankruptcy?.();
+
+  return {
+    success: true,
+    message: `Brand reset executed on ${franchise.name}. Fatigue -${fatigueRelief.toFixed(0)}, momentum -${momentumTradeoff.toFixed(0)}.`,
+  };
+}
+
+export function runFranchiseLegacyCastingCampaignForManager(
+  manager: any,
+  projectId: string
+): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
+  if (!project) return { success: false, message: 'Project not found.' };
+  if (!project.franchiseId || (project.franchiseEpisode ?? 0) <= 1) {
+    return { success: false, message: 'Legacy casting campaign is available for sequel entries only.' };
+  }
+  if (project.phase === 'released') {
+    return { success: false, message: 'Legacy casting campaign is unavailable after release.' };
+  }
+
+  const franchise = getProjectFranchiseTrack(manager, project);
+  if (!franchise) return { success: false, message: 'Franchise record not found.' };
+
+  const priorCount = Math.max(0, franchise.legacyCastingCampaignCount ?? 0);
+  const cost = nextLegacyCastingCost(priorCount);
+  if (manager.cash < cost) {
+    return { success: false, message: `Insufficient cash for legacy campaign (${Math.round(cost / 1000)}K needed).` };
+  }
+
+  const hypeBoost = clamp(5 - priorCount, 2, 5);
+  const momentumBoost = clamp(3 - priorCount, 1, 3);
+  const fatigueLift = clamp(2 + Math.floor(priorCount / 2), 2, 4);
+
+  manager.adjustCash(-cost);
+  franchise.momentum = clamp(franchise.momentum + momentumBoost, 8, 95);
+  franchise.fatigue = clamp(franchise.fatigue + fatigueLift, 0, 92);
+  franchise.legacyCastingCampaignCount = priorCount + 1;
+  project.hypeScore = clamp(project.hypeScore + hypeBoost, 0, 100);
+  project.commercialAppeal = clamp(project.commercialAppeal + 3, 0, 100);
+  project.originality = clamp(project.originality - 2, 0, 100);
+  manager.storyFlags.franchise_legacy_campaign = (manager.storyFlags.franchise_legacy_campaign ?? 0) + 1;
+  manager.evaluateBankruptcy?.();
+
+  return {
+    success: true,
+    message: `Legacy casting campaign launched for ${franchise.name}. Hype +${hypeBoost.toFixed(0)}, fatigue +${fatigueLift.toFixed(0)}.`,
+  };
+}
+
+export function runFranchiseHiatusPlanningForManager(
+  manager: any,
+  projectId: string
+): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
+  if (!project) return { success: false, message: 'Project not found.' };
+  if (!project.franchiseId || (project.franchiseEpisode ?? 0) <= 1) {
+    return { success: false, message: 'Hiatus planning is available for sequel entries only.' };
+  }
+  if (project.phase === 'production' || project.phase === 'released') {
+    return { success: false, message: 'Hiatus planning is only available before production lock or during distribution planning.' };
+  }
+
+  const franchise = getProjectFranchiseTrack(manager, project);
+  if (!franchise) return { success: false, message: 'Franchise record not found.' };
+
+  const priorCount = Math.max(0, franchise.hiatusPlanCount ?? 0);
+  const cost = nextHiatusPlanCost(priorCount);
+  if (manager.cash < cost) {
+    return { success: false, message: `Insufficient cash for hiatus plan (${Math.round(cost / 1000)}K needed).` };
+  }
+
+  const bufferGain = clamp(10 - priorCount * 2, 4, 10);
+  const momentumTradeoff = clamp(2 + Math.floor(priorCount / 2), 2, 5);
+  const fatigueRelief = clamp(3 - Math.floor(priorCount / 2), 1, 3);
+
+  manager.adjustCash(-cost);
+  franchise.cadenceBufferWeeks = clamp((franchise.cadenceBufferWeeks ?? 0) + bufferGain, 0, 40);
+  franchise.momentum = clamp(franchise.momentum - momentumTradeoff, 8, 95);
+  franchise.fatigue = clamp(franchise.fatigue - fatigueRelief, 0, 92);
+  franchise.hiatusPlanCount = priorCount + 1;
+  project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
+  manager.storyFlags.franchise_hiatus_plan = (manager.storyFlags.franchise_hiatus_plan ?? 0) + 1;
+  manager.evaluateBankruptcy?.();
+
+  return {
+    success: true,
+    message: `Hiatus plan logged for ${franchise.name}. Cadence buffer +${bufferGain.toFixed(0)}w.`,
+  };
+}
+
+export function getFranchiseStatusForManager(manager: any, projectId: string): FranchiseStatusSnapshot | null {
+  const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
+  if (!project?.franchiseId) return null;
+  const franchise = getProjectFranchiseTrack(manager, project);
+  if (!franchise) return null;
+
+  const projectedReleaseWeek = Math.max(manager.currentWeek + 1, Math.round(project.releaseWeek ?? manager.currentWeek + 4));
+  const modifiers = getFranchiseProjectionModifiersForManager(manager, project, projectedReleaseWeek);
+  const activeFlags = Object.entries(FRANCHISE_FLAG_LABELS)
+    .filter(([flag]) => (manager.storyFlags?.[flag] ?? 0) > 0)
+    .map(([, label]) => label);
+
+  return {
+    franchiseId: franchise.id,
+    franchiseName: franchise.name,
+    episode: Math.max(1, project.franchiseEpisode ?? 1),
+    releasedEntries: Math.max(1, franchise.releasedProjectIds.length),
+    momentum: franchise.momentum,
+    fatigue: franchise.fatigue,
+    lastReleaseWeek: franchise.lastReleaseWeek,
+    projectedReleaseWeek,
+    cadenceBufferWeeks: franchise.cadenceBufferWeeks ?? 0,
+    brandResetCount: franchise.brandResetCount ?? 0,
+    legacyCastingCampaignCount: franchise.legacyCastingCampaignCount ?? 0,
+    hiatusPlanCount: franchise.hiatusPlanCount ?? 0,
+    activeFlags,
+    modifiers,
+    nextBrandResetCost: nextBrandResetCost(franchise.brandResetCount ?? 0),
+    nextLegacyCastingCampaignCost: nextLegacyCastingCost(franchise.legacyCastingCampaignCount ?? 0),
+    nextHiatusPlanCost: nextHiatusPlanCost(franchise.hiatusPlanCount ?? 0),
+  };
+}
+
 export function markFranchiseReleaseForManager(manager: any, projectId: string): void {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
   if (!project?.franchiseId) return;
@@ -470,16 +731,31 @@ export function markFranchiseReleaseForManager(manager: any, projectId: string):
   franchise.projectIds = Array.from(new Set([...franchise.projectIds, project.id]));
   franchise.releasedProjectIds = Array.from(new Set([...franchise.releasedProjectIds, project.id]));
   franchise.activeProjectId = franchise.activeProjectId === project.id ? null : franchise.activeProjectId;
+  const cadenceSnapshot = cadencePressureFromGap(franchise.lastReleaseWeek, manager.currentWeek, franchise.cadenceBufferWeeks ?? 0);
+  const episode = Math.max(1, project.franchiseEpisode ?? 1);
+  const structuralPressure = clamp(episodePressure(episode) + cadenceSnapshot.cadencePressure, 0, 4.2);
   franchise.lastReleaseWeek = manager.currentWeek;
 
   const audience = project.audienceScore ?? 50;
   const critics = project.criticalScore ?? 50;
-  franchise.momentum = clamp(Math.round((franchise.momentum * 0.4 + audience * 0.42 + critics * 0.18) * 10) / 10, 8, 95);
+  franchise.momentum = clamp(
+    Math.round((franchise.momentum * 0.4 + audience * 0.42 + critics * 0.18 - structuralPressure * 1.6) * 10) / 10,
+    8,
+    95
+  );
   franchise.fatigue = clamp(
-    Math.round((franchise.fatigue * 0.68 + 9 + Math.max(0, 60 - audience) * 0.25 + project.controversy * 0.08) * 10) / 10,
+    Math.round(
+      (franchise.fatigue * 0.68 +
+        9 +
+        Math.max(0, 60 - audience) * 0.25 +
+        project.controversy * 0.08 +
+        structuralPressure * 5.5) *
+        10
+    ) / 10,
     0,
     92
   );
+  franchise.cadenceBufferWeeks = clamp(Math.round((franchise.cadenceBufferWeeks ?? 0) * 0.45), 0, 40);
 }
 
 export function removeProjectFromFranchiseForManager(manager: any, projectId: string): void {

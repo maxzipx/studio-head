@@ -123,6 +123,10 @@ export interface FranchiseTrack {
   momentum: number;
   fatigue: number;
   lastReleaseWeek: number | null;
+  cadenceBufferWeeks: number;
+  brandResetCount: number;
+  legacyCastingCampaignCount: number;
+  hiatusPlanCount: number;
 }
 
 export interface SequelEligibility {
@@ -148,11 +152,38 @@ export interface FranchiseProjectionModifiers {
   momentum: number;
   fatigue: number;
   strategy: FranchiseStrategy;
+  episode: number;
+  effectiveGapWeeks: number;
+  cadencePressure: number;
+  structuralPressure: number;
   returningDirector: boolean;
   returningCastCount: number;
   openingMultiplier: number;
+  roiMultiplier: number;
+  openingPenaltyPct: number;
+  roiPenaltyPct: number;
   criticalDelta: number;
   audienceDelta: number;
+}
+
+export interface FranchiseStatusSnapshot {
+  franchiseId: string;
+  franchiseName: string;
+  episode: number;
+  releasedEntries: number;
+  momentum: number;
+  fatigue: number;
+  lastReleaseWeek: number | null;
+  projectedReleaseWeek: number;
+  cadenceBufferWeeks: number;
+  brandResetCount: number;
+  legacyCastingCampaignCount: number;
+  hiatusPlanCount: number;
+  activeFlags: string[];
+  modifiers: FranchiseProjectionModifiers;
+  nextBrandResetCost: number;
+  nextLegacyCastingCampaignCost: number;
+  nextHiatusPlanCost: number;
 }
 
 export interface CrisisOption {

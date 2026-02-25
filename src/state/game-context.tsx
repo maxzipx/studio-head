@@ -35,6 +35,9 @@ interface GameContextValue {
   abandonProject: (projectId: string) => void;
   startSequel: (projectId: string) => void;
   setFranchiseStrategy: (projectId: string, strategy: 'safe' | 'balanced' | 'reinvention') => void;
+  runFranchiseBrandReset: (projectId: string) => void;
+  runFranchiseLegacyCastingCampaign: (projectId: string) => void;
+  runFranchiseHiatusPlanning: (projectId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -258,6 +261,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setFranchiseStrategy: (projectId: string, strategy: 'safe' | 'balanced' | 'reinvention') => {
         runWhenHydrated(() => {
           const result = manager.setFranchiseStrategy(projectId, strategy);
+          saveAndTick(result.message);
+        });
+      },
+      runFranchiseBrandReset: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runFranchiseBrandReset(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runFranchiseLegacyCastingCampaign: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runFranchiseLegacyCastingCampaign(projectId);
+          saveAndTick(result.message);
+        });
+      },
+      runFranchiseHiatusPlanning: (projectId: string) => {
+        runWhenHydrated(() => {
+          const result = manager.runFranchiseHiatusPlanning(projectId);
           saveAndTick(result.message);
         });
       },

@@ -70,6 +70,9 @@ export default function ProjectDetailScreen() {
     abandonProject,
     startSequel,
     setFranchiseStrategy,
+    runFranchiseBrandReset,
+    runFranchiseLegacyCastingCampaign,
+    runFranchiseHiatusPlanning,
   } = useGame();
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
@@ -111,12 +114,26 @@ export default function ProjectDetailScreen() {
   const canScriptSprint = project.phase === 'development' && manager.cash >= 100_000 && project.scriptQuality < 8.5;
   const canPolishPass = project.phase === 'postProduction' && manager.cash >= 120_000 && project.editorialScore < 9 && (project.postPolishPasses ?? 0) < 2;
   const franchiseModifiers = manager.getFranchiseProjectionModifiers(project.id);
+  const franchiseStatus = manager.getFranchiseStatus(project.id);
   const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
   const isSequelProject = !!project.franchiseId && (project.franchiseEpisode ?? 0) > 1;
   const canSetStrategy =
     isSequelProject &&
     (project.phase === 'development' || project.phase === 'preProduction') &&
     project.franchiseStrategy === 'balanced';
+  const canBrandReset =
+    !!franchiseStatus &&
+    isSequelProject &&
+    manager.cash >= franchiseStatus.nextBrandResetCost &&
+    (project.phase === 'development' || project.phase === 'preProduction');
+  const canLegacyCampaign =
+    !!franchiseStatus && isSequelProject && project.phase !== 'released' && manager.cash >= franchiseStatus.nextLegacyCastingCampaignCost;
+  const canHiatusPlan =
+    !!franchiseStatus &&
+    isSequelProject &&
+    project.phase !== 'production' &&
+    project.phase !== 'released' &&
+    manager.cash >= franchiseStatus.nextHiatusPlanCost;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -141,9 +158,9 @@ export default function ProjectDetailScreen() {
 
       {project.franchiseId ? (
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Franchise Profile</Text>
+          <Text style={styles.sectionLabel}>Franchise Status</Text>
           <Text style={styles.body}>
-            Episode {project.franchiseEpisode ?? 1} | Strategy: {franchiseStrategyLabel(project.franchiseStrategy)}
+            {franchiseStatus?.franchiseName ?? project.title} | Episode {project.franchiseEpisode ?? 1} | Strategy: {franchiseStrategyLabel(project.franchiseStrategy)}
           </Text>
           {franchiseModifiers ? (
             <>
@@ -155,11 +172,59 @@ export default function ProjectDetailScreen() {
                 {franchiseModifiers.criticalDelta.toFixed(1)} | Audience delta {franchiseModifiers.audienceDelta >= 0 ? '+' : ''}
                 {franchiseModifiers.audienceDelta.toFixed(1)}
               </Text>
+              <Text style={styles.body}>
+                Structural penalties (episode + cadence): Opening -{Math.round(franchiseModifiers.openingPenaltyPct * 100)}% | ROI -
+                {Math.round(franchiseModifiers.roiPenaltyPct * 100)}%
+              </Text>
+              <Text style={styles.body}>
+                Cadence gap {Math.round(franchiseModifiers.effectiveGapWeeks)}w
+                {franchiseStatus ? ` (buffer +${Math.round(franchiseStatus.cadenceBufferWeeks)}w)` : ''} | Pressure{' '}
+                {franchiseModifiers.cadencePressure.toFixed(2)}
+              </Text>
               <Text style={styles.muted}>
                 Carryover package: Director {franchiseModifiers.returningDirector ? 'returning' : 'new'} | Shared cast {franchiseModifiers.returningCastCount}
               </Text>
+              {franchiseStatus ? (
+                <>
+                  <Text style={styles.muted}>
+                    Ops usage: Brand resets {franchiseStatus.brandResetCount} | Legacy campaigns {franchiseStatus.legacyCastingCampaignCount} | Hiatus plans{' '}
+                    {franchiseStatus.hiatusPlanCount}
+                  </Text>
+                  <Text style={styles.muted}>
+                    Active flags:{' '}
+                    {franchiseStatus.activeFlags.length > 0 ? franchiseStatus.activeFlags.join(', ') : 'None currently active'}
+                  </Text>
+                </>
+              ) : null}
             </>
           ) : null}
+        </View>
+      ) : null}
+
+      {isSequelProject && franchiseStatus ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Franchise Ops</Text>
+          <Text style={styles.muted}>Repeatable actions with escalating costs and explicit tradeoffs.</Text>
+          <Pressable
+            style={[styles.button, !canBrandReset ? styles.buttonDisabled : null]}
+            disabled={!canBrandReset}
+            onPress={() => runFranchiseBrandReset(project.id)}>
+            <Text style={styles.buttonText}>Brand Reset {money(franchiseStatus.nextBrandResetCost)} (fatigue relief, momentum tradeoff)</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.button, !canLegacyCampaign ? styles.buttonDisabled : null]}
+            disabled={!canLegacyCampaign}
+            onPress={() => runFranchiseLegacyCastingCampaign(project.id)}>
+            <Text style={styles.buttonText}>
+              Legacy Casting Campaign {money(franchiseStatus.nextLegacyCastingCampaignCost)} (hype/momentum up, fatigue/originality cost)
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.button, !canHiatusPlan ? styles.buttonDisabled : null]}
+            disabled={!canHiatusPlan}
+            onPress={() => runFranchiseHiatusPlanning(project.id)}>
+            <Text style={styles.buttonText}>Hiatus Planning {money(franchiseStatus.nextHiatusPlanCost)} (adds cadence buffer, short-term hype hit)</Text>
+          </Pressable>
         </View>
       ) : null}
 

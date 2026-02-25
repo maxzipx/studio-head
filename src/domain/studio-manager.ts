@@ -75,11 +75,15 @@ import {
   tickRivalHeatForManager,
 } from './studio-manager.rivals';
 import {
+  getFranchiseStatusForManager,
   getFranchiseProjectionModifiersForManager,
   getSequelCandidatesForManager,
   getSequelEligibilityForManager,
   markFranchiseReleaseForManager,
   removeProjectFromFranchiseForManager,
+  runFranchiseBrandResetForManager,
+  runFranchiseHiatusPlanningForManager,
+  runFranchiseLegacyCastingCampaignForManager,
   setFranchiseStrategyForManager,
   startSequelForManager,
 } from './studio-manager.franchise';
@@ -103,6 +107,7 @@ import type {
   FranchiseTrack,
   FranchiseProjectionModifiers,
   FranchiseStrategy,
+  FranchiseStatusSnapshot,
   GenreCycleState,
   IndustryNewsItem,
   MovieGenre,
@@ -893,7 +898,23 @@ export class StudioManager {
   getFranchiseProjectionModifiers(projectId: string): FranchiseProjectionModifiers | null {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return null;
-    return getFranchiseProjectionModifiersForManager(this, project);
+    return getFranchiseProjectionModifiersForManager(this, project, project.releaseWeek ?? this.currentWeek + 4);
+  }
+
+  getFranchiseStatus(projectId: string): FranchiseStatusSnapshot | null {
+    return getFranchiseStatusForManager(this, projectId);
+  }
+
+  runFranchiseBrandReset(projectId: string): { success: boolean; message: string } {
+    return runFranchiseBrandResetForManager(this, projectId);
+  }
+
+  runFranchiseLegacyCastingCampaign(projectId: string): { success: boolean; message: string } {
+    return runFranchiseLegacyCastingCampaignForManager(this, projectId);
+  }
+
+  runFranchiseHiatusPlanning(projectId: string): { success: boolean; message: string } {
+    return runFranchiseHiatusPlanningForManager(this, projectId);
   }
 
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
@@ -1208,7 +1229,7 @@ export class StudioManager {
   } {
     const director = this.talentPool.find((item) => item.id === project.directorId);
     const lead = this.talentPool.find((item) => project.castIds.includes(item.id) && item.role === 'leadActor');
-    const franchiseModifiers = getFranchiseProjectionModifiersForManager(this, project);
+    const franchiseModifiers = getFranchiseProjectionModifiersForManager(this, project, releaseWeek);
     const baseCritical = projectedCriticalScore({
       scriptQuality: project.scriptQuality,
       directorCraft: director?.craftScore ?? 6,
@@ -1236,13 +1257,14 @@ export class StudioManager {
     const openingMid = opening.midpoint * combinedOpeningMultiplier;
     const audienceProjection = clamp(critical + 4 + franchiseModifiers.audienceDelta, 0, 100);
 
-    const roi = projectedROI({
+    const roiBase = projectedROI({
       openingWeekend: openingMid,
       criticalScore: critical,
       audienceScore: audienceProjection,
       genre: project.genre,
       totalCost: project.budget.ceiling + project.marketingBudget,
     });
+    const roi = clamp(roiBase * franchiseModifiers.roiMultiplier, 0.4, 4.5);
 
     return { critical, openingLow, openingHigh, roi };
   }

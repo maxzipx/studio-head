@@ -291,6 +291,79 @@ describe('StudioManager', () => {
     expect(result.message).toContain('sequel');
   });
 
+  it('scales franchise penalties by episode depth and release cadence', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects[0];
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 2;
+    baseProject.criticalScore = 78;
+    baseProject.audienceScore = 82;
+    baseProject.projectedROI = 1.75;
+
+    const sequelStart = manager.startSequel(baseProject.id);
+    expect(sequelStart.success).toBe(true);
+    const sequel = manager.activeProjects.find((project) => project.id === sequelStart.projectId);
+    expect(sequel).toBeTruthy();
+
+    sequel!.releaseWeek = manager.currentWeek + 30;
+    const baseline = manager.getFranchiseProjectionModifiers(sequel!.id);
+    expect(baseline).toBeTruthy();
+
+    sequel!.franchiseEpisode = 4;
+    sequel!.releaseWeek = manager.currentWeek + 6;
+    const pressured = manager.getFranchiseProjectionModifiers(sequel!.id);
+    expect(pressured).toBeTruthy();
+    expect((pressured?.openingPenaltyPct ?? 0)).toBeGreaterThan((baseline?.openingPenaltyPct ?? 0));
+    expect((pressured?.roiPenaltyPct ?? 0)).toBeGreaterThan((baseline?.roiPenaltyPct ?? 0));
+    expect((pressured?.openingMultiplier ?? 1)).toBeLessThan(baseline?.openingMultiplier ?? 1);
+    expect((pressured?.roiMultiplier ?? 1)).toBeLessThan(baseline?.roiMultiplier ?? 1);
+    expect((pressured?.cadencePressure ?? 0)).toBeGreaterThanOrEqual(baseline?.cadencePressure ?? 0);
+  });
+
+  it('runs repeatable franchise ops actions and exposes status with active flags', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const baseProject = manager.activeProjects[0];
+    baseProject.phase = 'released';
+    baseProject.releaseResolved = true;
+    baseProject.releaseWeek = manager.currentWeek - 2;
+    baseProject.criticalScore = 74;
+    baseProject.audienceScore = 77;
+    baseProject.projectedROI = 1.45;
+    manager.cash = 5_000_000;
+
+    const sequelStart = manager.startSequel(baseProject.id);
+    expect(sequelStart.success).toBe(true);
+    const sequel = manager.activeProjects.find((project) => project.id === sequelStart.projectId);
+    expect(sequel).toBeTruthy();
+    sequel!.phase = 'development';
+
+    const statusBefore = manager.getFranchiseStatus(sequel!.id);
+    expect(statusBefore).toBeTruthy();
+    expect(statusBefore?.nextBrandResetCost).toBe(150_000);
+
+    const reset = manager.runFranchiseBrandReset(sequel!.id);
+    expect(reset.success).toBe(true);
+    const afterReset = manager.getFranchiseStatus(sequel!.id);
+    expect(afterReset?.brandResetCount).toBe(1);
+    expect(afterReset?.nextBrandResetCost).toBe(190_000);
+
+    const campaign = manager.runFranchiseLegacyCastingCampaign(sequel!.id);
+    expect(campaign.success).toBe(true);
+    const afterCampaign = manager.getFranchiseStatus(sequel!.id);
+    expect(afterCampaign?.legacyCastingCampaignCount).toBe(1);
+    expect(afterCampaign?.nextLegacyCastingCampaignCost).toBe(165_000);
+
+    sequel!.releaseWeek = manager.currentWeek + 5;
+    const beforeHiatus = manager.getFranchiseStatus(sequel!.id);
+    const hiatus = manager.runFranchiseHiatusPlanning(sequel!.id);
+    expect(hiatus.success).toBe(true);
+    const afterHiatus = manager.getFranchiseStatus(sequel!.id);
+    expect((afterHiatus?.cadenceBufferWeeks ?? 0)).toBeGreaterThan(beforeHiatus?.cadenceBufferWeeks ?? 0);
+    expect((afterHiatus?.modifiers.cadencePressure ?? 0)).toBeLessThanOrEqual(beforeHiatus?.modifiers.cadencePressure ?? 0);
+    expect(afterHiatus?.activeFlags.some((flag) => flag.includes('Hiatus Planning'))).toBe(true);
+  });
+
   it('attaches available talent through negotiation', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

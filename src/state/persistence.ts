@@ -128,6 +128,14 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       momentum: Number.isFinite(entry.momentum) ? Math.min(100, Math.max(0, Number(entry.momentum))) : 40,
       fatigue: Number.isFinite(entry.fatigue) ? Math.min(100, Math.max(0, Number(entry.fatigue))) : 10,
       lastReleaseWeek: Number.isFinite(entry.lastReleaseWeek) ? Math.max(1, Math.round(entry.lastReleaseWeek as number)) : null,
+      cadenceBufferWeeks: Number.isFinite(entry.cadenceBufferWeeks)
+        ? Math.min(40, Math.max(0, Math.round(entry.cadenceBufferWeeks as number)))
+        : 0,
+      brandResetCount: Number.isFinite(entry.brandResetCount) ? Math.max(0, Math.round(entry.brandResetCount as number)) : 0,
+      legacyCastingCampaignCount: Number.isFinite(entry.legacyCastingCampaignCount)
+        ? Math.max(0, Math.round(entry.legacyCastingCampaignCount as number))
+        : 0,
+      hiatusPlanCount: Number.isFinite(entry.hiatusPlanCount) ? Math.max(0, Math.round(entry.hiatusPlanCount as number)) : 0,
     }))
     .filter((franchise) => franchise.projectIds.length > 0);
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
