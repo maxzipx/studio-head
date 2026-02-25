@@ -3,11 +3,13 @@ import {
   AWARDS_RULES,
   BANKRUPTCY_RULES,
   FESTIVAL_RULES,
+  GENRE_CYCLE_RULES,
   MEMORY_RULES,
   PROJECT_BALANCE,
   SESSION_RULES,
   STUDIO_STARTING,
   STUDIO_TIER_REQUIREMENTS,
+  TALENT_NEGOTIATION_RULES,
   TURN_RULES,
 } from './balance-constants';
 import { createId } from './id';
@@ -135,6 +137,41 @@ function initialBudgetForGenre(genre: MovieGenre): number {
 }
 
 const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
+
+const GENRE_SHOCK_LIBRARY: Record<MovieGenre, { surge: string[]; slump: string[] }> = {
+  action: {
+    surge: ['Global action revival', 'Practical stunt renaissance'],
+    slump: ['Superhero fatigue wave', 'Action sequel burnout'],
+  },
+  drama: {
+    surge: ['Awards-season drama appetite', 'Character-story comeback'],
+    slump: ['Prestige-drama cooling cycle', 'Audience patience dip for slow burns'],
+  },
+  comedy: {
+    surge: ['Comedy rebound on social platforms', 'Crowd-pleaser comeback'],
+    slump: ['Comedy oversupply', 'Audience comedy fatigue'],
+  },
+  horror: {
+    surge: ['Horror revival trend', 'Midnight-screening boom'],
+    slump: ['Horror formula fatigue', 'Jump-scare burnout'],
+  },
+  thriller: {
+    surge: ['Streaming thriller spillover', 'Conspiracy-thriller surge'],
+    slump: ['Twist-thriller fatigue', 'Thriller saturation'],
+  },
+  sciFi: {
+    surge: ['Speculative fiction boom', 'Sci-fi spectacle upswing'],
+    slump: ['Sci-fi VFX fatigue', 'High-concept confusion backlash'],
+  },
+  animation: {
+    surge: ['Family animation rebound', 'Animated feature boom'],
+    slump: ['Animated franchise fatigue', 'Crowded family slate'],
+  },
+  documentary: {
+    surge: ['Doc prestige wave', 'True-story urgency spike'],
+    slump: ['Documentary attention dip', 'Issue-doc fatigue'],
+  },
+};
 
 function createInitialGenreCycles(): Record<MovieGenre, GenreCycleState> {
   return {
@@ -327,6 +364,112 @@ export class StudioManager {
     return 'loyal';
   }
 
+  private getTalentGrudgeMetrics(talent: Talent): {
+    score: number;
+    recentNegativeCount: number;
+    recentPositiveCount: number;
+  } {
+    const memory = this.getTalentMemory(talent);
+    let rawScore = 0;
+    let recentNegativeCount = 0;
+    let recentPositiveCount = 0;
+
+    for (const entry of memory.interactionHistory) {
+      const ageWeeks = Math.max(0, this.currentWeek - entry.week);
+      const decay = Math.pow(TALENT_NEGOTIATION_RULES.GRUDGE_DECAY_PER_WEEK, ageWeeks);
+      const trustImpact = Math.max(0, -entry.trustDelta * 1.2);
+      const loyaltyImpact = Math.max(0, -entry.loyaltyDelta * 0.9);
+      const kindPenalty =
+        entry.kind === 'projectAbandoned'
+          ? 5
+          : entry.kind === 'quickCloseFailed'
+            ? 3
+            : entry.kind === 'negotiationDeclined'
+              ? 2
+              : entry.kind === 'dealStalled'
+                ? 2
+                : entry.kind === 'counterPoachLost'
+                  ? 2
+                  : 0;
+      const impact = (trustImpact + loyaltyImpact + kindPenalty) * decay;
+      rawScore += impact;
+
+      const inRecentWindow = ageWeeks <= TALENT_NEGOTIATION_RULES.RECENT_MEMORY_WINDOW_WEEKS;
+      if (inRecentWindow) {
+        if (impact >= 1.5) recentNegativeCount += 1;
+        if (entry.trustDelta > 0 || entry.loyaltyDelta > 0) recentPositiveCount += 1;
+      }
+    }
+
+    const trustPenalty = Math.max(0, (40 - memory.trust) * 0.25);
+    const score = clamp(Math.round(rawScore + trustPenalty), 0, 100);
+    return { score, recentNegativeCount, recentPositiveCount };
+  }
+
+  getTalentNegotiationOutlook(talent: Talent): {
+    grudgeScore: number;
+    recentNegativeCount: number;
+    refusalRisk: 'low' | 'elevated' | 'critical';
+    blocked: boolean;
+    lockoutWeeks: number;
+    lockoutUntilWeek: number | null;
+    reason: string | null;
+  } {
+    const memory = this.getTalentMemory(talent);
+    const metrics = this.getTalentGrudgeMetrics(talent);
+    const trustLevel = this.getTalentTrustLevel(talent);
+
+    let refusalRisk: 'low' | 'elevated' | 'critical' = 'low';
+    if (metrics.score >= 20 || metrics.recentNegativeCount >= 2 || trustLevel === 'wary') {
+      refusalRisk = 'elevated';
+    }
+    if (metrics.score >= 30 || trustLevel === 'hostile' || metrics.recentNegativeCount >= 4) {
+      refusalRisk = 'critical';
+    }
+
+    const hostileBlock =
+      memory.trust <= TALENT_NEGOTIATION_RULES.HOSTILE_TRUST_THRESHOLD &&
+      metrics.score >= TALENT_NEGOTIATION_RULES.LOCKOUT_GRUDGE_THRESHOLD;
+    const freshGrudgeBlock =
+      metrics.recentNegativeCount >= TALENT_NEGOTIATION_RULES.LOCKOUT_RECENT_NEGATIVE_THRESHOLD &&
+      metrics.recentPositiveCount === 0 &&
+      metrics.score >= TALENT_NEGOTIATION_RULES.LOCKOUT_GRUDGE_THRESHOLD;
+
+    let lockoutWeeks = 0;
+    let reason: string | null = null;
+
+    if (hostileBlock || freshGrudgeBlock) {
+      let computedWeeks = TALENT_NEGOTIATION_RULES.LOCKOUT_WEEKS_MIN;
+      if (memory.trust <= TALENT_NEGOTIATION_RULES.HOSTILE_TRUST_THRESHOLD) computedWeeks += 1;
+      if (metrics.score >= 28) computedWeeks += 1;
+      if (metrics.recentNegativeCount >= 4) computedWeeks += 1;
+      lockoutWeeks = clamp(
+        computedWeeks,
+        TALENT_NEGOTIATION_RULES.LOCKOUT_WEEKS_MIN,
+        TALENT_NEGOTIATION_RULES.LOCKOUT_WEEKS_MAX
+      );
+      reason = hostileBlock
+        ? 'Relationship is hostile after recent negotiations.'
+        : 'Recent negotiation pattern triggered a cooling-off period.';
+    }
+
+    return {
+      grudgeScore: metrics.score,
+      recentNegativeCount: metrics.recentNegativeCount,
+      refusalRisk,
+      blocked: lockoutWeeks > 0,
+      lockoutWeeks,
+      lockoutUntilWeek: lockoutWeeks > 0 ? this.currentWeek + lockoutWeeks : null,
+      reason,
+    };
+  }
+
+  canOpenTalentNegotiation(talent: Talent): { ok: boolean; lockoutWeeks: number; reason: string | null } {
+    const outlook = this.getTalentNegotiationOutlook(talent);
+    if (!outlook.blocked) return { ok: true, lockoutWeeks: 0, reason: null };
+    return { ok: false, lockoutWeeks: outlook.lockoutWeeks, reason: outlook.reason };
+  }
+
   recordTalentInteraction(
     talent: Talent,
     input: {
@@ -451,11 +594,21 @@ export class StudioManager {
     return this.genreCycles[genre]?.demand ?? 1;
   }
 
-  getGenreCycleSnapshot(): { genre: MovieGenre; demand: number; momentum: number }[] {
+  getGenreCycleSnapshot(): {
+    genre: MovieGenre;
+    demand: number;
+    momentum: number;
+    shockLabel: string | null;
+    shockDirection: 'surge' | 'slump' | null;
+    shockWeeksRemaining: number;
+  }[] {
     return MOVIE_GENRES.map((genre) => ({
       genre,
       demand: this.getGenreDemandMultiplier(genre),
       momentum: this.genreCycles[genre]?.momentum ?? 0,
+      shockLabel: this.genreCycles[genre]?.shockLabel ?? null,
+      shockDirection: this.genreCycles[genre]?.shockDirection ?? null,
+      shockWeeksRemaining: Math.max(0, (this.genreCycles[genre]?.shockUntilWeek ?? this.currentWeek) - this.currentWeek),
     })).sort((a, b) => b.demand - a.demand);
   }
 
@@ -1407,19 +1560,85 @@ export class StudioManager {
     );
   }
 
+  private triggerGenreShock(events: string[]): void {
+    const ranked = this.getGenreCycleSnapshot().filter((entry) => {
+      const state = this.genreCycles[entry.genre];
+      return !state?.shockUntilWeek || this.currentWeek > state.shockUntilWeek;
+    });
+    if (ranked.length === 0) return;
+
+    const topBand = ranked.slice(0, Math.max(2, Math.ceil(ranked.length / 3)));
+    const bottomBand = ranked.slice(-Math.max(2, Math.ceil(ranked.length / 3)));
+    const slumpFirst = this.eventRng() < 0.58;
+    const sourceBand = slumpFirst ? topBand : bottomBand;
+    const picked = sourceBand[Math.floor(this.eventRng() * sourceBand.length)] ?? ranked[0];
+    if (!picked) return;
+
+    const direction: 'surge' | 'slump' = slumpFirst ? 'slump' : 'surge';
+    const duration =
+      GENRE_CYCLE_RULES.SHOCK_DURATION_MIN +
+      Math.floor(
+        this.eventRng() * (GENRE_CYCLE_RULES.SHOCK_DURATION_MAX - GENRE_CYCLE_RULES.SHOCK_DURATION_MIN + 1)
+      );
+    const strength =
+      GENRE_CYCLE_RULES.SHOCK_INTENSITY_MIN +
+      this.eventRng() * (GENRE_CYCLE_RULES.SHOCK_INTENSITY_MAX - GENRE_CYCLE_RULES.SHOCK_INTENSITY_MIN);
+    const labelPool = GENRE_SHOCK_LIBRARY[picked.genre][direction];
+    const label = labelPool[Math.floor(this.eventRng() * labelPool.length)] ?? `${picked.genre} market shift`;
+    const state = this.genreCycles[picked.genre] ?? { demand: 1, momentum: 0 };
+
+    state.shockLabel = label;
+    state.shockDirection = direction;
+    state.shockStrength = strength;
+    state.shockUntilWeek = this.currentWeek + duration;
+    this.genreCycles[picked.genre] = state;
+
+    events.push(
+      `Genre shock: ${picked.genre} ${direction === 'surge' ? 'surge' : 'slump'} (${label}) over roughly ${duration} weeks.`
+    );
+  }
+
   private tickGenreCycles(events: string[]): void {
     for (const genre of MOVIE_GENRES) {
       const state = this.genreCycles[genre] ?? { demand: 1, momentum: 0 };
-      const drift = (this.eventRng() - 0.5) * 0.014;
-      state.demand = clamp(state.demand + state.momentum + drift, 0.72, 1.35);
-      state.momentum = clamp(state.momentum * 0.88 + (this.eventRng() - 0.5) * 0.008, -0.05, 0.05);
+      const hasShock = !!state.shockUntilWeek && this.currentWeek <= state.shockUntilWeek;
+      const shockDirection = state.shockDirection === 'slump' ? -1 : 1;
+      const shockStrength = hasShock ? (state.shockStrength ?? 0) * shockDirection : 0;
+      const drift = (this.eventRng() - 0.5) * GENRE_CYCLE_RULES.DRIFT_RANGE;
+
+      state.demand = clamp(
+        state.demand + state.momentum + drift + shockStrength * 0.55,
+        GENRE_CYCLE_RULES.DEMAND_MIN,
+        GENRE_CYCLE_RULES.DEMAND_MAX
+      );
+      state.momentum = clamp(
+        state.momentum * 0.88 + (this.eventRng() - 0.5) * GENRE_CYCLE_RULES.MOMENTUM_DRIFT_RANGE + shockStrength * 0.2,
+        GENRE_CYCLE_RULES.MOMENTUM_MIN,
+        GENRE_CYCLE_RULES.MOMENTUM_MAX
+      );
+
+      if (state.shockUntilWeek && this.currentWeek > state.shockUntilWeek) {
+        state.shockLabel = null;
+        state.shockDirection = null;
+        state.shockStrength = null;
+        state.shockUntilWeek = null;
+      }
+
       this.genreCycles[genre] = state;
     }
 
     if (this.currentWeek % 9 === 0) {
       const genre = MOVIE_GENRES[Math.floor(this.eventRng() * MOVIE_GENRES.length)];
       const momentumShift = (this.eventRng() > 0.5 ? 1 : -1) * (0.01 + this.eventRng() * 0.015);
-      this.genreCycles[genre].momentum = clamp(this.genreCycles[genre].momentum + momentumShift, -0.05, 0.05);
+      this.genreCycles[genre].momentum = clamp(
+        this.genreCycles[genre].momentum + momentumShift,
+        GENRE_CYCLE_RULES.MOMENTUM_MIN,
+        GENRE_CYCLE_RULES.MOMENTUM_MAX
+      );
+    }
+
+    if (this.currentWeek % GENRE_CYCLE_RULES.SHOCK_CHECK_INTERVAL_WEEKS === 0) {
+      this.triggerGenreShock(events);
     }
 
     if (this.currentWeek % 12 === 0) {
@@ -1767,6 +1986,7 @@ export class StudioManager {
   private talentDealChance(talent: Talent, base: number): number {
     const arcLeverage = this.getArcOutcomeModifiers().talentLeverage;
     const memory = this.getTalentMemory(talent);
+    const outlook = this.getTalentNegotiationOutlook(talent);
     this.syncLegacyRelationship(talent);
     const trustBoost = (memory.trust - 50) / 260;
     const loyaltyBoost = (memory.loyalty - 50) / 320;
@@ -1775,7 +1995,13 @@ export class StudioManager {
     const reputationPenalty = clamp((talent.starPower - 5) * 0.015 + (talent.craftScore - 5) * 0.01, 0, 0.16);
     const egoPenalty = clamp((talent.egoLevel - 5) * 0.018, -0.04, 0.16);
     const agentPenalty = clamp((AGENT_DIFFICULTY[talent.agentTier] - 1) * 0.2, 0, 0.12);
-    return clamp(base + relationshipBoost + heatBoost + arcLeverage - reputationPenalty - egoPenalty - agentPenalty, 0.08, 0.95);
+    const grudgePenalty = clamp(outlook.grudgeScore / TALENT_NEGOTIATION_RULES.CHANCE_PENALTY_GRUDGE_DIVISOR, 0, 0.2);
+    const refusalPenalty = outlook.refusalRisk === 'critical' ? 0.04 : outlook.refusalRisk === 'elevated' ? 0.02 : 0;
+    return clamp(
+      base + relationshipBoost + heatBoost + arcLeverage - reputationPenalty - egoPenalty - agentPenalty - grudgePenalty - refusalPenalty,
+      0.08,
+      0.95
+    );
   }
 
   private finalizeTalentAttachment(project: MovieProject, talent: Talent, terms?: NegotiationTerms): boolean {

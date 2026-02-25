@@ -23,6 +23,8 @@ export function getNegotiationChanceForManager(manager: any, talentId: string, p
   const talent = manager.talentPool.find((item: any) => item.id === talentId);
   if (!talent) return null;
   const negotiation = manager.findNegotiation(talentId, projectId);
+  const readiness = manager.canOpenTalentNegotiation?.(talent);
+  if (!negotiation && readiness && readiness.ok === false) return 0;
   if (!negotiation) return manager.talentDealChance(talent, 0.7);
   return manager.evaluateNegotiation(negotiation, talent).chance;
 }
@@ -30,6 +32,8 @@ export function getNegotiationChanceForManager(manager: any, talentId: string, p
 export function getQuickCloseChanceForManager(manager: any, talentId: string): number | null {
   const talent = manager.talentPool.find((item: any) => item.id === talentId);
   if (!talent) return null;
+  const readiness = manager.canOpenTalentNegotiation?.(talent);
+  if (readiness && readiness.ok === false) return 0;
   const quickTerms = manager.buildQuickCloseTerms(talent);
   return manager.evaluateNegotiation(
     {
@@ -173,6 +177,15 @@ export function startTalentNegotiationForManager(
   if (manager.playerNegotiations.some((item: any) => item.talentId === talentId)) {
     return { success: false, message: `${talent.name} is already in negotiation.` };
   }
+  const readiness = manager.canOpenTalentNegotiation?.(talent);
+  if (readiness && readiness.ok === false) {
+    const lockoutWeeks = Math.max(1, Math.round(readiness.lockoutWeeks ?? 1));
+    const revisitWeek = manager.currentWeek + lockoutWeeks;
+    return {
+      success: false,
+      message: `${talent.name} refused to open talks. ${readiness.reason ?? 'Cooling-off period in effect.'} Revisit week ${revisitWeek}.`,
+    };
+  }
 
   talent.availability = 'inNegotiation';
   const negotiation: PlayerNegotiation = {
@@ -220,6 +233,15 @@ export function negotiateAndAttachTalentForManager(
   if (talent.availability !== 'available') {
     const returns = talent.unavailableUntilWeek ? ` (returns week ${talent.unavailableUntilWeek})` : '';
     return { success: false, message: `${talent.name} is unavailable${returns}.` };
+  }
+  const readiness = manager.canOpenTalentNegotiation?.(talent);
+  if (readiness && readiness.ok === false) {
+    const lockoutWeeks = Math.max(1, Math.round(readiness.lockoutWeeks ?? 1));
+    const revisitWeek = manager.currentWeek + lockoutWeeks;
+    return {
+      success: false,
+      message: `${talent.name} will not hear quick-close terms right now. ${readiness.reason ?? 'Cooling-off period in effect.'} Revisit week ${revisitWeek}.`,
+    };
   }
 
   const quickTerms = manager.buildQuickCloseTerms(talent);

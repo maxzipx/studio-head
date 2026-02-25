@@ -200,9 +200,24 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     }
     const demand = Number.isFinite(raw.demand) ? Number(raw.demand) : defaultState.demand;
     const momentum = Number.isFinite(raw.momentum) ? Number(raw.momentum) : defaultState.momentum;
+    const shockDirection =
+      raw.shockDirection === 'surge' || raw.shockDirection === 'slump' ? raw.shockDirection : null;
+    const shockLabel = typeof raw.shockLabel === 'string' ? raw.shockLabel.slice(0, 80) : null;
+    const shockStrength = Number.isFinite(raw.shockStrength) ? Number(raw.shockStrength) : null;
+    const rawShockUntilWeek = Number.isFinite(raw.shockUntilWeek) ? Number(raw.shockUntilWeek) : null;
+    const hasActiveShock =
+      !!shockDirection &&
+      !!shockLabel &&
+      shockStrength !== null &&
+      rawShockUntilWeek !== null &&
+      rawShockUntilWeek >= manager.currentWeek;
     manager.genreCycles[genre] = {
-      demand: Math.min(1.35, Math.max(0.72, demand)),
-      momentum: Math.min(0.05, Math.max(-0.05, momentum)),
+      demand: Math.min(1.4, Math.max(0.68, demand)),
+      momentum: Math.min(0.06, Math.max(-0.06, momentum)),
+      shockDirection: hasActiveShock ? shockDirection : null,
+      shockLabel: hasActiveShock ? shockLabel : null,
+      shockStrength: hasActiveShock ? Math.min(0.04, Math.max(0.005, shockStrength)) : null,
+      shockUntilWeek: hasActiveShock ? Math.round(rawShockUntilWeek) : null,
     };
   }
   if (!Array.isArray(manager.awardsHistory)) manager.awardsHistory = [];

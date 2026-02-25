@@ -329,6 +329,57 @@ describe('StudioManager', () => {
     expect(director!.relationshipMemory.interactionHistory.at(-1)?.kind).toBe('projectAbandoned');
   });
 
+  it('blocks opening negotiations when talent memory is hostile with high grudge', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.2 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    lead!.relationshipMemory.trust = 18;
+    lead!.relationshipMemory.loyalty = 20;
+    lead!.relationshipMemory.interactionHistory = [
+      { week: manager.currentWeek, kind: 'negotiationHardline', trustDelta: -3, loyaltyDelta: -2, note: 'hardline' },
+      { week: manager.currentWeek, kind: 'quickCloseFailed', trustDelta: -3, loyaltyDelta: -3, note: 'quick-close miss' },
+      { week: manager.currentWeek, kind: 'projectAbandoned', trustDelta: -4, loyaltyDelta: -4, note: 'abandoned project' },
+    ];
+
+    const chance = manager.getNegotiationChance(lead!.id, project!.id);
+    expect(chance).toBe(0);
+
+    const opened = manager.startTalentNegotiation(project!.id, lead!.id);
+    expect(opened.success).toBe(false);
+    expect(opened.message.toLowerCase()).toContain('refused');
+    expect(lead!.availability).toBe('available');
+  });
+
+  it('applies grudge-based chance penalty after repeated negative interactions', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.2 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const baselineChance = manager.getNegotiationChance(lead!.id, project!.id) ?? 0;
+    manager.recordTalentInteraction(lead!, {
+      kind: 'negotiationHardline',
+      trustDelta: -2,
+      loyaltyDelta: -1,
+      note: 'hardline 1',
+      projectId: project!.id,
+    });
+    manager.recordTalentInteraction(lead!, {
+      kind: 'quickCloseFailed',
+      trustDelta: -3,
+      loyaltyDelta: -2,
+      note: 'hardline 2',
+      projectId: project!.id,
+    });
+
+    const afterPenaltyChance = manager.getNegotiationChance(lead!.id, project!.id) ?? 0;
+    expect(afterPenaltyChance).toBeLessThan(baselineChance);
+  });
+
   it('caps talent interaction history length to bounded memory', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const talent = manager.talentPool[0];
@@ -850,6 +901,21 @@ describe('StudioManager', () => {
     expect(manager.scriptMarket.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('biases script market refill toward currently hot genres', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
+    manager.scriptMarket = [];
+    manager.genreCycles.thriller.demand = 1.35;
+    manager.genreCycles.sciFi.demand = 0.72;
+    manager.genreCycles.drama.demand = 0.72;
+    const events: string[] = [];
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket(events);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    const thrillerCount = manager.scriptMarket.filter((script) => script.genre === 'thriller').length;
+    expect(thrillerCount).toBeGreaterThanOrEqual(2);
+  });
+
   it('limits each distribution offer to a single counter attempt', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
     const project = manager.activeProjects[0];
@@ -1238,6 +1304,17 @@ describe('StudioManager', () => {
     expect((hotProjection?.openingHigh ?? 0)).toBeGreaterThan(coolProjection?.openingHigh ?? 0);
   });
 
+  it('creates named genre shocks on cadence and records an event log entry', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1 });
+    manager.currentWeek = 16;
+
+    const summary = manager.endWeek();
+    const hasShock = Object.values(manager.genreCycles).some((state) => !!state.shockLabel && !!state.shockUntilWeek);
+
+    expect(hasShock).toBe(true);
+    expect(summary.events.some((entry) => entry.includes('Genre shock:'))).toBe(true);
+  });
+
   it('submits to festival circuit and resolves into prestige outcomes', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1, negotiationRng: () => 1 });
     const project = manager.activeProjects.find((item) => item.phase === 'development') ?? manager.activeProjects[0];
@@ -1323,6 +1400,31 @@ describe('StudioManager', () => {
     expect(events.some((entry) => entry.includes('tentpole'))).toBe(true);
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
     expect(manager.storyFlags.rival_tentpole_threat).toBeGreaterThan(0);
+  });
+
+  it('lets rival calendar moves adapt film genre to cycle demand', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0, eventRng: () => 1 });
+    manager.rivals = [
+      {
+        id: 'r-1',
+        name: 'Test Blockbuster',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
+      },
+    ];
+    manager.genreCycles.sciFi.demand = 1.38;
+    manager.genreCycles.action.demand = 0.72;
+    manager.genreCycles.animation.demand = 0.74;
+    const events: string[] = [];
+
+    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+
+    expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
+    expect(manager.rivals[0].upcomingReleases[0].genre).toBe('sciFi');
   });
 
   it('clears counterplay flag on expiry so future counterplay can re-queue', () => {

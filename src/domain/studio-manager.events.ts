@@ -14,6 +14,29 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function pickScriptByDemandForManager(manager: any, pool: ScriptPitch[]): ScriptPitch | null {
+  if (pool.length === 0) return null;
+  const weighted = pool.map((item) => {
+    const demand = typeof manager.getGenreDemandMultiplier === 'function' ? manager.getGenreDemandMultiplier(item.genre) : 1;
+    const weight = Math.max(0.2, Math.pow(Math.max(0.72, demand), 2));
+    return { item, weight };
+  });
+  weighted.sort((a, b) => b.weight - a.weight);
+
+  // Keep some randomness, but strongly bias toward hot genres so cycles affect the script market.
+  if (manager.eventRng() < 0.45) {
+    return weighted[0]?.item ?? null;
+  }
+
+  const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = manager.eventRng() * totalWeight;
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.item;
+  }
+  return weighted[weighted.length - 1]?.item ?? null;
+}
+
 export function tickDecisionExpiryForManager(manager: any, events: string[]): void {
   for (const item of manager.decisionQueue) {
     item.weeksUntilExpiry -= 1;
@@ -54,11 +77,12 @@ export function refillScriptMarketForManager(manager: any, events: string[]): vo
   const catalog = createSeedScriptMarket();
   const existingTitles = new Set(manager.scriptMarket.map((item: any) => item.title));
   let added = 0;
+  let weightedDemandAccumulator = 0;
 
   while (manager.scriptMarket.length < targetOffers) {
     const uniquePool = catalog.filter((item) => !existingTitles.has(item.title));
     const pool = uniquePool.length > 0 ? uniquePool : catalog;
-    const source = pool[Math.floor(manager.eventRng() * pool.length)];
+    const source = pickScriptByDemandForManager(manager, pool);
     if (!source) break;
 
     const qualityJitter = (manager.eventRng() - 0.5) * 0.6;
@@ -76,11 +100,19 @@ export function refillScriptMarketForManager(manager: any, events: string[]): vo
     manager.scriptMarket.push(refreshed);
     existingTitles.add(refreshed.title);
     added += 1;
+    weightedDemandAccumulator += typeof manager.getGenreDemandMultiplier === 'function' ? manager.getGenreDemandMultiplier(refreshed.genre) : 1;
     if (added > 12) break;
   }
 
   if (added > 0) {
-    events.push(`${added} new script offer(s) entered the market.`);
+    const meanDemand = weightedDemandAccumulator / Math.max(1, added);
+    const tilt =
+      meanDemand >= 1.08
+        ? 'Market is chasing hotter audience cycles.'
+        : meanDemand <= 0.94
+          ? 'Market is leaning into contrarian script bets.'
+          : 'Market mix is balanced this week.';
+    events.push(`${added} new script offer(s) entered the market. ${tilt}`);
   }
 }
 

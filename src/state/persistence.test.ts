@@ -125,4 +125,25 @@ describe('persistence restore', () => {
     expect(Array.isArray(restored.awardsHistory)).toBe(true);
     expect(Array.isArray(restored.awardsSeasonsProcessed)).toBe(true);
   });
+
+  it('sanitizes malformed genre shock fields on restore', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const cycles = snapshot.genreCycles as Record<string, Record<string, unknown>>;
+    cycles.action = {
+      demand: 5,
+      momentum: -3,
+      shockLabel: 999,
+      shockDirection: 'bad-direction',
+      shockStrength: 99,
+      shockUntilWeek: -1,
+    };
+
+    const restored = restoreStudioManager(snapshot);
+    expect(restored.genreCycles.action.demand).toBeLessThanOrEqual(1.4);
+    expect(restored.genreCycles.action.momentum).toBeGreaterThanOrEqual(-0.06);
+    expect(restored.genreCycles.action.shockLabel ?? null).toBeNull();
+    expect(restored.genreCycles.action.shockDirection ?? null).toBeNull();
+    expect(restored.genreCycles.action.shockUntilWeek ?? null).toBeNull();
+  });
 });

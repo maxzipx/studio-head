@@ -427,6 +427,10 @@ export interface StoryArcState {
 export interface GenreCycleState {
   demand: number;
   momentum: number;
+  shockLabel?: string | null;
+  shockDirection?: 'surge' | 'slump' | null;
+  shockStrength?: number | null;
+  shockUntilWeek?: number | null;
 }
 
 export interface AwardsProjectResult {

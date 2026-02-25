@@ -5,6 +5,97 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
+
+function getGenreDemandForManager(manager: any, genre: MovieGenre): number {
+  if (typeof manager.getGenreDemandMultiplier === 'function') {
+    return manager.getGenreDemandMultiplier(genre);
+  }
+  return 1;
+}
+
+function weightedGenrePickForManager(
+  manager: any,
+  entries: { genre: MovieGenre; weight: number }[]
+): MovieGenre {
+  const filtered = entries.filter((entry) => entry.weight > 0);
+  if (filtered.length === 0) return MOVIE_GENRES[Math.floor(manager.rivalRng() * MOVIE_GENRES.length)] ?? 'drama';
+  const total = filtered.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = manager.rivalRng() * total;
+  for (const entry of filtered) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.genre;
+  }
+  return filtered[filtered.length - 1]?.genre ?? 'drama';
+}
+
+function dominantRivalGenre(rival: RivalStudio): MovieGenre | null {
+  const counts: Partial<Record<MovieGenre, number>> = {};
+  for (const film of rival.upcomingReleases) {
+    counts[film.genre] = (counts[film.genre] ?? 0) + 1;
+  }
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (ranked.length === 0) return null;
+  return ranked[0][0] as MovieGenre;
+}
+
+function pickGenreForRivalRelease(manager: any, rival: RivalStudio): MovieGenre {
+  const entries = MOVIE_GENRES.map((genre) => ({
+    genre,
+    weight: Math.max(0.2, getGenreDemandForManager(manager, genre)),
+  }));
+  const byGenre = new Map(entries.map((entry) => [entry.genre, entry]));
+
+  for (const entry of entries) {
+    if (rival.personality === 'blockbusterFactory') {
+      if (entry.genre === 'action' || entry.genre === 'sciFi' || entry.genre === 'animation') {
+        entry.weight *= 1.5;
+      }
+      entry.weight *= Math.pow(getGenreDemandForManager(manager, entry.genre), 1.2);
+    } else if (rival.personality === 'prestigeHunter') {
+      if (entry.genre === 'drama' || entry.genre === 'documentary' || entry.genre === 'thriller') {
+        entry.weight *= 1.5;
+      }
+      entry.weight *= Math.pow(getGenreDemandForManager(manager, entry.genre), 1.1);
+    } else if (rival.personality === 'streamingFirst') {
+      if (entry.genre === 'thriller' || entry.genre === 'comedy' || entry.genre === 'horror') {
+        entry.weight *= 1.35;
+      }
+      entry.weight *= Math.pow(getGenreDemandForManager(manager, entry.genre), 1.25);
+    } else if (rival.personality === 'genreSpecialist') {
+      const dominant = dominantRivalGenre(rival);
+      if (dominant && entry.genre === dominant) {
+        entry.weight *= 1.8;
+      } else if (!dominant && (entry.genre === 'horror' || entry.genre === 'thriller' || entry.genre === 'sciFi')) {
+        entry.weight *= 1.3;
+      }
+      entry.weight *= Math.pow(getGenreDemandForManager(manager, entry.genre), 1.15);
+    } else if (rival.personality === 'scrappyUpstart') {
+      const demand = getGenreDemandForManager(manager, entry.genre);
+      const contrarianLift = clamp(2.1 - demand, 0.35, 1.8);
+      entry.weight *= contrarianLift;
+      if (entry.genre === 'comedy' || entry.genre === 'horror' || entry.genre === 'documentary') {
+        entry.weight *= 1.2;
+      }
+    }
+  }
+
+  const ranked = [...entries].sort((a, b) => b.weight - a.weight);
+  if (manager.rivalRng() < 0.58) {
+    return ranked[0]?.genre ?? 'drama';
+  }
+
+  const topBand = ranked.slice(0, 3);
+  if (topBand.length > 0) {
+    return weightedGenrePickForManager(manager, topBand);
+  }
+
+  if (byGenre.size > 0) {
+    return weightedGenrePickForManager(manager, [...byGenre.values()]);
+  }
+  return 'drama';
+}
+
 export function tickRivalHeatForManager(manager: any, events: string[]): void {
   for (const rival of manager.rivals) {
     const baseVolatility = manager.rivalRng() * 10 - 5;
@@ -139,9 +230,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
       !!target && (rival.personality === 'blockbusterFactory' || manager.rivalRng() < profile.conflictPush);
     const week =
       forceConflict && target.releaseWeek ? target.releaseWeek : manager.currentWeek + 2 + Math.floor(manager.rivalRng() * 14);
-    const genre: MovieGenre = (
-      ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'] as MovieGenre[]
-    )[Math.floor(manager.rivalRng() * 8)];
+    const genre = pickGenreForRivalRelease(manager, rival);
 
     const film: RivalFilm = {
       id: createId('r-film'),
@@ -224,7 +313,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
         rival.upcomingReleases.unshift({
           id: createId('r-film'),
           title: `${rival.name.split(' ')[0]} Event Tentpole`,
-          genre: 'action',
+          genre: pickGenreForRivalRelease(manager, rival),
           releaseWeek: target.releaseWeek,
           releaseWindow: 'wideTheatrical',
           estimatedBudget: 170_000_000 + manager.rivalRng() * 80_000_000,
@@ -375,7 +464,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
         rival.upcomingReleases.unshift({
           id: createId('r-film'),
           title: `${rival.name.split(' ')[0]} Counterprogrammer`,
-          genre: 'action',
+          genre: pickGenreForRivalRelease(manager, rival),
           releaseWeek: nextDistributionProject.releaseWeek,
           releaseWindow: 'wideTheatrical',
           estimatedBudget: 120_000_000 + manager.rivalRng() * 60_000_000,

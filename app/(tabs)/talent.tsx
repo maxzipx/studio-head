@@ -30,6 +30,12 @@ function trustLevelLabel(value: string): string {
   return 'Neutral';
 }
 
+function refusalRiskLabel(value: string): string {
+  if (value === 'critical') return 'Critical';
+  if (value === 'elevated') return 'Elevated';
+  return 'Low';
+}
+
 function interactionLabel(kind: string): string {
   if (kind === 'negotiationOpened') return 'Opened negotiation';
   if (kind === 'negotiationSweetened') return 'Sweetened terms';
@@ -205,6 +211,7 @@ export default function TalentScreen() {
         const trustLevel = manager.getTalentTrustLevel(talent);
         const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
         const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
+        const outlook = manager.getTalentNegotiationOutlook(talent);
         const recentInteractions = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
         return (
           <View key={talent.id} style={styles.card}>
@@ -218,6 +225,11 @@ export default function TalentScreen() {
               Trust: {trust.toFixed(0)} ({trustLevelLabel(trustLevel)}) | Loyalty: {loyalty.toFixed(0)} | Reputation:{' '}
               {talent.reputation.toFixed(1)}
             </Text>
+            <Text style={styles.muted}>
+              Grudge: {outlook.grudgeScore} | Refusal Risk: {refusalRiskLabel(outlook.refusalRisk)}
+              {outlook.blocked && outlook.lockoutUntilWeek ? ` | Cooling off until W${outlook.lockoutUntilWeek}` : ''}
+            </Text>
+            {outlook.reason ? <Text style={styles.alert}>{outlook.reason}</Text> : null}
             {activeProject ? <Text style={styles.muted}>Fit to {activeProject.title}: {pct(projectFit ?? 0)}</Text> : null}
             {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
             {recentInteractions.length > 0 ? <Text style={styles.muted}>Recent Memory:</Text> : null}
@@ -230,10 +242,16 @@ export default function TalentScreen() {
             ))}
             {activeProject && talent.availability === 'available' ? (
               <View style={styles.actions}>
-                <Pressable style={styles.button} onPress={() => startNegotiation(activeProject.id, talent.id)}>
+                <Pressable
+                  style={[styles.button, outlook.blocked ? styles.buttonDisabled : null]}
+                  disabled={outlook.blocked}
+                  onPress={() => startNegotiation(activeProject.id, talent.id)}>
                   <Text style={styles.buttonText}>Open Negotiation {pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => attachTalent(activeProject.id, talent.id)}>
+                <Pressable
+                  style={[styles.button, outlook.blocked ? styles.buttonDisabled : null]}
+                  disabled={outlook.blocked}
+                  onPress={() => attachTalent(activeProject.id, talent.id)}>
                   <Text style={styles.buttonText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
                 </Pressable>
               </View>
@@ -271,6 +289,7 @@ const styles = StyleSheet.create({
   body: { color: tokens.textSecondary, fontSize: 13 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
   muted: { color: tokens.textMuted, fontSize: 12 },
+  alert: { color: '#F5D089', fontSize: 12 },
   signal: { color: tokens.accentGold, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   targetButton: {
@@ -295,6 +314,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   buttonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
   smallButton: {
     borderRadius: 8,
     borderWidth: 1,
