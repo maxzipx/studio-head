@@ -27,6 +27,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     manager.studioName = defaults.studioName;
   }
   if (!Number.isFinite(manager.cash)) manager.cash = defaults.cash;
+  manager.cash = Math.round(manager.cash);
   if (typeof manager.isBankrupt !== 'boolean') manager.isBankrupt = false;
   if (typeof manager.bankruptcyReason !== 'string' && manager.bankruptcyReason !== null) {
     manager.bankruptcyReason = null;

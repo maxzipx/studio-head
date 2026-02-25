@@ -208,7 +208,7 @@ export function negotiateAndAttachTalentForManager(
     return { success: false, message: 'Insufficient funds for quick-close attempt and deal memo retainer.' };
   }
 
-  manager.cash -= attemptFee;
+  manager.adjustCash(-attemptFee);
   if (manager.negotiationRng() > chance) {
     manager.setNegotiationCooldown(talent, 1);
     return {

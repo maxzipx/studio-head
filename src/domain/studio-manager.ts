@@ -7,6 +7,7 @@ import {
   STUDIO_TIER_REQUIREMENTS,
   TURN_RULES,
 } from './balance-constants';
+import { createId } from './id';
 import {
   reputationDeltasFromRelease,
   projectedCriticalScore,
@@ -96,10 +97,6 @@ import type {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function id(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function phaseBurnMultiplier(phase: MovieProject['phase']): number {
@@ -224,6 +221,11 @@ export class StudioManager {
     } else {
       this.reputation[pillar] = clamp(this.reputation[pillar] + delta, 0, 100);
     }
+  }
+
+  adjustCash(delta: number): void {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    this.cash = Math.round(this.cash + delta);
   }
 
   constructor(input?: {
@@ -373,7 +375,7 @@ export class StudioManager {
 
     project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
     project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
-    this.cash -= ACTION_BALANCE.OPTIONAL_ACTION_COST;
+    this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
     this.evaluateBankruptcy();
     return {
       success: true,
@@ -390,7 +392,7 @@ export class StudioManager {
     if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
     project.hypeScore = clamp(project.hypeScore + ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST, 0, 100);
     project.marketingBudget += ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST;
-    this.cash -= ACTION_BALANCE.OPTIONAL_ACTION_COST;
+    this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
     this.evaluateBankruptcy();
     return { success: true, message: `Marketing push on ${project.title}. Hype +5, marketing +$180K.` };
   }
@@ -405,7 +407,7 @@ export class StudioManager {
       return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
     }
     if (this.cash < ACTION_BALANCE.SCRIPT_SPRINT_COST) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
-    this.cash -= ACTION_BALANCE.SCRIPT_SPRINT_COST;
+    this.adjustCash(-ACTION_BALANCE.SCRIPT_SPRINT_COST);
     project.scriptQuality = clamp(
       project.scriptQuality + ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST,
       0,
@@ -431,7 +433,7 @@ export class StudioManager {
       return { success: false, message: `${project.title} has no polish passes remaining.` };
     }
     if (this.cash < ACTION_BALANCE.POLISH_PASS_COST) return { success: false, message: 'Insufficient cash for polish pass ($120K needed).' };
-    this.cash -= ACTION_BALANCE.POLISH_PASS_COST;
+    this.adjustCash(-ACTION_BALANCE.POLISH_PASS_COST);
     project.postPolishPasses = Math.min(ACTION_BALANCE.POLISH_PASS_MAX_USES, (project.postPolishPasses ?? 0) + 1);
     project.editorialScore = clamp(
       project.editorialScore + ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST,
@@ -450,7 +452,7 @@ export class StudioManager {
     if (!project) return { success: false, message: 'Project not found.' };
     if (project.phase === 'released') return { success: false, message: 'Released projects cannot be abandoned.' };
     const writeDown = Math.round(project.budget.actualSpend * 0.2);
-    this.cash -= writeDown;
+    this.adjustCash(-writeDown);
     this.adjustReputation(-4, 'talent');
     this.evaluateBankruptcy();
     this.releaseTalent(projectId);
@@ -491,12 +493,12 @@ export class StudioManager {
     if (!pitch) return { success: false, message: 'Script not found.' };
     if (this.cash < pitch.askingPrice) return { success: false, message: 'Insufficient funds for script acquisition.' };
 
-    this.cash -= pitch.askingPrice;
+    this.adjustCash(-pitch.askingPrice);
     this.scriptMarket = this.scriptMarket.filter((item) => item.id !== scriptId);
 
     const ceiling = initialBudgetForGenre(pitch.genre);
     const project: MovieProject = {
-      id: id('project'),
+      id: createId('project'),
       title: pitch.title,
       genre: pitch.genre,
       phase: 'development',
@@ -591,7 +593,7 @@ export class StudioManager {
           project.releaseWeek = clamp(project.releaseWeek + option.releaseWeekShift, this.currentWeek + 1, this.currentWeek + 52);
         }
         project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
-        this.cash += option.cashDelta;
+        this.adjustCash(option.cashDelta);
         this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
         return;
       }
@@ -600,7 +602,7 @@ export class StudioManager {
       project.budget.actualSpend += Math.max(0, -option.cashDelta);
       project.productionStatus = 'onTrack';
     }
-    this.cash += option.cashDelta;
+    this.adjustCash(option.cashDelta);
     this.evaluateBankruptcy();
     this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
   }
@@ -629,7 +631,7 @@ export class StudioManager {
       }
     }
 
-    this.cash += option.cashDelta;
+    this.adjustCash(option.cashDelta);
     if (option.studioHeatDelta) this.adjustReputation(option.studioHeatDelta, 'all');
     if (option.criticsDelta) this.adjustReputation(option.criticsDelta, 'critics');
     if (option.talentRepDelta) this.adjustReputation(option.talentRepDelta, 'talent');
@@ -819,7 +821,7 @@ export class StudioManager {
       project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining - 1);
       project.productionStatus = project.budget.actualSpend > project.budget.ceiling ? 'atRisk' : project.productionStatus === 'inCrisis' ? 'inCrisis' : 'onTrack';
     }
-    this.cash -= total;
+    this.adjustCash(-total);
     return total;
   }
 
@@ -1173,7 +1175,7 @@ export class StudioManager {
       talent.availability = 'available';
       return false;
     }
-    this.cash -= retainer;
+    this.adjustCash(-retainer);
     project.budget.actualSpend += retainer * 0.35;
     const backendPoints = normalizedTerms.backendPoints;
     project.studioRevenueShare = clamp(project.studioRevenueShare - backendPoints * 0.004, 0.35, 0.8);
@@ -1202,7 +1204,7 @@ export class StudioManager {
       const retainer = this.computeDealMemoCost(talent, this.defaultNegotiationTerms(talent));
       const chance = clamp(0.55 + this.reputation.talent / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
       if (this.cash >= cost + retainer && this.negotiationRng() <= chance) {
-        this.cash -= cost;
+        this.adjustCash(-cost);
         if (rival) {
           rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
         }

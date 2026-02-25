@@ -1,13 +1,10 @@
 import type { DecisionItem, MovieProject, RivalStudio, ScriptPitch, Talent } from './types';
-
-function id(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { createId } from './id';
 
 export function createSeedTalentPool(): Talent[] {
   return [
     {
-      id: id('talent'),
+      id: createId('talent'),
       name: 'Rhea Colton',
       role: 'director',
       starPower: 6.8,
@@ -23,7 +20,7 @@ export function createSeedTalentPool(): Talent[] {
       studioRelationship: 0.2,
     },
     {
-      id: id('talent'),
+      id: createId('talent'),
       name: 'Noah Kade',
       role: 'leadActor',
       starPower: 7.3,
@@ -39,7 +36,7 @@ export function createSeedTalentPool(): Talent[] {
       studioRelationship: 0.1,
     },
     {
-      id: id('talent'),
+      id: createId('talent'),
       name: 'Mila Soren',
       role: 'leadActor',
       starPower: 5.9,
@@ -60,7 +57,7 @@ export function createSeedTalentPool(): Talent[] {
 export function createSeedProjects(): MovieProject[] {
   return [
     {
-      id: id('project'),
+      id: createId('project'),
       title: 'Night Ledger',
       genre: 'thriller',
       phase: 'production',
@@ -101,7 +98,7 @@ export function createSeedProjects(): MovieProject[] {
       controversy: 28,
     },
     {
-      id: id('project'),
+      id: createId('project'),
       title: 'Blue Ember',
       genre: 'drama',
       phase: 'development',
@@ -147,7 +144,7 @@ export function createSeedProjects(): MovieProject[] {
 export function createOpeningDecisions(): DecisionItem[] {
   return [
     {
-      id: id('decision'),
+      id: createId('decision'),
       projectId: null,
       title: 'First Call: Script Doctor on Night Ledger',
       body: 'Welcome to the chair. Night Ledger is your flagship thriller already in production, with script quality at 7.4. A script doctor is offering a two-week polish sprint for $360K that could push quality to 8.2 and improve awards and critic upside. Decisions like this expire if you advance too many weeks without resolving them.',
@@ -155,7 +152,7 @@ export function createOpeningDecisions(): DecisionItem[] {
       category: 'creative',
       options: [
         {
-          id: id('option'),
+          id: createId('option'),
           label: 'Fund the Sprint',
           preview: 'Script quality +0.8 - brings Night Ledger to 8.2, a strong prestige threshold.',
           cashDelta: -360_000,
@@ -164,7 +161,7 @@ export function createOpeningDecisions(): DecisionItem[] {
           criticsDelta: 1,
         },
         {
-          id: id('option'),
+          id: createId('option'),
           label: 'Pass for Now',
           preview: 'Save $360K. Night Ledger stays at current quality.',
           cashDelta: 0,
@@ -179,7 +176,7 @@ export function createOpeningDecisions(): DecisionItem[] {
 export function createSeedScriptMarket(): ScriptPitch[] {
   return [
     {
-      id: id('script'),
+      id: createId('script'),
       title: 'Glass Harbor',
       genre: 'thriller',
       askingPrice: 360_000,
@@ -189,7 +186,7 @@ export function createSeedScriptMarket(): ScriptPitch[] {
       expiresInWeeks: 2,
     },
     {
-      id: id('script'),
+      id: createId('script'),
       title: 'Murmur Theory',
       genre: 'sciFi',
       askingPrice: 520_000,
@@ -199,7 +196,7 @@ export function createSeedScriptMarket(): ScriptPitch[] {
       expiresInWeeks: 3,
     },
     {
-      id: id('script'),
+      id: createId('script'),
       title: 'Last Train Sunday',
       genre: 'drama',
       askingPrice: 220_000,
@@ -214,7 +211,7 @@ export function createSeedScriptMarket(): ScriptPitch[] {
 export function createSeedRivals(): RivalStudio[] {
   return [
     {
-      id: id('rival'),
+      id: createId('rival'),
       name: 'Meridian Pictures',
       personality: 'prestigeHunter',
       studioHeat: 61,
@@ -223,7 +220,7 @@ export function createSeedRivals(): RivalStudio[] {
       lockedTalentIds: [],
     },
     {
-      id: id('rival'),
+      id: createId('rival'),
       name: 'Apex Global',
       personality: 'blockbusterFactory',
       studioHeat: 74,
@@ -232,7 +229,7 @@ export function createSeedRivals(): RivalStudio[] {
       lockedTalentIds: [],
     },
     {
-      id: id('rival'),
+      id: createId('rival'),
       name: 'Neon Slate',
       personality: 'genreSpecialist',
       studioHeat: 56,
@@ -241,7 +238,7 @@ export function createSeedRivals(): RivalStudio[] {
       lockedTalentIds: [],
     },
     {
-      id: id('rival'),
+      id: createId('rival'),
       name: 'Harbor Road',
       personality: 'streamingFirst',
       studioHeat: 52,
@@ -250,7 +247,7 @@ export function createSeedRivals(): RivalStudio[] {
       lockedTalentIds: [],
     },
     {
-      id: id('rival'),
+      id: createId('rival'),
       name: 'Freehold Films',
       personality: 'scrappyUpstart',
       studioHeat: 41,

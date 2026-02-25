@@ -1,4 +1,5 @@
 import { EVENT_BALANCE } from './balance-constants';
+import { createId } from './id';
 import { createSeedScriptMarket } from './seeds';
 import type {
   CrisisEvent,
@@ -11,10 +12,6 @@ import type {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function id(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function tickDecisionExpiryForManager(manager: any, events: string[]): void {
@@ -69,7 +66,7 @@ export function refillScriptMarketForManager(manager: any, events: string[]): vo
     const priceMultiplier = 0.88 + manager.eventRng() * 0.28;
     const refreshed: ScriptPitch = {
       ...source,
-      id: id('script'),
+      id: createId('script'),
       askingPrice: Math.max(300_000, Math.round(source.askingPrice * priceMultiplier)),
       scriptQuality: clamp(source.scriptQuality + qualityJitter, 1, 10),
       conceptStrength: clamp(source.conceptStrength + conceptJitter, 1, 10),
@@ -116,7 +113,7 @@ export function generateEventDecisionsForManager(manager: any, events: string[])
   const project = chooseProjectForEventForManager(manager, nextEvent);
   if (nextEvent.scope === 'project' && !project) return;
   const decision = nextEvent.buildDecision({
-    idFactory: id,
+    idFactory: createId,
     projectId: project?.id ?? null,
     projectTitle: project?.title ?? null,
     currentWeek: manager.currentWeek,
@@ -303,7 +300,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
             severity: 'orange',
             options: [
               {
-                id: id('c-opt'),
+                id: createId('c-opt'),
                 label: 'Pay Fast-Track Permit Counsel',
                 preview: '-$260K now, keep prep moving.',
                 cashDelta: -260_000,
@@ -311,7 +308,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                 hypeDelta: 0,
               },
               {
-                id: id('c-opt'),
+                id: createId('c-opt'),
                 label: 'Re-scout Alternate Locations',
                 preview: 'Lower spend, but schedule slips one week.',
                 cashDelta: -80_000,
@@ -326,7 +323,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
             severity: 'orange',
             options: [
               {
-                id: id('c-opt'),
+                id: createId('c-opt'),
                 label: 'Approve Contract Bump',
                 preview: '-$220K now, no delay.',
                 cashDelta: -220_000,
@@ -334,7 +331,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                 hypeDelta: 0,
               },
               {
-                id: id('c-opt'),
+                id: createId('c-opt'),
                 label: 'Re-negotiate Through Delay',
                 preview: 'Save cash but lose one prep week and confidence.',
                 cashDelta: -40_000,
@@ -352,7 +349,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
               severity: 'orange',
               options: [
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Pay For Priority Lane',
                   preview: '-$300K now, lock delivery date.',
                   cashDelta: -300_000,
@@ -360,7 +357,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                   hypeDelta: 0,
                 },
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Delay Final Deliverables',
                   preview: 'Smaller immediate cost, but post slips by one week.',
                   cashDelta: -70_000,
@@ -375,7 +372,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
               severity: 'yellow',
               options: [
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Extend Sessions',
                   preview: '-$180K now, preserve score quality.',
                   cashDelta: -180_000,
@@ -383,7 +380,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                   hypeDelta: 1,
                 },
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Scale Back Arrangement',
                   preview: 'Save cash, but lose some polish and buzz.',
                   cashDelta: -40_000,
@@ -400,7 +397,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
               severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
               options: [
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Pay Overtime to Keep Schedule',
                   preview: '-$450K now, no schedule slip.',
                   cashDelta: -450_000,
@@ -408,7 +405,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                   hypeDelta: 0,
                 },
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Delay One Week',
                   preview: 'Save cash, but schedule slips and press chatter starts.',
                   cashDelta: -50_000,
@@ -423,7 +420,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
               severity: 'orange',
               options: [
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Rebuild Immediately',
                   preview: '-$380K now, schedule protected.',
                   cashDelta: -380_000,
@@ -431,7 +428,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                   hypeDelta: 0,
                 },
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Rewrite Around Set',
                   preview: 'Save cash, but lose one week and some excitement.',
                   cashDelta: -90_000,
@@ -446,7 +443,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
               severity: 'red',
               options: [
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Bring In Replacement Unit',
                   preview: '-$520K now to hold momentum.',
                   cashDelta: -520_000,
@@ -454,7 +451,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
                   hypeDelta: -1,
                 },
                 {
-                  id: id('c-opt'),
+                  id: createId('c-opt'),
                   label: 'Hold For Safety Reset',
                   preview: 'Lower immediate spend, but lose two shooting weeks.',
                   cashDelta: -120_000,
@@ -467,7 +464,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
 
   const selected = phaseTemplates[Math.floor(manager.crisisRng() * phaseTemplates.length)] ?? phaseTemplates[0];
   return {
-    id: id('crisis'),
+    id: createId('crisis'),
     projectId: project.id,
     kind: 'production',
     title: `${project.title}: ${selected.title}`,

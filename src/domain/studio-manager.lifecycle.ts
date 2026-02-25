@@ -1,11 +1,8 @@
 import type { DistributionOffer, MovieProject } from './types';
+import { createId } from './id';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function id(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function setProjectReleaseWeekForManager(
@@ -121,7 +118,7 @@ export function acceptDistributionOfferForManager(
   }
   project.marketingBudget += offer.pAndACommitment;
   project.hypeScore = clamp(project.hypeScore + 6, 0, 100);
-  manager.cash += offer.minimumGuarantee;
+  manager.adjustCash(offer.minimumGuarantee);
   manager.distributionOffers = manager.distributionOffers.filter((item: any) => item.projectId !== projectId);
   return { success: true, message: `Accepted ${offer.partner} offer.` };
 }
@@ -193,7 +190,7 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
   const shareLift = modifiers.distributionLeverage * 0.22;
   const offers: DistributionOffer[] = [
     {
-      id: id('deal'),
+      id: createId('deal'),
       projectId,
       partner: 'Aster Peak Pictures',
       releaseWindow: 'wideTheatrical',
@@ -204,7 +201,7 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
       counterAttempts: 0,
     },
     {
-      id: id('deal'),
+      id: createId('deal'),
       projectId,
       partner: 'Northstream',
       releaseWindow: 'streamingExclusive',
@@ -215,7 +212,7 @@ export function generateDistributionOffersForManager(manager: any, projectId: st
       counterAttempts: 0,
     },
     {
-      id: id('deal'),
+      id: createId('deal'),
       projectId,
       partner: 'Constellation Media',
       releaseWindow: 'hybridWindow',

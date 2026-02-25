@@ -1,11 +1,8 @@
 import type { IndustryNewsItem, MovieGenre, RivalFilm, RivalStudio, Talent } from './types';
+import { createId } from './id';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function id(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function tickRivalHeatForManager(manager: any, events: string[]): void {
@@ -17,7 +14,7 @@ export function tickRivalHeatForManager(manager: any, events: string[]): void {
 
     rival.studioHeat = clamp(rival.studioHeat + delta, 0, 100);
     const item: IndustryNewsItem = {
-      id: id('news'),
+      id: createId('news'),
       week: manager.currentWeek + 1,
       studioName: rival.name,
       headline: rivalNewsHeadlineForManager(manager, rival.name, delta),
@@ -58,7 +55,7 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
         const project = manager.activeProjects.find((item: any) => item.id === negotiation.projectId);
         const projectTitle = project?.title ?? 'your project';
         manager.pendingCrises.push({
-          id: id('crisis'),
+          id: createId('crisis'),
           projectId: negotiation.projectId,
           kind: 'talentPoached',
           title: `${picked.name} just closed with ${rival.name} (${projectTitle})`,
@@ -66,7 +63,7 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
           body: `${projectTitle} lost a key attachment. Counter-offer now at a premium or walk away.`,
           options: [
             {
-              id: id('c-opt'),
+              id: createId('c-opt'),
               label: 'Counter Offer (25% premium)',
               preview: 'Higher cost, chance to reclaim attachment.',
               cashDelta: 0,
@@ -78,7 +75,7 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
               premiumMultiplier: 1.25,
             },
             {
-              id: id('c-opt'),
+              id: createId('c-opt'),
               label: 'Walk Away',
               preview: 'Save cash, lose momentum and relationship.',
               cashDelta: 0,
@@ -119,7 +116,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
     )[Math.floor(manager.rivalRng() * 8)];
 
     const film: RivalFilm = {
-      id: id('r-film'),
+      id: createId('r-film'),
       title: `${rival.name.split(' ')[0]} Untitled ${manager.currentWeek}`,
       genre,
       releaseWeek: week,
@@ -138,7 +135,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
 
     if (target && target.releaseWeek && Math.abs(target.releaseWeek - film.releaseWeek) <= 0) {
       manager.pendingCrises.push({
-        id: id('crisis'),
+        id: createId('crisis'),
         projectId: target.id,
         kind: 'releaseConflict',
         title: `${target.title}: ${rival.name} moved into your release window`,
@@ -146,7 +143,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
         body: `${target.title} is under opening pressure in week ${target.releaseWeek}.`,
         options: [
           {
-            id: id('c-opt'),
+            id: createId('c-opt'),
             label: 'Hold Position',
             preview: 'Keep date and absorb competitive pressure.',
             cashDelta: 0,
@@ -156,7 +153,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
             kind: 'releaseHold',
           },
           {
-            id: id('c-opt'),
+            id: createId('c-opt'),
             label: 'Shift 1 Week Earlier',
             preview: 'Move early to avoid overlap.',
             cashDelta: -120_000,
@@ -166,7 +163,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
             kind: 'releaseShift',
           },
           {
-            id: id('c-opt'),
+            id: createId('c-opt'),
             label: 'Delay 4 Weeks',
             preview: 'Wait for cleaner window; costs additional carry.',
             cashDelta: -250_000,
@@ -190,7 +187,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
       const target = manager.activeProjects.find((project: any) => project.phase === 'distribution' && project.releaseWeek !== null);
       if (target?.releaseWeek) {
         rival.upcomingReleases.unshift({
-          id: id('r-film'),
+          id: createId('r-film'),
           title: `${rival.name.split(' ')[0]} Event Tentpole`,
           genre: 'action',
           releaseWeek: target.releaseWeek,
@@ -250,7 +247,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
           (item: any) => !(item.projectId === project.id && item.partner === `${rival.name} Stream+`)
         );
         manager.distributionOffers.push({
-          id: id('deal'),
+          id: createId('deal'),
           projectId: project.id,
           partner: `${rival.name} Stream+`,
           releaseWindow: 'streamingExclusive',
@@ -313,7 +310,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
         movedFilm.releaseWeek = nextDistributionProject.releaseWeek;
       } else {
         rival.upcomingReleases.unshift({
-          id: id('r-film'),
+          id: createId('r-film'),
           title: `${rival.name.split(' ')[0]} Counterprogrammer`,
           genre: 'action',
           releaseWeek: nextDistributionProject.releaseWeek,
@@ -348,7 +345,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
       const title = `Counterplay: ${rival.name} Output Deal (${nextPipelineProject.title})`;
       if (manager.decisionQueue.length < 5 && !manager.decisionQueue.some((item: any) => item.title === title)) {
         manager.decisionQueue.push({
-          id: id('decision'),
+          id: createId('decision'),
           projectId: nextPipelineProject.id,
           category: 'finance',
           title,
@@ -356,7 +353,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
           weeksUntilExpiry: 1,
           options: [
             {
-              id: id('opt'),
+              id: createId('opt'),
               label: 'Accept Output Deal',
               preview: 'Immediate cash and marketing support, with lower theatrical upside.',
               cashDelta: 320_000,
@@ -366,7 +363,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
               studioHeatDelta: -1,
             },
             {
-              id: id('opt'),
+              id: createId('opt'),
               label: 'Decline Deal',
               preview: 'Keep flexibility and hold for stronger distribution leverage.',
               cashDelta: 0,
@@ -408,7 +405,7 @@ export function queueRivalCounterplayDecisionForManager(
     const title = `Counterplay: ${rivalName} Tentpole Threat`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
-      id: id('decision'),
+      id: createId('decision'),
       projectId: targetProject?.id ?? null,
       category: 'marketing',
       title,
@@ -417,7 +414,7 @@ export function queueRivalCounterplayDecisionForManager(
       onExpireClearFlag: 'rival_tentpole_threat',
       options: [
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Authorize Competitive Blitz',
           preview: 'Spend to defend awareness and trailer share.',
           cashDelta: -260_000,
@@ -427,7 +424,7 @@ export function queueRivalCounterplayDecisionForManager(
           clearFlag: 'rival_tentpole_threat',
         },
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Shift Date One Week',
           preview: 'Reduce collision risk with moderate transition cost.',
           cashDelta: -120_000,
@@ -445,7 +442,7 @@ export function queueRivalCounterplayDecisionForManager(
     const title = `Counterplay: ${rivalName} Awards Surge`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
-      id: id('decision'),
+      id: createId('decision'),
       projectId: null,
       category: 'marketing',
       title,
@@ -454,7 +451,7 @@ export function queueRivalCounterplayDecisionForManager(
       onExpireClearFlag: 'awards_headwind',
       options: [
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Launch Guild Counter-Campaign',
           preview: 'Spend to recover influence with voters and press.',
           cashDelta: -180_000,
@@ -464,7 +461,7 @@ export function queueRivalCounterplayDecisionForManager(
           clearFlag: 'awards_headwind',
         },
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Conserve Budget',
           preview: 'Protect cash but accept a temporary prestige dip.',
           cashDelta: 0,
@@ -482,7 +479,7 @@ export function queueRivalCounterplayDecisionForManager(
     const title = `Counterplay: ${rivalName} Talent Lock`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
-      id: id('decision'),
+      id: createId('decision'),
       projectId: null,
       category: 'talent',
       title,
@@ -491,7 +488,7 @@ export function queueRivalCounterplayDecisionForManager(
       onExpireClearFlag: 'rival_talent_lock',
       options: [
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Fund Retention Incentives',
           preview: 'Spend to improve relationship strength across reps.',
           cashDelta: -220_000,
@@ -501,7 +498,7 @@ export function queueRivalCounterplayDecisionForManager(
           clearFlag: 'rival_talent_lock',
         },
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Scout Emerging Talent',
           preview: 'Smaller spend, slightly slower impact, broader optionality.',
           cashDelta: -80_000,
@@ -518,7 +515,7 @@ export function queueRivalCounterplayDecisionForManager(
     const title = `Counterplay: ${rivalName} Streaming Pressure`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
-      id: id('decision'),
+      id: createId('decision'),
       projectId: targetProject?.id ?? null,
       category: 'finance',
       title,
@@ -527,7 +524,7 @@ export function queueRivalCounterplayDecisionForManager(
       onExpireClearFlag: 'streaming_pressure',
       options: [
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Secure Theater Incentive Bundle',
           preview: 'Spend now to protect theatrical leverage.',
           cashDelta: -200_000,
@@ -537,7 +534,7 @@ export function queueRivalCounterplayDecisionForManager(
           clearFlag: 'streaming_pressure',
         },
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Take Hybrid Safety Deal',
           preview: 'Accept immediate cash and de-risk near-term window.',
           cashDelta: 150_000,
@@ -554,7 +551,7 @@ export function queueRivalCounterplayDecisionForManager(
     const title = `Counterplay: ${rivalName} Guerrilla Blitz`;
     if (manager.decisionQueue.some((item: any) => item.title === title)) return;
     manager.decisionQueue.push({
-      id: id('decision'),
+      id: createId('decision'),
       projectId: targetProject?.id ?? null,
       category: 'marketing',
       title,
@@ -563,7 +560,7 @@ export function queueRivalCounterplayDecisionForManager(
       onExpireClearFlag: 'guerrilla_pressure',
       options: [
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Run Community Counter-Blitz',
           preview: 'Low cost and quick response to regain attention.',
           cashDelta: -90_000,
@@ -572,7 +569,7 @@ export function queueRivalCounterplayDecisionForManager(
           clearFlag: 'guerrilla_pressure',
         },
         {
-          id: id('opt'),
+          id: createId('opt'),
           label: 'Ignore The Noise',
           preview: 'No spend, but campaign momentum softens.',
           cashDelta: 0,
