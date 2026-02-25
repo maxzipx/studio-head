@@ -200,6 +200,8 @@ const ARC_LABELS: Record<string, string> = {
   'talent-meltdown': 'Volatile Star Cycle',
   'exhibitor-war': 'Theater Access Battle',
   'franchise-pivot': 'Universe Gamble',
+  'franchise-identity': 'Franchise Identity',
+  'franchise-fatigue': 'Franchise Fatigue',
   'streaming-pivot': 'Streaming Crossroads',
   'passion-project': "The Director's Vision",
 };
