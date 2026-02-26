@@ -1,117 +1,32 @@
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
-import {
-  Animated, Easing, Modal, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
-import type { ReleaseReport } from '@/src/domain/types';
 import { useGame } from '@/src/state/game-context';
 import {
-  GlassCard, MetricTile, OutcomeBadge, OutcomeType,
-  PremiumButton, ProgressBar, RepPillarGrid, SectionLabel,
+  GlassCard,
+  MetricTile,
+  PremiumButton,
+  ProgressBar,
+  RepPillarGrid,
+  SectionLabel,
 } from '@/src/ui/components';
-import { blur, colors, radius, spacing, typography } from '@/src/ui/tokens';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function money(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000)     return `$${(abs / 1_000_000).toFixed(1)}M`;
-  return `$${Math.round(abs).toLocaleString()}`;
-}
-
-function signedMoney(amount: number): string {
-  return `${amount >= 0 ? '+' : '-'}${money(Math.abs(amount))}`;
-}
-
-type ReleaseSplashTone = 'blockbuster' | 'flop' | 'record' | 'hit';
-
-function getReleaseSplashTone(report: ReleaseReport | null): ReleaseSplashTone {
-  if (!report) return 'hit';
-  if (report.wasRecordOpening)        return 'record';
-  if (report.outcome === 'blockbuster') return 'blockbuster';
-  if (report.outcome === 'flop')        return 'flop';
-  return 'hit';
-}
-
-function splashToneToOutcome(tone: ReleaseSplashTone): OutcomeType {
-  if (tone === 'blockbuster') return 'blockbuster';
-  if (tone === 'record')      return 'blockbuster';
-  if (tone === 'flop')        return 'flop';
-  return 'hit';
-}
-
-// gradient color for modal top band
-function splashGradientColor(tone: ReleaseSplashTone): string {
-  if (tone === 'blockbuster' || tone === 'record') return colors.accentGreen + '30';
-  if (tone === 'flop') return colors.accentRed + '30';
-  return '#6FAEEA30';
-}
-
-const TIER_LABELS: Record<string, string> = {
-  indieStudio:       'Indie Studio',
-  establishedIndie:  'Established Indie',
-  midTier:           'Mid-Tier Studio',
-  majorStudio:       'Major Studio',
-  globalPowerhouse:  'Global Powerhouse',
-};
-
-const TIER_NEXT_GOAL: Record<string, string> = {
-  indieStudio:      'Release 1 film and reach Heat 25 to advance',
-  establishedIndie: 'Release 3 films and reach Heat 45 to advance',
-  midTier:          'Release 6 films and reach Heat 65 to advance',
-  majorStudio:      'Release 10 films and reach Heat 80 to advance',
-  globalPowerhouse: 'You have reached the summit.',
-};
-
-const ARC_LABELS: Record<string, string> = {
-  'awards-circuit':        'Awards Run',
-  'exhibitor-power-play':  'Exhibitor Power Play',
-  'exhibitor-war':         'Theater Access Battle',
-  'financier-control':     'Investor Pressure',
-  'franchise-pivot':       'Universe Gamble',
-  'leak-piracy':           'Leak Fallout',
-  'talent-meltdown':       'Volatile Star Cycle',
-  'passion-project':       "The Director's Vision",
-};
-
-const CHRONICLE_ICONS: Record<string, string> = {
-  filmRelease:    '🎬',
-  arcResolution:  '⭐',
-  tierAdvance:    '📈',
-  awardsOutcome:  '🏆',
-  festivalOutcome:'🎪',
-  crisisResolved: '🔧',
-};
-
-const SPECIALIZATION_OPTIONS: { key: 'balanced' | 'blockbuster' | 'prestige' | 'indie'; label: string }[] = [
-  { key: 'balanced',    label: 'Balanced'    },
-  { key: 'blockbuster', label: 'Blockbuster' },
-  { key: 'prestige',    label: 'Prestige'    },
-  { key: 'indie',       label: 'Indie'       },
-];
-
-const PARTNER_OPTIONS = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
-
-function stanceLabel(value: string): string {
-  if (value === 'hostile')     return 'Hostile';
-  if (value === 'competitive') return 'Competitive';
-  if (value === 'respectful')  return 'Respectful';
-  return 'Neutral';
-}
-
-function stanceColor(value: string): string {
-  if (value === 'hostile')     return colors.accentRed;
-  if (value === 'competitive') return colors.goldMid;
-  if (value === 'respectful')  return colors.accentTeal;
-  return colors.textMuted;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import {
+  ARC_LABELS,
+  CHRONICLE_ICONS,
+  money,
+  PARTNER_OPTIONS,
+  signedMoney,
+  SPECIALIZATION_OPTIONS,
+  stanceColor,
+  stanceLabel,
+  TIER_LABELS,
+  TIER_NEXT_GOAL,
+} from '@/src/ui/hq/hq-helpers';
+import { ReleaseRevealModal } from '@/src/ui/hq/ReleaseRevealModal';
+import { styles } from '@/src/ui/hq/hq-styles';
+import { colors, spacing, typography } from '@/src/ui/tokens';
 
 export default function HQScreen() {
   const {
@@ -136,7 +51,6 @@ export default function HQScreen() {
   const reveal        = manager.getNextReleaseReveal();
   const isFinalReveal = !!reveal && manager.isFinalReleaseReveal(reveal.id);
   const revealReport  = reveal ? manager.getLatestReleaseReport(reveal.id) : null;
-  const splashTone    = getReleaseSplashTone(revealReport);
   const leaderboard   = manager.getIndustryHeatLeaderboard();
   const news          = manager.industryNewsLog.slice(0, 6);
   const chronicle     = manager.studioChronicle.slice(0, 8);
@@ -171,20 +85,7 @@ export default function HQScreen() {
   const rivalRelations = [...manager.rivals]
     .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
     .slice(0, 4);
-
-  const anim = useRef(new Animated.Value(0)).current;
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
-
-  useEffect(() => {
-    if (!reveal) return;
-    anim.setValue(0);
-    Animated.timing(anim, {
-      toValue:          1,
-      duration:         380,
-      easing:           Easing.out(Easing.cubic),
-      useNativeDriver:  true,
-    }).start();
-  }, [anim, reveal]);
 
   useEffect(() => {
     setStudioNameDraft(manager.studioName);
@@ -676,243 +577,15 @@ export default function HQScreen() {
       />
 
       {/* ── Release Reveal Modal ── */}
-      <Modal
-        visible={!!reveal}
-        transparent
-        animationType="none"
-        onRequestClose={() => reveal && dismissReleaseReveal(reveal.id)}
-      >
-        <BlurView intensity={blur.modal} tint="dark" style={styles.modalOverlay}>
-          <View style={styles.modalDimLayer} />
-          {reveal && (
-            <Animated.View
-              style={[
-                styles.modalContent,
-                {
-                  opacity: anim,
-                  transform: [
-                    { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
-                    { scale:      anim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) },
-                  ],
-                },
-              ]}
-            >
-              {/* Gradient top band based on outcome */}
-              {isFinalReveal && revealReport && (
-                <LinearGradient
-                  colors={[splashGradientColor(splashTone), 'transparent']}
-                  style={styles.modalTopBand}
-                  pointerEvents="none"
-                />
-              )}
-
-              <Text style={styles.modalLabel}>
-                {isFinalReveal ? 'Final Box Office Report' : 'Opening Weekend Reveal'}
-              </Text>
-              <Text style={styles.modalFilmTitle}>{reveal.title}</Text>
-
-              {isFinalReveal && revealReport ? (
-                <>
-                  <OutcomeBadge outcome={splashToneToOutcome(splashTone)} size="md" style={styles.outcomeBadge} />
-
-                  <View style={styles.modalStatsGrid}>
-                    <MetricTile value={money(revealReport.totalGross)} label="Total Gross"  size="md" centered />
-                    <MetricTile value={money(revealReport.studioNet)}  label="Studio Net"   size="md" centered accent={colors.accentTeal} />
-                  </View>
-                  <View style={styles.modalStatsGrid}>
-                    <MetricTile value={money(revealReport.profit)}    label="Profit / Loss" size="sm" centered accent={revealReport.profit >= 0 ? colors.accentTeal : colors.accentRed} />
-                    <MetricTile value={`${revealReport.roi.toFixed(2)}×`} label="ROI"       size="sm" centered accent={revealReport.roi >= 2 ? colors.accentTeal : revealReport.roi < 1 ? colors.accentRed : colors.goldMid} />
-                  </View>
-
-                  {revealReport.wasRecordOpening && (
-                    <Text style={styles.recordLine}>🏆 New studio opening-weekend record</Text>
-                  )}
-
-                  {/* Performance drivers */}
-                  <GlassCard variant="elevated" style={{ gap: spacing.sp2 }}>
-                    <SectionLabel label="Performance Drivers" />
-                    {[
-                      { key: 'Script',     val: revealReport.breakdown.script     },
-                      { key: 'Direction',  val: revealReport.breakdown.direction  },
-                      { key: 'Star Power', val: revealReport.breakdown.starPower  },
-                      { key: 'Marketing',  val: revealReport.breakdown.marketing  },
-                      { key: 'Timing',     val: revealReport.breakdown.timing     },
-                      { key: 'Genre Cycle',val: revealReport.breakdown.genreCycle },
-                    ].map(({ key, val }) => (
-                      <View key={key} style={styles.driverRow}>
-                        <Text style={styles.driverLabel}>{key}</Text>
-                        <ProgressBar
-                          value={50 + val}
-                          color={val >= 0 ? colors.accentTeal : colors.accentRed}
-                          height={5}
-                          style={styles.driverBar}
-                        />
-                        <Text style={[styles.driverVal, { color: val >= 0 ? colors.accentTeal : colors.accentRed }]}>
-                          {val >= 0 ? '+' : ''}{val}
-                        </Text>
-                      </View>
-                    ))}
-                  </GlassCard>
-                </>
-              ) : (
-                <>
-                  <View style={styles.modalStatsGrid}>
-                    <MetricTile value={money(reveal.openingWeekendGross ?? 0)} label="Opening Weekend" size="md" centered />
-                  </View>
-                  <View style={styles.modalStatsGrid}>
-                    <MetricTile value={reveal.criticalScore?.toFixed(0) ?? '--'} label="Critics"  size="sm" centered accent={colors.accentTeal} />
-                    <MetricTile value={reveal.audienceScore?.toFixed(0)  ?? '--'} label="Audience" size="sm" centered accent={colors.goldMid} />
-                    <MetricTile value={`${reveal.releaseWeeksRemaining}w`}        label="Forecast" size="sm" centered />
-                  </View>
-                  <Text style={styles.muted}>Partner: {reveal.distributionPartner ?? 'Pending'}</Text>
-                </>
-              )}
-
-              <PremiumButton
-                label="Continue"
-                onPress={() => dismissReleaseReveal(reveal.id)}
-                variant="primary"
-                size="lg"
-                fullWidth
-                style={{ marginTop: spacing.sp2 }}
-              />
-            </Animated.View>
-          )}
-        </BlurView>
-      </Modal>
+      <ReleaseRevealModal
+        reveal={reveal}
+        isFinalReveal={isFinalReveal}
+        revealReport={revealReport}
+        dismissReleaseReveal={dismissReleaseReveal}
+      />
 
     </ScrollView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp4, gap: spacing.sp3, paddingBottom: 120 },
-
-  // Header
-  header:     { gap: 3, marginBottom: spacing.sp1 },
-  headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
-  studioName: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  weekLine:   { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
-
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
-  body:    { fontFamily: typography.fontBody,        fontSize: typography.sizeSM, color: colors.textSecondary },
-  bodyStrong: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-  muted:   { fontFamily: typography.fontBody,        fontSize: typography.sizeXS, color: colors.textMuted },
-  alert:   { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.accentRed },
-
-  // Weekly status
-  statusRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp1 },
-  statusTile: { flex: 1, paddingVertical: spacing.sp2, paddingHorizontal: spacing.sp1 },
-  cashRow:   { flexDirection: 'row', gap: spacing.sp3 },
-
-  // Studio standing
-  standingHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sp2 },
-  tierName:       { fontFamily: typography.fontDisplay, fontSize: typography.sizeLG, color: colors.textPrimary, letterSpacing: typography.trackingTight, marginTop: 2 },
-  heatBadge:      { alignItems: 'center', gap: 1 },
-  heatValue:      { fontFamily: typography.fontDisplay, fontSize: typography.sizeXL, color: colors.goldMid, letterSpacing: typography.trackingTight },
-  heatLabel:      { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest },
-
-  // Decision inbox
-  inboxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  expiryPill:  { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  expiryText:  { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4 },
-
-  // Option buttons (decisions / crises)
-  optionGroup: { gap: spacing.sp2, marginTop: spacing.sp1 },
-  optionBtn:   {
-    borderRadius:    radius.r2,
-    borderWidth:     1,
-    borderColor:     colors.borderDefault,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    padding:         spacing.sp2 + 2,
-    gap:             3,
-  },
-  optionTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-  optionBody:  { fontFamily: typography.fontBody,          fontSize: typography.sizeXS, color: colors.textMuted },
-
-  // Operations
-  capRow:     { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
-  actionsRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp2 },
-  flexBtn:    { flex: 1 },
-
-  // Studio identity
-  input: {
-    borderRadius:    radius.r2,
-    borderWidth:     1,
-    borderColor:     colors.borderDefault,
-    backgroundColor: colors.bgElevated,
-    color:           colors.textPrimary,
-    fontFamily:      typography.fontBody,
-    paddingHorizontal: spacing.sp3,
-    paddingVertical:   spacing.sp2,
-    fontSize:          typography.sizeSM,
-  },
-
-  // Turn length
-  turnBtn: {
-    flex: 1,
-    borderRadius:    radius.r2,
-    borderWidth:     1,
-    borderColor:     colors.borderDefault,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    padding:         spacing.sp2 + 2,
-    gap:             3,
-  },
-  turnBtnActive: {
-    borderColor:     colors.borderGold,
-    backgroundColor: 'rgba(212,168,67,0.10)',
-  },
-
-  // Arcs
-  arcRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  arcBadge:  { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  arcStatus: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.6 },
-
-  // Leaderboard / rows
-  leaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
-
-  // Chronicle
-  chronicleEntry:   { flexDirection: 'row', gap: spacing.sp2, alignItems: 'flex-start', paddingVertical: 3 },
-  chronicleWeek:    { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.textMuted, minWidth: 40 },
-  chronicleHeadline:{ fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary, lineHeight: 18 },
-
-  // Modal
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,10,15,0.55)' },
-  modalContent: {
-    width:           '100%',
-    maxWidth:        480,
-    borderRadius:    radius.r4,
-    borderWidth:     1,
-    borderColor:     colors.borderDefault,
-    backgroundColor: colors.bgSurface,
-    padding:         spacing.sp5,
-    gap:             spacing.sp3,
-    overflow:        'hidden',
-    margin:          spacing.sp4,
-  },
-  modalTopBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 80 },
-  modalLabel: {
-    fontFamily:    typography.fontBodySemiBold,
-    fontSize:      typography.sizeXS,
-    color:         colors.goldMid,
-    textTransform: 'uppercase',
-    letterSpacing: typography.trackingWidest,
-  },
-  modalFilmTitle: {
-    fontFamily:    typography.fontDisplay,
-    fontSize:      typography.sizeXL,
-    color:         colors.textPrimary,
-    letterSpacing: typography.trackingTight,
-  },
-  outcomeBadge:    { alignSelf: 'flex-start' },
-  modalStatsGrid:  { flexDirection: 'row', gap: spacing.sp4 },
-  recordLine:      { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.goldMid },
-  driverRow:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
-  driverLabel:     { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, width: 72 },
-  driverBar:       { flex: 1 },
-  driverVal:       { fontFamily: typography.fontBodyBold, fontSize: typography.sizeXS, width: 28, textAlign: 'right' },
-});
