@@ -1,25 +1,25 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
-import { tokens } from '@/src/ui/tokens';
+import { GlassCard, PremiumButton, ProgressBar, SectionLabel, StarRating } from '@/src/ui/components';
+import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function starDisplay(value: number): string {
-  const scaled = Math.max(0, Math.min(5, value / 2));
-  const full = Math.floor(scaled);
-  const hasHalf = scaled - full >= 0.5;
-  const empty = 5 - full - (hasHalf ? 1 : 0);
-  return `${'\u2605'.repeat(full)}${hasHalf ? '\u00BD' : ''}${'\u2606'.repeat(empty)}`;
-}
-
 function chanceLabel(value: number): string {
   if (value >= 0.75) return 'Likely';
-  if (value >= 0.5) return 'Even Odds';
+  if (value >= 0.5)  return 'Even Odds';
   return 'Long Shot';
+}
+
+function chanceColor(value: number): string {
+  if (value >= 0.75) return colors.accentGreen;
+  if (value >= 0.5)  return colors.goldMid;
+  return colors.accentRed;
 }
 
 function capitalized(value: string): string {
@@ -27,48 +27,62 @@ function capitalized(value: string): string {
 }
 
 function roleLabel(value: string): string {
-  return value === 'leadActor' ? 'Lead Actor' : value === 'supportingActor' ? 'Supporting Actor' : value;
+  if (value === 'leadActor')       return 'Lead Actor';
+  if (value === 'supportingActor') return 'Supporting Actor';
+  return value;
 }
 
 function trustLevelLabel(value: string): string {
   if (value === 'hostile') return 'Hostile';
-  if (value === 'wary') return 'Wary';
+  if (value === 'wary')    return 'Wary';
   if (value === 'aligned') return 'Aligned';
-  if (value === 'loyal') return 'Loyal';
+  if (value === 'loyal')   return 'Loyal';
   return 'Neutral';
 }
 
-function refusalRiskLabel(value: string): string {
-  if (value === 'critical') return 'Critical';
-  if (value === 'elevated') return 'Elevated';
-  return 'Low';
+function trustLevelColor(value: string): string {
+  if (value === 'hostile') return colors.accentRed;
+  if (value === 'wary')    return '#F5D089';
+  if (value === 'aligned') return colors.accentTeal;
+  if (value === 'loyal')   return colors.accentGreen;
+  return colors.textMuted;
+}
+
+function refusalRiskColor(value: string): string {
+  if (value === 'critical') return colors.accentRed;
+  if (value === 'elevated') return colors.goldMid;
+  return colors.accentTeal;
 }
 
 function interactionLabel(kind: string): string {
-  if (kind === 'negotiationOpened') return 'Opened negotiation';
-  if (kind === 'negotiationSweetened') return 'Sweetened terms';
-  if (kind === 'negotiationHardline') return 'Held hard line';
-  if (kind === 'negotiationDeclined') return 'Declined terms';
-  if (kind === 'quickCloseFailed') return 'Quick-close failed';
-  if (kind === 'quickCloseSuccess') return 'Quick-close success';
-  if (kind === 'dealSigned') return 'Deal signed';
-  if (kind === 'dealStalled') return 'Deal stalled';
-  if (kind === 'projectReleased') return 'Project released';
-  if (kind === 'projectAbandoned') return 'Project abandoned';
-  if (kind === 'poachedByRival') return 'Poached by rival';
-  if (kind === 'counterPoachWon') return 'Counter-poach won';
-  if (kind === 'counterPoachLost') return 'Counter-poach lost';
-  return 'Interaction';
+  const map: Record<string, string> = {
+    negotiationOpened:   'Opened negotiation',
+    negotiationSweetened:'Sweetened terms',
+    negotiationHardline: 'Held hard line',
+    negotiationDeclined: 'Declined terms',
+    quickCloseFailed:    'Quick-close failed',
+    quickCloseSuccess:   'Quick-close success',
+    dealSigned:          'Deal signed',
+    dealStalled:         'Deal stalled',
+    projectReleased:     'Project released',
+    projectAbandoned:    'Project abandoned',
+    poachedByRival:      'Poached by rival',
+    counterPoachWon:     'Counter-poach won',
+    counterPoachLost:    'Counter-poach lost',
+  };
+  return map[kind] ?? 'Interaction';
 }
 
 export default function TalentScreen() {
   const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGame();
-  const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
+  const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
-  const activeProject = selectedProjectId ? developmentProjects.find((project) => project.id === selectedProjectId) ?? null : null;
-  const projectLedger = manager.activeProjects.filter((project) => project.phase !== 'released');
-  const talentRoster = useMemo(
+  const activeProject  = selectedProjectId
+    ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
+    : null;
+  const projectLedger  = manager.activeProjects.filter((p) => p.phase !== 'released');
+  const talentRoster   = useMemo(
     () =>
       [...manager.talentPool].sort((a, b) => {
         if (a.availability !== b.availability) return a.availability === 'available' ? -1 : 1;
@@ -77,230 +91,347 @@ export default function TalentScreen() {
       }),
     [manager.talentPool]
   );
-  const availableTalentCount = talentRoster.filter((talent) => talent.availability === 'available').length;
-  const rivalLockedCount = talentRoster.filter((talent) => manager.rivals.some((rival) => rival.lockedTalentIds.includes(talent.id))).length;
-  const coolingOffCount = talentRoster.filter((talent) => manager.getTalentNegotiationOutlook(talent).blocked).length;
+  const availableTalentCount = talentRoster.filter((t) => t.availability === 'available').length;
+  const rivalLockedCount     = talentRoster.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
+  const coolingOffCount      = talentRoster.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
 
   useEffect(() => {
-    const selectionStillValid = !!selectedProjectId && developmentProjects.some((project) => project.id === selectedProjectId);
-    if (selectionStillValid) return;
+    const stillValid = !!selectedProjectId && developmentProjects.some((p) => p.id === selectedProjectId);
+    if (stillValid) return;
     setSelectedProjectId(developmentProjects[0]?.id ?? null);
   }, [developmentProjects, selectedProjectId]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Talent Market</Text>
-      <Text style={styles.subtitle}>Shared market with rival lock status and negotiation controls</Text>
-      {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
 
-      <Pressable style={styles.targetButton} onPress={() => setShowHelp((value) => !value)}>
-        <Text style={styles.targetButtonText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
-      </Pressable>
-      {showHelp ? (
-        <View style={styles.card}>
-          <Text style={styles.bodyStrong}>Negotiation Notes</Text>
-          <Text style={styles.muted}>Push the highlighted pressure point first to raise close chance fastest.</Text>
-          <Text style={styles.muted}>Trust and loyalty influence future negotiations. Repeated hardline rounds create lockouts.</Text>
-        </View>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={[colors.goldDeep + '15', 'transparent']}
+          style={styles.headerGlow}
+          pointerEvents="none"
+        />
+        <Text style={styles.title}>Talent Market</Text>
+        <Text style={styles.subtitle}>Shared market with rival lock status and negotiation controls</Text>
+      </View>
+
+      {lastMessage ? (
+        <GlassCard variant="teal">
+          <Text style={styles.message}>{lastMessage}</Text>
+        </GlassCard>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Star vs Craft</Text>
+      {/* ── Help ── */}
+      <PremiumButton
+        label={showHelp ? 'Hide Help' : 'Show Help'}
+        onPress={() => setShowHelp((v) => !v)}
+        variant="ghost"
+        size="sm"
+      />
+      {showHelp && (
+        <GlassCard variant="elevated">
+          <Text style={styles.helpTitle}>Negotiation Notes</Text>
+          <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest.</Text>
+          <Text style={styles.helpBody}>Trust and loyalty influence future negotiations. Repeated hardline rounds create lockouts.</Text>
+        </GlassCard>
+      )}
+
+      {/* ── Star vs Craft ── */}
+      <GlassCard>
+        <SectionLabel label="Star vs Craft" />
         <Text style={styles.body}>
-          Star = audience draw and launch heat. Craft = execution quality and critic stability. Big stars open films; high craft sustains reviews.
+          <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
+          {' = audience draw and launch heat. '}
+          <Text style={{ color: colors.accentTeal, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
+          {' = execution quality and critic stability. Big stars open films; high craft sustains reviews.'}
         </Text>
-      </View>
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Market Snapshot</Text>
-        <Text style={styles.body}>Available now: {availableTalentCount}</Text>
-        <Text style={styles.body}>Open negotiations: {manager.playerNegotiations.length}</Text>
-        <Text style={styles.body}>Rival lockouts: {rivalLockedCount}</Text>
-        <Text style={styles.body}>Cooling-off lockouts: {coolingOffCount}</Text>
-      </View>
+      {/* ── Market Snapshot ── */}
+      <GlassCard>
+        <SectionLabel label="Market Snapshot" />
+        <View style={styles.snapshotRow}>
+          {[
+            { label: 'Available',   value: availableTalentCount,         accent: colors.accentTeal },
+            { label: 'Negotiations',value: manager.playerNegotiations.length, accent: colors.goldMid },
+            { label: 'Rival Lock',  value: rivalLockedCount,             accent: colors.accentRed },
+            { label: 'Cooling Off', value: coolingOffCount,              accent: colors.textMuted },
+          ].map(({ label, value, accent }) => (
+            <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
+              <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
+              <Text style={styles.snapshotLabel}>{label}</Text>
+            </GlassCard>
+          ))}
+        </View>
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Development Targets</Text>
-        {developmentProjects.length === 0 ? <Text style={styles.muted}>No development-phase project is available for attachment right now.</Text> : null}
-        {developmentProjects.map((project) => (
-          <Pressable
-            key={project.id}
-            style={[styles.targetButton, selectedProjectId === project.id ? styles.targetButtonActive : null]}
-            onPress={() => setSelectedProjectId(project.id)}>
-            <Text style={styles.targetButtonText}>
-              {project.title} ({project.genre})
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* ── Development Targets ── */}
+      <GlassCard>
+        <SectionLabel label="Development Targets" />
+        {developmentProjects.length === 0
+          ? <Text style={styles.empty}>No development-phase project available for attachment right now.</Text>
+          : <View style={styles.targetRow}>
+              {developmentProjects.map((project) => (
+                <PremiumButton
+                  key={project.id}
+                  label={`${project.title} (${project.genre})`}
+                  onPress={() => setSelectedProjectId(project.id)}
+                  variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
+                  size="sm"
+                />
+              ))}
+            </View>
+        }
+      </GlassCard>
 
-      {activeProject ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Active Target Project</Text>
-          <Text style={styles.body}>
-            {activeProject.title} ({activeProject.genre}) | {activeProject.phase}
-          </Text>
+      {/* ── Active Target ── */}
+      {activeProject && (
+        <GlassCard variant="gold">
+          <SectionLabel label="Active Target" />
+          <Text style={styles.activeTitle}>{activeProject.title}</Text>
+          <Text style={styles.body}>{activeProject.genre} · {activeProject.phase}</Text>
           <Text style={styles.muted}>
             Director:{' '}
             {activeProject.directorId
-              ? manager.talentPool.find((talent) => talent.id === activeProject.directorId)?.name ?? 'Unknown'
+              ? manager.talentPool.find((t) => t.id === activeProject.directorId)?.name ?? 'Unknown'
               : 'Unattached'}
           </Text>
           <Text style={styles.muted}>
             Cast:{' '}
             {activeProject.castIds.length > 0
               ? activeProject.castIds
-                  .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
-                  .filter((value): value is string => !!value)
+                  .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
+                  .filter((v): v is string => !!v)
                   .join(', ')
-              : 'None'}
+              : 'None attached'}
           </Text>
-        </View>
-      ) : null}
+        </GlassCard>
+      )}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Project Ledger</Text>
-        {projectLedger.length === 0 ? <Text style={styles.muted}>No active projects.</Text> : null}
-        {projectLedger.map((project) => {
-          const director = project.directorId
-            ? manager.talentPool.find((talent) => talent.id === project.directorId)?.name ?? 'Unknown'
-            : 'Unattached';
-          const cast = project.castIds
-            .map((id) => manager.talentPool.find((talent) => talent.id === id)?.name)
-            .filter((value): value is string => !!value);
-          return (
-            <View key={project.id} style={styles.subCard}>
-              <Text style={styles.bodyStrong}>
-                {project.title} | {project.genre} | {project.phase}
-              </Text>
-              <Text style={styles.muted}>Director: {director}</Text>
-              <Text style={styles.muted}>Cast: {cast.length > 0 ? cast.join(', ') : 'None'}</Text>
-            </View>
-          );
-        })}
-      </View>
+      {/* ── Project Ledger ── */}
+      <GlassCard>
+        <SectionLabel label="Project Ledger" />
+        {projectLedger.length === 0
+          ? <Text style={styles.empty}>No active projects.</Text>
+          : projectLedger.map((project) => {
+            const director = project.directorId
+              ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
+              : 'Unattached';
+            const cast = project.castIds
+              .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
+              .filter((v): v is string => !!v);
+            return (
+              <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
+                <Text style={styles.subTitle}>{project.title}</Text>
+                <Text style={styles.muted}>{project.genre} · {project.phase}</Text>
+                <Text style={styles.muted}>Director: {director}</Text>
+                {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
+              </GlassCard>
+            );
+          })
+        }
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Open Negotiations</Text>
-        {manager.playerNegotiations.length === 0 ? <Text style={styles.muted}>No open negotiations.</Text> : null}
-        {manager.playerNegotiations.map((entry) => {
-          const talent = manager.talentPool.find((item) => item.id === entry.talentId);
-          const project = manager.activeProjects.find((item) => item.id === entry.projectId);
-          const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
-          const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
-          return (
-            <View key={`${entry.projectId}-${entry.talentId}`} style={styles.subCard}>
-              <Text style={styles.bodyStrong}>
-                {talent?.name ?? 'Talent'} with {project?.title ?? 'Project'}
-              </Text>
-              <Text style={styles.muted}>
-                Opened week {entry.openedWeek} | resolves on next End Turn | close chance{' '}
-                {chance !== null ? `${pct(chance)} - ${chanceLabel(chance)}` : '--'}
-              </Text>
-              {snapshot ? (
-                <>
-                  <Text style={styles.muted}>
-                    Rounds: {snapshot.rounds}/4 ({snapshot.roundsRemaining} left) | Pressure: {capitalized(snapshot.pressurePoint)}
-                  </Text>
-                  <Text style={styles.muted}>
-                    Offer: Salary {snapshot.salaryMultiplier.toFixed(2)}x | Backend {snapshot.backendPoints.toFixed(1)}pts | Perks ${Math.round(
-                      snapshot.perksBudget
-                    ).toLocaleString()}
-                  </Text>
-                  <Text style={styles.muted}>
-                    Ask: Salary {snapshot.demandSalaryMultiplier.toFixed(2)}x | Backend {snapshot.demandBackendPoints.toFixed(1)}pts | Perks $
-                    {Math.round(snapshot.demandPerksBudget).toLocaleString()}
-                  </Text>
-                  <Text style={styles.signal}>{snapshot.signal}</Text>
-                  <View style={styles.actions}>
-                    <Pressable
-                      style={[styles.smallButton, snapshot.pressurePoint === 'salary' ? styles.smallButtonHighlight : null]}
-                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenSalary')}>
-                      <Text style={styles.smallButtonText}>+Salary</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.smallButton, snapshot.pressurePoint === 'backend' ? styles.smallButtonHighlight : null]}
-                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenBackend')}>
-                      <Text style={styles.smallButtonText}>+Backend</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.smallButton, snapshot.pressurePoint === 'perks' ? styles.smallButtonHighlight : null]}
-                      onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'sweetenPerks')}>
-                      <Text style={styles.smallButtonText}>+Perks</Text>
-                    </Pressable>
-                    <Pressable style={styles.smallButton} onPress={() => adjustNegotiation(entry.projectId, entry.talentId, 'holdFirm')}>
-                      <Text style={styles.smallButtonText}>Hold Line</Text>
-                    </Pressable>
-                  </View>
-                </>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
+      {/* ── Open Negotiations ── */}
+      <GlassCard>
+        <SectionLabel label="Open Negotiations" />
+        {manager.playerNegotiations.length === 0
+          ? <Text style={styles.empty}>No open negotiations.</Text>
+          : manager.playerNegotiations.map((entry) => {
+            const talent   = manager.talentPool.find((t) => t.id === entry.talentId);
+            const project  = manager.activeProjects.find((p) => p.id === entry.projectId);
+            const chance   = manager.getNegotiationChance(entry.talentId, entry.projectId);
+            const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
+            return (
+              <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
+                <View style={styles.negHeader}>
+                  <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
+                  {chance !== null && (
+                    <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
+                      <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
+                        {pct(chance)} · {chanceLabel(chance)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.muted}>
+                  {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
+                </Text>
 
-      <Text style={styles.sectionHeader}>Talent Roster</Text>
+                {snapshot && (
+                  <>
+                    <Text style={styles.muted}>
+                      Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
+                    </Text>
+                    <View style={styles.offerRow}>
+                      <GlassCard variant="default" style={styles.offerCol}>
+                        <Text style={styles.offerLabel}>YOUR OFFER</Text>
+                        <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
+                        <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
+                      </GlassCard>
+                      <GlassCard variant="default" style={styles.offerCol}>
+                        <Text style={styles.offerLabel}>THEIR ASK</Text>
+                        <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
+                        <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
+                      </GlassCard>
+                    </View>
+                    <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
+                    <View style={styles.actions}>
+                      {[
+                        { label: '+Salary',  action: 'sweetenSalary',  pressure: 'salary'  },
+                        { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
+                        { label: '+Perks',   action: 'sweetenPerks',   pressure: 'perks'   },
+                        { label: 'Hold',     action: 'holdFirm',       pressure: null       },
+                      ].map(({ label, action, pressure }) => (
+                        <PremiumButton
+                          key={action}
+                          label={label}
+                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as any)}
+                          variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
+                          size="sm"
+                          style={styles.negBtn}
+                        />
+                      ))}
+                    </View>
+                  </>
+                )}
+              </GlassCard>
+            );
+          })
+        }
+      </GlassCard>
+
+      {/* ── Talent Roster ── */}
+      <SectionLabel label="Talent Roster" style={{ marginTop: spacing.sp2 }} />
       {talentRoster.map((talent) => {
-        const rival = manager.rivals.find((item) => item.lockedTalentIds.includes(talent.id));
+        const rival = manager.rivals.find((r) => r.lockedTalentIds.includes(talent.id));
         const attachedProject =
-          talent.attachedProjectId && manager.activeProjects.find((project) => project.id === talent.attachedProjectId);
-        const status =
-          talent.availability === 'unavailable' && rival
-            ? `In Production - ${rival.name} (returns W${talent.unavailableUntilWeek ?? '-'})`
-            : talent.availability;
-        const projectFit = activeProject ? talent.genreFit[activeProject.genre] ?? 0.5 : null;
-        const trustLevel = manager.getTalentTrustLevel(talent);
-        const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
-        const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
-        const outlook = manager.getTalentNegotiationOutlook(talent);
-        const targetChance = activeProject ? manager.getNegotiationChance(talent.id, activeProject.id) : null;
-        const recentInteractions = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
+          talent.attachedProjectId && manager.activeProjects.find((p) => p.id === talent.attachedProjectId);
+        const isAvailable  = talent.availability === 'available';
+        const status = isAvailable
+          ? 'Available'
+          : rival
+            ? `${rival.name} · returns W${talent.unavailableUntilWeek ?? '-'}`
+            : `In Production`;
+        const trustLevel    = manager.getTalentTrustLevel(talent);
+        const trust         = talent.relationshipMemory?.trust    ?? Math.round(talent.studioRelationship * 100);
+        const loyalty       = talent.relationshipMemory?.loyalty  ?? Math.round(talent.studioRelationship * 100);
+        const outlook       = manager.getTalentNegotiationOutlook(talent);
+        const targetChance  = activeProject ? manager.getNegotiationChance(talent.id, activeProject.id) : null;
+        const recentMemory  = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
+        const trustColor    = trustLevelColor(trustLevel);
+
         return (
-          <View key={talent.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{talent.name}</Text>
-            <Text style={styles.body}>
-              {roleLabel(talent.role)} | Star {talent.starPower.toFixed(1)} | Craft {talent.craftScore.toFixed(1)}
-            </Text>
-            <Text style={styles.muted}>Star Rating: {starDisplay(talent.starPower)}</Text>
-            <Text style={styles.muted}>Status: {status}</Text>
-            <Text style={styles.muted}>Agent: {talent.agentTier.toUpperCase()} | Ego {talent.egoLevel.toFixed(1)}</Text>
-            <Text style={styles.muted}>
-              Trust: {trust.toFixed(0)} ({trustLevelLabel(trustLevel)}) | Loyalty: {loyalty.toFixed(0)} | Reputation:{' '}
-              {talent.reputation.toFixed(1)}
-            </Text>
-            <Text style={styles.muted}>
-              Grudge: {outlook.grudgeScore} | Refusal Risk: {refusalRiskLabel(outlook.refusalRisk)}
-              {outlook.blocked && outlook.lockoutUntilWeek ? ` | Cooling off until W${outlook.lockoutUntilWeek}` : ''}
-            </Text>
-            {outlook.reason ? <Text style={styles.alert}>{outlook.reason}</Text> : null}
-            {activeProject ? <Text style={styles.muted}>Fit to {activeProject.title}: {pct(projectFit ?? 0)}</Text> : null}
-            {activeProject && targetChance !== null ? <Text style={styles.muted}>Target close chance: {pct(targetChance)}</Text> : null}
-            {attachedProject ? <Text style={styles.muted}>Attached to: {attachedProject.title}</Text> : null}
-            {recentInteractions.length > 0 ? <Text style={styles.muted}>Recent Memory:</Text> : null}
-            {recentInteractions.map((entry, index) => (
-              <Text key={`${talent.id}-${entry.week}-${index}`} style={styles.muted}>
-                W{entry.week}: {interactionLabel(entry.kind)} ({entry.trustDelta >= 0 ? '+' : ''}
-                {entry.trustDelta}T, {entry.loyaltyDelta >= 0 ? '+' : ''}
-                {entry.loyaltyDelta}L)
-              </Text>
-            ))}
-            {activeProject && talent.availability === 'available' ? (
-              <View style={styles.actions}>
-                <Pressable
-                  style={[styles.button, outlook.blocked ? styles.buttonDisabled : null]}
-                  disabled={outlook.blocked}
-                  onPress={() => startNegotiation(activeProject.id, talent.id)}>
-                  <Text style={styles.buttonText}>Open Negotiation {pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.button, outlook.blocked ? styles.buttonDisabled : null]}
-                  disabled={outlook.blocked}
-                  onPress={() => attachTalent(activeProject.id, talent.id)}>
-                  <Text style={styles.buttonText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
-                </Pressable>
+          <GlassCard
+            key={talent.id}
+            variant={!isAvailable ? 'elevated' : 'default'}
+            style={{ gap: spacing.sp2, opacity: !isAvailable ? 0.75 : 1 }}
+          >
+            {/* Row 1: Name + availability */}
+            <View style={styles.talentHeader}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.talentName}>{talent.name}</Text>
+                <Text style={styles.talentRole}>{roleLabel(talent.role)}</Text>
               </View>
-            ) : null}
-          </View>
+              <View style={[styles.availBadge, {
+                borderColor: isAvailable ? colors.accentTeal + '60' : colors.textMuted + '40',
+                backgroundColor: isAvailable ? colors.accentTeal + '14' : 'transparent',
+              }]}>
+                <Text style={[styles.availText, { color: isAvailable ? colors.accentTeal : colors.textMuted }]}>
+                  {isAvailable ? 'Available' : 'Locked'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Row 2: Star rating + craft bar */}
+            <View style={styles.statsRow}>
+              <View style={styles.statBlock}>
+                <Text style={styles.statLabel}>STAR POWER</Text>
+                <StarRating value={talent.starPower} size="md" />
+                <Text style={[styles.statNum, { color: colors.goldMid }]}>{talent.starPower.toFixed(1)}</Text>
+              </View>
+              <View style={styles.statBlock}>
+                <Text style={styles.statLabel}>CRAFT</Text>
+                <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentTeal} height={6} animated />
+                <Text style={[styles.statNum, { color: colors.accentTeal }]}>{talent.craftScore.toFixed(1)}</Text>
+              </View>
+            </View>
+
+            {/* Row 3: Trust / loyalty */}
+            <View style={styles.trustRow}>
+              <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
+                <Text style={[styles.trustText, { color: trustColor }]}>
+                  {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
+                </Text>
+              </View>
+              <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
+                <Text style={[styles.riskText, { color: refusalRiskColor(outlook.refusalRisk) }]}>
+                  {outlook.refusalRisk === 'critical' ? 'High Risk' : outlook.refusalRisk === 'elevated' ? 'Med Risk' : 'Low Risk'}
+                </Text>
+              </View>
+              {outlook.blocked && outlook.lockoutUntilWeek && (
+                <Text style={styles.muted}>Cooling off until W{outlook.lockoutUntilWeek}</Text>
+              )}
+            </View>
+
+            {outlook.reason && (
+              <Text style={[styles.alert, { color: '#F5D089' }]}>{outlook.reason}</Text>
+            )}
+
+            {activeProject && (
+              <Text style={styles.muted}>
+                Fit to <Text style={{ color: colors.textPrimary }}>{activeProject.title}</Text>:{' '}
+                {pct(talent.genreFit[activeProject.genre] ?? 0.5)}
+                {targetChance !== null && ` · Close ${pct(targetChance)}`}
+              </Text>
+            )}
+
+            {attachedProject && (
+              <Text style={styles.muted}>Attached: {attachedProject.title}</Text>
+            )}
+
+            {/* Recent memory */}
+            {recentMemory.length > 0 && (
+              <View style={{ gap: 3 }}>
+                <SectionLabel label="Recent Memory" />
+                {recentMemory.map((entry, i) => (
+                  <Text key={`${talent.id}-${entry.week}-${i}`} style={styles.memoryLine}>
+                    W{entry.week}: {interactionLabel(entry.kind)}{' '}
+                    <Text style={{ color: entry.trustDelta >= 0 ? colors.accentTeal : colors.accentRed }}>
+                      ({entry.trustDelta >= 0 ? '+' : ''}{entry.trustDelta}T)
+                    </Text>
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Status line */}
+            {!isAvailable && (
+              <Text style={styles.muted}>{status}</Text>
+            )}
+
+            {/* Actions */}
+            {activeProject && isAvailable && (
+              <View style={styles.actions}>
+                <PremiumButton
+                  label={`Negotiate · ${pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}`}
+                  onPress={() => startNegotiation(activeProject.id, talent.id)}
+                  disabled={outlook.blocked}
+                  variant="gold-outline"
+                  size="sm"
+                  style={styles.flexBtn}
+                />
+                <PremiumButton
+                  label={`Quick Close · ${pct(manager.getQuickCloseChance(talent.id) ?? 0)}`}
+                  onPress={() => attachTalent(activeProject.id, talent.id)}
+                  disabled={outlook.blocked}
+                  variant="primary"
+                  size="sm"
+                  style={styles.flexBtn}
+                />
+              </View>
+            )}
+          </GlassCard>
         );
       })}
     </ScrollView>
@@ -308,86 +439,64 @@ export default function TalentScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: tokens.bgPrimary },
-  content: { padding: 16, paddingBottom: 120, gap: 12 },
-  title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
-  subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
-  message: { color: tokens.accentTeal, fontSize: 13 },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgSurface,
-    padding: 12,
-    gap: 6,
-  },
-  subCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgElevated,
-    padding: 8,
-    gap: 4,
-  },
-  sectionLabel: {
-    color: tokens.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  sectionHeader: {
-    color: tokens.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  cardTitle: { color: tokens.textPrimary, fontSize: 18, fontWeight: '700' },
-  body: { color: tokens.textSecondary, fontSize: 13 },
-  bodyStrong: { color: tokens.textPrimary, fontSize: 13, fontWeight: '700' },
-  muted: { color: tokens.textMuted, fontSize: 12 },
-  alert: { color: '#F5D089', fontSize: 12 },
-  signal: { color: tokens.accentGold, fontSize: 12 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
-  targetButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgElevated,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  targetButtonActive: {
-    borderColor: tokens.accentGold,
-    backgroundColor: '#3B2E14',
-  },
-  targetButtonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
-  button: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: '#2A3650',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  buttonText: { color: tokens.textPrimary, fontWeight: '600', fontSize: 12 },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  smallButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgElevated,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  smallButtonText: { color: tokens.textPrimary, fontWeight: '700', fontSize: 11 },
-  smallButtonHighlight: {
-    borderColor: tokens.accentGold,
-    backgroundColor: '#3B2E14',
-  },
-});
+  screen:  { flex: 1, backgroundColor: colors.bgPrimary },
+  content: { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
 
+  header:     { gap: 4, marginBottom: spacing.sp1 },
+  headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
+  title:    { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
+  subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
+
+  message:  { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
+  empty:    { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
+  body:     { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
+  muted:    { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
+  alert:    { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS },
+  signal:   { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS },
+
+  helpTitle: { fontFamily: typography.fontBodyBold,   fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
+  helpBody:  { fontFamily: typography.fontBody,        fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18 },
+
+  snapshotRow:   { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
+  snapshotTile:  { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
+  snapshotValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeLG, letterSpacing: typography.trackingTight },
+  snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
+
+  targetRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
+
+  activeTitle: { fontFamily: typography.fontDisplay, fontSize: typography.sizeLG, color: colors.textPrimary, letterSpacing: typography.trackingTight },
+  subTitle:    { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+
+  // Negotiation
+  negHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chancePill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
+  chanceText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4 },
+  offerRow:  { flexDirection: 'row', gap: spacing.sp2 },
+  offerCol:  { flex: 1, gap: 3, padding: spacing.sp2 },
+  offerLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
+  offerVal:  { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS, color: colors.textSecondary },
+
+  // Talent card
+  talentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sp2 },
+  talentName:   { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary },
+  talentRole:   { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  availBadge:   { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 8 },
+  availText:    { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
+
+  statsRow:   { flexDirection: 'row', gap: spacing.sp3 },
+  statBlock:  { flex: 1, gap: 3 },
+  statLabel:  { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest },
+  statNum:    { fontFamily: typography.fontBodyBold, fontSize: typography.sizeXS },
+
+  trustRow:   { flexDirection: 'row', gap: spacing.sp2, alignItems: 'center', flexWrap: 'wrap' },
+  trustBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
+  trustText:  { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
+  riskBadge:  { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8, backgroundColor: 'transparent' },
+  riskText:   { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
+
+  memoryLine: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
+
+  actions: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
+  negBtn:  { flex: 1, minWidth: 70 },
+  flexBtn: { flex: 1 },
+});

@@ -1,141 +1,238 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGame } from '@/src/state/game-context';
-import { tokens } from '@/src/ui/tokens';
+import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
+import { colors, spacing, typography } from '@/src/ui/tokens';
 
 function money(amount: number): string {
-  return `$${Math.round(amount).toLocaleString()}`;
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000)     return `$${(abs / 1_000_000).toFixed(1)}M`;
+  return `$${Math.round(abs).toLocaleString()}`;
+}
+
+function roiToOutcome(roi: number): OutcomeType {
+  if (roi >= 3)   return 'blockbuster';
+  if (roi >= 2)   return 'hit';
+  if (roi >= 1.2) return 'solid';
+  if (roi >= 0.8) return 'flop';
+  return 'bomb';
 }
 
 export default function FinancialsScreen() {
   const { manager } = useGame();
-  const projects = manager.activeProjects;
-  const totalBudget = projects.reduce((sum, project) => sum + project.budget.ceiling, 0);
-  const totalSpend = projects.reduce((sum, project) => sum + project.budget.actualSpend, 0);
-  const released = projects.filter((project) => project.phase === 'released');
+  const projects     = manager.activeProjects;
+  const totalBudget  = projects.reduce((s, p) => s + p.budget.ceiling, 0);
+  const totalSpend   = projects.reduce((s, p) => s + p.budget.actualSpend, 0);
+  const released     = projects.filter((p) => p.phase === 'released');
   const burnThisWeek = manager.estimateWeeklyBurn();
   const completionPct = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
-  const lastDelta = manager.lastWeekSummary?.cashDelta ?? 0;
-  const runwayWeeks = burnThisWeek > 0 ? manager.cash / burnThisWeek : 0;
+  const lastDelta     = manager.lastWeekSummary?.cashDelta ?? 0;
+  const runwayWeeks   = burnThisWeek > 0 ? manager.cash / burnThisWeek : 0;
+  const isPositiveDelta = lastDelta >= 0;
+
+  // Runway danger threshold
+  const runwayColor =
+    runwayWeeks <= 4  ? colors.accentRed  :
+    runwayWeeks <= 10 ? colors.goldMid    :
+    colors.accentTeal;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Financials</Text>
-      <Text style={styles.subtitle}>Cashflow, runway, and release performance</Text>
-      <View style={styles.card}>
-        <Text style={styles.label}>Update Cadence</Text>
-        <Text style={styles.muted}>
-          Cash and spend move instantly when you act. Weekly delta and most projections settle when you tap End Turn.
-        </Text>
+
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={[colors.goldDeep + '18', 'transparent']}
+          style={styles.headerGlow}
+          pointerEvents="none"
+        />
+        <Text style={styles.title}>Financials</Text>
+        <Text style={styles.subtitle}>Cashflow, runway & release performance</Text>
       </View>
 
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Cash Position</Text>
-          <Text style={styles.metric}>{money(manager.cash)}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Last Week Delta</Text>
-          <Text style={[styles.metricSmall, lastDelta >= 0 ? styles.positive : styles.negative]}>
-            {lastDelta >= 0 ? '+' : '-'}
-            {money(Math.abs(lastDelta))}
-          </Text>
-        </View>
+      {/* ── Hero Metrics ── */}
+      <View style={styles.heroRow}>
+        <GlassCard variant="gold" style={styles.heroCard}>
+          <MetricTile
+            value={money(manager.cash)}
+            label="Cash on Hand"
+            size="lg"
+            centered
+          />
+        </GlassCard>
+        <GlassCard variant="elevated" style={styles.heroCard}>
+          <MetricTile
+            value={money(manager.lifetimeProfit)}
+            label="Lifetime Profit"
+            size="lg"
+            accent={manager.lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed}
+            centered
+          />
+        </GlassCard>
       </View>
 
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Total Budgeted</Text>
-          <Text style={styles.body}>{money(totalBudget)}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Total Spend</Text>
-          <Text style={styles.body}>{money(totalSpend)}</Text>
-          <Text style={styles.muted}>{completionPct.toFixed(1)}% consumed</Text>
-        </View>
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Projected Weekly Burn</Text>
-          <Text style={styles.body}>{money(burnThisWeek)}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Runway</Text>
-          <Text style={styles.body}>{runwayWeeks.toFixed(1)} weeks</Text>
-          <Text style={styles.muted}>At current burn estimate</Text>
-        </View>
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.label}>Lifetime Revenue</Text>
-          <Text style={styles.body}>{money(manager.lifetimeRevenue)}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Lifetime Profit</Text>
-          <Text style={[styles.body, manager.lifetimeProfit >= 0 ? styles.positive : styles.negative]}>
-            {money(manager.lifetimeProfit)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Project ROI Matrix</Text>
-        {projects.map((project) => (
-          <View key={project.id} style={styles.rowLine}>
-            <Text style={styles.body}>{project.title}</Text>
-            <Text
-              style={[
-                styles.body,
-                project.projectedROI >= 2 ? styles.positive : project.projectedROI < 1 ? styles.negative : null,
-              ]}>
-              {project.projectedROI.toFixed(2)}x
-            </Text>
+      {/* ── Weekly Flow ── */}
+      <GlassCard>
+        <SectionLabel label="Weekly Flow" />
+        <View style={styles.metricRow}>
+          <View style={styles.metricCol}>
+            <MetricTile
+              value={money(burnThisWeek)}
+              label="Weekly Burn"
+              size="sm"
+              accent={colors.accentRed}
+            />
           </View>
-        ))}
-      </View>
+          <View style={styles.metricCol}>
+            <MetricTile
+              value={isPositiveDelta ? `+${money(lastDelta)}` : `-${money(Math.abs(lastDelta))}`}
+              label="Last Week Δ"
+              size="sm"
+              accent={isPositiveDelta ? colors.accentTeal : colors.accentRed}
+            />
+          </View>
+          <View style={styles.metricCol}>
+            <MetricTile
+              value={`${runwayWeeks.toFixed(1)}w`}
+              label="Runway"
+              size="sm"
+              accent={runwayColor}
+            />
+          </View>
+        </View>
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Release Revenue</Text>
-        {released.length === 0 ? <Text style={styles.muted}>No released projects yet.</Text> : null}
-        {released.map((project) => (
-          <Text key={project.id} style={styles.muted}>
-            {project.title}: {money(project.finalBoxOffice ?? 0)} gross | share {(project.studioRevenueShare * 100).toFixed(0)}%
-          </Text>
-        ))}
-      </View>
+      {/* ── Lifetime Revenue ── */}
+      <GlassCard>
+        <SectionLabel label="Lifetime Revenue" />
+        <MetricTile
+          value={money(manager.lifetimeRevenue)}
+          label="Total Gross Revenue"
+          size="md"
+          accent={colors.accentTeal}
+        />
+      </GlassCard>
+
+      {/* ── Budget Utilization ── */}
+      <GlassCard>
+        <SectionLabel label="Budget Utilization" />
+        <View style={styles.budgetRow}>
+          <MetricTile value={money(totalSpend)} label="Spent"    size="sm" />
+          <MetricTile value={money(totalBudget)} label="Budgeted" size="sm" />
+          <MetricTile value={`${completionPct.toFixed(1)}%`} label="Consumed" size="sm" accent={completionPct > 85 ? colors.accentRed : colors.goldMid} />
+        </View>
+        <ProgressBar
+          value={completionPct}
+          color={completionPct > 85 ? colors.accentRed : colors.goldMid}
+          height={5}
+          animated
+          style={{ marginTop: spacing.sp2 }}
+        />
+      </GlassCard>
+
+      {/* ── Project ROI Matrix ── */}
+      {projects.length > 0 && (
+        <GlassCard>
+          <SectionLabel label="Project ROI Matrix" />
+          {projects.map((project) => (
+            <View key={project.id} style={styles.roiRow}>
+              <View style={styles.roiLeft}>
+                <Text style={styles.roiTitle}>{project.title}</Text>
+                <Text style={styles.roiPhase}>{project.phase}</Text>
+              </View>
+              <View style={styles.roiRight}>
+                <OutcomeBadge outcome={roiToOutcome(project.projectedROI)} size="sm" />
+                <Text style={[
+                  styles.roiValue,
+                  { color: project.projectedROI >= 2 ? colors.accentTeal : project.projectedROI < 1 ? colors.accentRed : colors.textPrimary }
+                ]}>
+                  {project.projectedROI.toFixed(2)}×
+                </Text>
+              </View>
+            </View>
+          ))}
+        </GlassCard>
+      )}
+
+      {/* ── Release Revenue ── */}
+      <GlassCard>
+        <SectionLabel label="Release Revenue" />
+        {released.length === 0
+          ? <Text style={styles.empty}>No released projects yet.</Text>
+          : released.map((project) => (
+            <GlassCard key={project.id} variant="elevated" style={styles.releaseRow}>
+              <View style={styles.releaseHeader}>
+                <Text style={styles.releaseTitle}>{project.title}</Text>
+                <OutcomeBadge outcome={roiToOutcome(project.projectedROI)} size="sm" />
+              </View>
+              <View style={styles.releaseStats}>
+                <MetricTile value={money(project.finalBoxOffice ?? 0)} label="Total Gross" size="sm" />
+                <MetricTile
+                  value={money((project.finalBoxOffice ?? 0) * project.studioRevenueShare)}
+                  label="Studio Net"
+                  size="sm"
+                  accent={colors.accentTeal}
+                />
+                <MetricTile value={`${(project.studioRevenueShare * 100).toFixed(0)}%`} label="Rev Share" size="sm" />
+              </View>
+            </GlassCard>
+          ))
+        }
+      </GlassCard>
+
+      {/* ── Update Cadence Note ── */}
+      <GlassCard variant="elevated">
+        <Text style={styles.noteText}>
+          Cash and spend move instantly when you act. Weekly delta and projections settle on End Turn.
+        </Text>
+      </GlassCard>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: tokens.bgPrimary },
-  content: { padding: 16, paddingBottom: 120, gap: 12 },
-  title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
-  subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
-  row: { flexDirection: 'row', gap: 12 },
-  card: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgSurface,
-    padding: 12,
-    gap: 6,
+  screen:   { flex: 1, backgroundColor: colors.bgPrimary },
+  content:  { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
+
+  // Header
+  header:     { gap: 4, marginBottom: spacing.sp1 },
+  headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
+  title:      { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
+  subtitle:   { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
+
+  // Hero metrics
+  heroRow:    { flexDirection: 'row', gap: spacing.sp3 },
+  heroCard:   { flex: 1 },
+
+  // Metric grid helpers
+  metricRow:  { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
+  metricCol:  { flex: 1 },
+  budgetRow:  { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
+
+  // ROI Matrix
+  roiRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sp2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
   },
-  label: {
-    color: tokens.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  metric: { color: tokens.textPrimary, fontSize: 28, fontWeight: '700' },
-  metricSmall: { color: tokens.textPrimary, fontSize: 22, fontWeight: '700' },
-  body: { color: tokens.textSecondary, fontSize: 13 },
-  muted: { color: tokens.textMuted, fontSize: 12 },
-  rowLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  positive: { color: tokens.accentTeal, fontWeight: '700' },
-  negative: { color: tokens.accentRed, fontWeight: '700' },
+  roiLeft:  { flex: 1, gap: 2 },
+  roiRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
+  roiTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  roiPhase: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, textTransform: 'capitalize' },
+  roiValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM },
+
+  // Release Revenue
+  releaseRow: { gap: spacing.sp2, marginTop: spacing.sp1 },
+  releaseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  releaseTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  releaseStats: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
+
+  empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
+  noteText: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, lineHeight: 18 },
 });

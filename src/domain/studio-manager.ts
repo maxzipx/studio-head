@@ -499,7 +499,7 @@ export class StudioManager {
     return this.activeProjects.filter((project) => project.phase !== 'released').length;
   }
 
-  getMajorIpCommitments(): Array<{
+  getMajorIpCommitments(): {
     ipId: string;
     name: string;
     remainingReleases: number;
@@ -508,8 +508,8 @@ export class StudioManager {
     breached: boolean;
     hasActiveInstallment: boolean;
     isBlocking: boolean;
-  }> {
-    const result: Array<{
+  }[] {
+    const result: {
       ipId: string;
       name: string;
       remainingReleases: number;
@@ -518,7 +518,7 @@ export class StudioManager {
       breached: boolean;
       hasActiveInstallment: boolean;
       isBlocking: boolean;
-    }> = [];
+    }[] = [];
     const blocking = this.getBlockingMajorIpCommitment();
     for (const ip of this.ownedIps.filter((item) => item.major)) {
       const owned = (this.storyFlags[`owned_ip_${ip.id}`] ?? 0) > 0;

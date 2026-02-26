@@ -1,10 +1,22 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ACTION_BALANCE, FESTIVAL_RULES } from '@/src/domain/balance-constants';
 import { useGame } from '@/src/state/game-context';
-import { tokens } from '@/src/ui/tokens';
+import { colors, typography, spacing, radius } from '@/src/ui/tokens';
+import {
+  GlassCard,
+  PremiumButton,
+  SectionLabel,
+  MetricTile,
+  OutcomeBadge,
+  ProgressBar,
+} from '@/src/ui/components';
+import type { OutcomeType } from '@/src/ui/components';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
@@ -24,6 +36,35 @@ function franchiseStrategyLabel(strategy: string): string {
   if (strategy === 'reinvention') return 'Reinvention';
   if (strategy === 'balanced') return 'Balanced';
   return 'Standalone';
+}
+
+function outcomeFromReport(outcome: string): OutcomeType {
+  if (outcome === 'blockbuster') return 'blockbuster';
+  if (outcome === 'hit') return 'hit';
+  if (outcome === 'solid') return 'solid';
+  if (outcome === 'flop') return 'flop';
+  return 'bomb';
+}
+
+function phaseColor(phase: string): string {
+  if (phase === 'development') return colors.accentTeal;
+  if (phase === 'preProduction' || phase === 'production') return colors.goldMid;
+  if (phase === 'postProduction') return colors.accentTeal;
+  if (phase === 'distribution') return '#6FAEEA';
+  if (phase === 'released') return colors.accentGreen;
+  return colors.textMuted;
+}
+
+function burnBarColor(pct: number): string {
+  if (pct < 80) return colors.accentTeal;
+  if (pct < 95) return colors.goldMid;
+  return colors.accentRed;
+}
+
+function roiColor(roi: number): string {
+  if (roi >= 1.5) return colors.accentTeal;
+  if (roi >= 1.0) return colors.goldMid;
+  return colors.accentRed;
 }
 
 function advanceBlockers(project: {
@@ -54,6 +95,8 @@ function advanceBlockers(project: {
   }
   return blockers;
 }
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
@@ -92,6 +135,7 @@ export default function ProjectDetailScreen() {
     return Math.max(manager.currentWeek + 1, base + projectionWeekShift);
   }, [manager.currentWeek, project, projectionWeekShift]);
 
+  // ── Not found ──────────────────────────────────────────────────────────────
   if (!project) {
     return (
       <View style={styles.emptyWrap}>
@@ -101,14 +145,15 @@ export default function ProjectDetailScreen() {
     );
   }
 
-  const director = project.directorId ? manager.talentPool.find((talent) => talent.id === project.directorId) : null;
+  // ── Derived data ───────────────────────────────────────────────────────────
+  const director = project.directorId ? manager.talentPool.find((t) => t.id === project.directorId) : null;
   const cast = project.castIds
-    .map((talentId) => manager.talentPool.find((talent) => talent.id === talentId))
-    .filter((item): item is NonNullable<typeof item> => !!item);
+    .map((tid) => manager.talentPool.find((t) => t.id === tid))
+    .filter((t): t is NonNullable<typeof t> => !!t);
   const projection = manager.getProjectedForProjectAtWeek(project.id, projectionWeek);
   const burnPct = project.budget.ceiling > 0 ? (project.budget.actualSpend / project.budget.ceiling) * 100 : 0;
-  const projectCrises = manager.pendingCrises.filter((crisis) => crisis.projectId === project.id);
-  const projectDecisions = manager.decisionQueue.filter((decision) => decision.projectId === project.id);
+  const projectCrises = manager.pendingCrises.filter((c) => c.projectId === project.id);
+  const projectDecisions = manager.decisionQueue.filter((d) => d.projectId === project.id);
   const offers = manager.getOffersForProject(project.id);
   const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
   const canPush = project.phase !== 'released' && manager.cash >= ACTION_BALANCE.OPTIONAL_ACTION_COST;
@@ -167,339 +212,493 @@ export default function ProjectDetailScreen() {
     manager.cash >= franchiseStatus.nextHiatusPlanCost;
   const releaseReport = manager.getLatestReleaseReport(project.id);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+
+      {/* ── Header ── */}
+      <LinearGradient
+        colors={[`${phaseColor(project.phase)}18`, 'transparent']}
+        style={styles.headerGlow}
+        pointerEvents="none"
+      />
+      <View style={styles.headerRow}>
+        <View style={styles.phasePill}>
+          <Text style={[styles.phasePillText, { color: phaseColor(project.phase) }]}>
+            {project.phase.replace(/([A-Z])/g, ' $1').trim()}
+          </Text>
+        </View>
+      </View>
       <Text style={styles.title}>{project.title}</Text>
       <Text style={styles.subtitle}>
-        {project.genre} | {project.phase} | Week {manager.currentWeek}
+        {project.genre} · Week {manager.currentWeek}
       </Text>
-      {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
-      <Pressable style={styles.button} onPress={() => setShowHelp((value) => !value)}>
-        <Text style={styles.buttonText}>{showHelp ? 'Hide Help' : 'Show Help'}</Text>
-      </Pressable>
-      {showHelp ? (
-        <View style={styles.card}>
-          <Text style={styles.muted}>Development requires explicit Greenlight approval before Pre-Production.</Text>
-          <Text style={styles.muted}>Use test screenings in Post to reduce release variance before launch.</Text>
-          <Text style={styles.muted}>Tracking leverage gives early cash but can claw back if opening misses.</Text>
-        </View>
+
+      {/* Last message */}
+      {lastMessage ? (
+        <GlassCard style={styles.messageCard}>
+          <Text style={styles.messageText}>{lastMessage}</Text>
+        </GlassCard>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Project State</Text>
-        <Text style={styles.body}>Status: {project.productionStatus}</Text>
-        <Text style={styles.body}>
-          Hype {project.hypeScore.toFixed(0)} | Script {project.scriptQuality.toFixed(1)}{project.phase === 'development' ? ' (min 6.0 to greenlight)' : ''} | Concept {project.conceptStrength.toFixed(1)} (drives critic score)
+      {/* Help toggle */}
+      <PremiumButton
+        variant="ghost"
+        size="sm"
+        label={showHelp ? 'Hide Help' : 'Show Help'}
+        onPress={() => setShowHelp((v) => !v)}
+      />
+      {showHelp ? (
+        <GlassCard>
+          <Text style={styles.mutedText}>Development requires explicit Greenlight approval before Pre-Production.</Text>
+          <Text style={styles.mutedText}>Use test screenings in Post to reduce release variance before launch.</Text>
+          <Text style={styles.mutedText}>Tracking leverage gives early cash but can claw back if opening misses.</Text>
+        </GlassCard>
+      ) : null}
+
+      {/* ── Project State ── */}
+      <GlassCard variant="elevated">
+        <SectionLabel label="Project State" />
+        <View style={styles.metricsRow}>
+          <MetricTile
+            value={project.hypeScore.toFixed(0)}
+            label="Hype"
+            size="sm"
+            style={styles.metricFlex}
+          />
+          <MetricTile
+            value={project.scriptQuality.toFixed(1)}
+            label={project.phase === 'development' ? 'Script (min 6.0)' : 'Script'}
+            size="sm"
+            style={styles.metricFlex}
+          />
+          <MetricTile
+            value={project.conceptStrength.toFixed(1)}
+            label="Concept"
+            size="sm"
+            style={styles.metricFlex}
+          />
+        </View>
+        <Text style={[styles.bodyText, { color: genreDemand >= 1 ? colors.accentTeal : colors.textMuted }]}>
+          Genre demand: {genreDemand >= 1 ? '+' : ''}{Math.round((genreDemand - 1) * 100)}%
         </Text>
-        <Text style={styles.body}>Genre market demand: {genreDemand >= 1 ? '+' : ''}{Math.round((genreDemand - 1) * 100)}%</Text>
-        <Text style={styles.body}>Editorial score: {project.editorialScore.toFixed(1)} / 10</Text>
+        <Text style={styles.mutedText}>Editorial {project.editorialScore.toFixed(1)} / 10</Text>
+        <ProgressBar
+          value={project.editorialScore * 10}
+          color={colors.accentTeal}
+        />
         {project.phase === 'development' ? (
-          <Text style={styles.body}>
-            Greenlight: {project.greenlightApproved ? `Approved (W${project.greenlightWeek ?? '-'})` : 'Pending explicit decision'}
-          </Text>
+          <View style={styles.pillRow}>
+            <View style={[
+              styles.statusPill,
+              { borderColor: project.greenlightApproved ? colors.accentGreen : colors.goldMid },
+            ]}>
+              <Text style={[
+                styles.statusPillText,
+                { color: project.greenlightApproved ? colors.accentGreen : colors.goldMid },
+              ]}>
+                {project.greenlightApproved ? `✓ Greenlit W${project.greenlightWeek ?? '-'}` : 'Greenlight Pending'}
+              </Text>
+            </View>
+          </View>
         ) : null}
         {project.scheduledWeeksRemaining > 0 ? (
-          <Text style={styles.body}>Weeks remaining in phase: {project.scheduledWeeksRemaining}</Text>
+          <Text style={styles.mutedText}>{project.scheduledWeeksRemaining}w remaining in phase</Text>
         ) : null}
-      </View>
+        <Text style={styles.mutedText}>Status: {project.productionStatus}</Text>
+      </GlassCard>
 
+      {/* ── Franchise Status ── */}
       {project.franchiseId ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Franchise Status</Text>
-          <Text style={styles.body}>
-            {franchiseStatus?.franchiseName ?? project.title} | Episode {project.franchiseEpisode ?? 1} | Strategy: {franchiseStrategyLabel(project.franchiseStrategy)}
+        <GlassCard variant="elevated">
+          <SectionLabel label="Franchise Status" />
+          <Text style={styles.bodyText}>
+            {franchiseStatus?.franchiseName ?? project.title} · Ep {project.franchiseEpisode ?? 1} · {franchiseStrategyLabel(project.franchiseStrategy)}
           </Text>
           {franchiseModifiers ? (
             <>
-              <Text style={styles.body}>
-                Momentum {franchiseModifiers.momentum.toFixed(0)} | Fatigue {franchiseModifiers.fatigue.toFixed(0)}
+              <View style={styles.metricsRow}>
+                <MetricTile
+                  value={franchiseModifiers.momentum.toFixed(0)}
+                  label="Momentum"
+                  size="sm"
+                  accent={colors.accentTeal}
+                  style={styles.metricFlex}
+                />
+                <MetricTile
+                  value={franchiseModifiers.fatigue.toFixed(0)}
+                  label="Fatigue"
+                  size="sm"
+                  accent={colors.accentRed}
+                  style={styles.metricFlex}
+                />
+              </View>
+              <Text style={styles.mutedText}>
+                Opening {(franchiseModifiers.openingMultiplier * 100).toFixed(0)}% · Critic {franchiseModifiers.criticalDelta >= 0 ? '+' : ''}{franchiseModifiers.criticalDelta.toFixed(1)} · Audience {franchiseModifiers.audienceDelta >= 0 ? '+' : ''}{franchiseModifiers.audienceDelta.toFixed(1)}
               </Text>
-              <Text style={styles.body}>
-                Sequel pressure: Opening {(franchiseModifiers.openingMultiplier * 100).toFixed(0)}% | Critic delta {franchiseModifiers.criticalDelta >= 0 ? '+' : ''}
-                {franchiseModifiers.criticalDelta.toFixed(1)} | Audience delta {franchiseModifiers.audienceDelta >= 0 ? '+' : ''}
-                {franchiseModifiers.audienceDelta.toFixed(1)}
+              <Text style={styles.mutedText}>
+                Penalties — Opening -{Math.round(franchiseModifiers.openingPenaltyPct * 100)}% · ROI -{Math.round(franchiseModifiers.roiPenaltyPct * 100)}%
               </Text>
-              <Text style={styles.body}>
-                Structural penalties (episode + cadence): Opening -{Math.round(franchiseModifiers.openingPenaltyPct * 100)}% | ROI -
-                {Math.round(franchiseModifiers.roiPenaltyPct * 100)}%
+              <Text style={styles.mutedText}>
+                Cadence gap {Math.round(franchiseModifiers.effectiveGapWeeks)}w{franchiseStatus ? ` (buffer +${Math.round(franchiseStatus.cadenceBufferWeeks)}w)` : ''} · Pressure {franchiseModifiers.cadencePressure.toFixed(2)}
               </Text>
-              <Text style={styles.body}>
-                Cadence gap {Math.round(franchiseModifiers.effectiveGapWeeks)}w
-                {franchiseStatus ? ` (buffer +${Math.round(franchiseStatus.cadenceBufferWeeks)}w)` : ''} | Pressure{' '}
-                {franchiseModifiers.cadencePressure.toFixed(2)}
-              </Text>
-              <Text style={styles.muted}>
-                Carryover package: Director {franchiseModifiers.returningDirector ? 'returning' : 'new'} | Shared cast {franchiseModifiers.returningCastCount}
+              <Text style={styles.mutedText}>
+                Director {franchiseModifiers.returningDirector ? 'returning' : 'new'} · Shared cast {franchiseModifiers.returningCastCount}
               </Text>
               {franchiseStatus ? (
                 <>
-                  <Text style={styles.muted}>
-                    Ops usage: Brand resets {franchiseStatus.brandResetCount} | Legacy campaigns {franchiseStatus.legacyCastingCampaignCount} | Hiatus plans{' '}
-                    {franchiseStatus.hiatusPlanCount}
+                  <Text style={styles.mutedText}>
+                    Resets {franchiseStatus.brandResetCount} · Legacy campaigns {franchiseStatus.legacyCastingCampaignCount} · Hiatus plans {franchiseStatus.hiatusPlanCount}
                   </Text>
-                  <Text style={styles.muted}>
-                    Active flags:{' '}
-                    {franchiseStatus.activeFlags.length > 0 ? franchiseStatus.activeFlags.join(', ') : 'None currently active'}
+                  <Text style={styles.mutedText}>
+                    Flags: {franchiseStatus.activeFlags.length > 0 ? franchiseStatus.activeFlags.join(', ') : 'None'}
                   </Text>
                 </>
               ) : null}
             </>
           ) : null}
-        </View>
+        </GlassCard>
       ) : null}
 
+      {/* ── Franchise Ops ── */}
       {isSequelProject && franchiseStatus ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Franchise Ops</Text>
-          <Text style={styles.muted}>Repeatable actions with escalating costs and explicit tradeoffs.</Text>
-          <Pressable
-            style={[styles.button, !canBrandReset ? styles.buttonDisabled : null]}
+        <GlassCard>
+          <SectionLabel label="Franchise Ops" />
+          <Text style={styles.mutedText}>Repeatable actions with escalating costs and explicit tradeoffs.</Text>
+          <PremiumButton
+            variant="secondary"
+            size="md"
+            label={`Brand Reset ${money(franchiseStatus.nextBrandResetCost)} — fatigue relief, momentum tradeoff`}
+            onPress={() => runFranchiseBrandReset(project.id)}
             disabled={!canBrandReset}
-            onPress={() => runFranchiseBrandReset(project.id)}>
-            <Text style={styles.buttonText}>Brand Reset {money(franchiseStatus.nextBrandResetCost)} (fatigue relief, momentum tradeoff)</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.button, !canLegacyCampaign ? styles.buttonDisabled : null]}
+          />
+          <PremiumButton
+            variant="secondary"
+            size="md"
+            label={`Legacy Casting ${money(franchiseStatus.nextLegacyCastingCampaignCost)} — hype/momentum up, fatigue cost`}
+            onPress={() => runFranchiseLegacyCastingCampaign(project.id)}
             disabled={!canLegacyCampaign}
-            onPress={() => runFranchiseLegacyCastingCampaign(project.id)}>
-            <Text style={styles.buttonText}>
-              Legacy Casting Campaign {money(franchiseStatus.nextLegacyCastingCampaignCost)} (hype/momentum up, fatigue/originality cost)
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.button, !canHiatusPlan ? styles.buttonDisabled : null]}
+          />
+          <PremiumButton
+            variant="secondary"
+            size="md"
+            label={`Hiatus Planning ${money(franchiseStatus.nextHiatusPlanCost)} — cadence buffer, short-term hype hit`}
+            onPress={() => runFranchiseHiatusPlanning(project.id)}
             disabled={!canHiatusPlan}
-            onPress={() => runFranchiseHiatusPlanning(project.id)}>
-            <Text style={styles.buttonText}>Hiatus Planning {money(franchiseStatus.nextHiatusPlanCost)} (adds cadence buffer, short-term hype hit)</Text>
-          </Pressable>
-        </View>
+          />
+        </GlassCard>
       ) : null}
 
+      {/* ── Script Development ── */}
       {project.phase === 'development' ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Script Development</Text>
-          <Text style={styles.body}>
-            Script quality: {project.scriptQuality.toFixed(1)} / {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)} sprint cap
-          </Text>
-          <Pressable
-            style={[styles.button, !canScriptSprint ? styles.buttonDisabled : null]}
+        <GlassCard variant="elevated">
+          <SectionLabel label="Script Development" />
+          <Text style={styles.mutedText}>{project.scriptQuality.toFixed(1)} / {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)} sprint cap</Text>
+          <ProgressBar
+            value={(project.scriptQuality / ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY) * 100}
+            color={colors.accentTeal}
+          />
+          <PremiumButton
+            variant="primary"
+            size="md"
+            label={`Script Sprint ${money(ACTION_BALANCE.SCRIPT_SPRINT_COST)} (+${ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST.toFixed(1)} quality)`}
+            onPress={() => runScriptSprint(project.id)}
             disabled={!canScriptSprint}
-            onPress={() => runScriptSprint(project.id)}>
-            <Text style={styles.buttonText}>
-              Script Sprint {money(ACTION_BALANCE.SCRIPT_SPRINT_COST)} (+{ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST.toFixed(1)} quality, max{' '}
-              {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)})
-            </Text>
-          </Pressable>
-          <Text style={styles.muted}>Greenlight gate is mandatory before Pre-Production.</Text>
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.button, !canApproveGreenlight ? styles.buttonDisabled : null]}
+          />
+          <Text style={styles.mutedText}>Greenlight gate is mandatory before Pre-Production.</Text>
+          <View style={styles.buttonRow}>
+            <PremiumButton
+              variant="primary"
+              size="md"
+              label={`Approve Greenlight ${money(ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE)}`}
+              onPress={() => runGreenlightReview(project.id, true)}
               disabled={!canApproveGreenlight}
-              onPress={() => runGreenlightReview(project.id, true)}>
-              <Text style={styles.buttonText}>Approve Greenlight {money(ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE)}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.button, !canSendBack ? styles.buttonDisabled : null]}
+              style={styles.buttonFlex}
+            />
+            <PremiumButton
+              variant="ghost"
+              size="md"
+              label="Send Back"
+              onPress={() => runGreenlightReview(project.id, false)}
               disabled={!canSendBack}
-              onPress={() => runGreenlightReview(project.id, false)}>
-              <Text style={styles.buttonText}>Send Back To Development</Text>
-            </Pressable>
+              style={styles.buttonFlex}
+            />
           </View>
           {isSequelProject ? (
             <>
-              <Text style={styles.muted}>Franchise direction is a one-time commitment for this sequel.</Text>
-              <View style={styles.actions}>
-                <Pressable
-                  style={[styles.button, !canSetStrategy ? styles.buttonDisabled : null]}
+              <Text style={styles.mutedText}>Franchise direction is a one-time commitment for this sequel.</Text>
+              <View style={styles.buttonRow}>
+                <PremiumButton
+                  variant="gold-outline"
+                  size="sm"
+                  label="Safe Continuation ($90K)"
+                  onPress={() => setFranchiseStrategy(project.id, 'safe')}
                   disabled={!canSetStrategy}
-                  onPress={() => setFranchiseStrategy(project.id, 'safe')}>
-                  <Text style={styles.buttonText}>Set Safe Continuation ($90K)</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.button, !canSetStrategy ? styles.buttonDisabled : null]}
+                  style={styles.buttonFlex}
+                />
+                <PremiumButton
+                  variant="gold-outline"
+                  size="sm"
+                  label="Reinvention ($220K)"
+                  onPress={() => setFranchiseStrategy(project.id, 'reinvention')}
                   disabled={!canSetStrategy}
-                  onPress={() => setFranchiseStrategy(project.id, 'reinvention')}>
-                  <Text style={styles.buttonText}>Set Reinvention ($220K)</Text>
-                </Pressable>
+                  style={styles.buttonFlex}
+                />
               </View>
             </>
           ) : null}
-        </View>
+        </GlassCard>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Attachments</Text>
-        <Text style={styles.body}>Director: {director?.name ?? 'Unattached'}</Text>
-        <Text style={styles.body}>Cast: {cast.length > 0 ? cast.map((talent) => talent.name).join(', ') : 'None attached'}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Budget</Text>
-        <Text style={styles.body}>
-          Spend {money(project.budget.actualSpend)} / {money(project.budget.ceiling)} ({burnPct.toFixed(1)}%)
+      {/* ── Attachments ── */}
+      <GlassCard>
+        <SectionLabel label="Attachments" />
+        <Text style={styles.bodyText}>
+          Director:{' '}
+          <Text style={{ color: director ? colors.textPrimary : colors.accentRed }}>
+            {director?.name ?? 'Unattached'}
+          </Text>
         </Text>
+        <Text style={styles.bodyText}>
+          Cast:{' '}
+          <Text style={{ color: cast.length > 0 ? colors.textPrimary : colors.accentRed }}>
+            {cast.length > 0 ? cast.map((t) => t.name).join(', ') : 'None attached'}
+          </Text>
+        </Text>
+      </GlassCard>
+
+      {/* ── Budget ── */}
+      <GlassCard variant={project.budget.overrunRisk > 0.2 ? 'red' : 'default'}>
+        <SectionLabel label="Budget" />
+        <View style={styles.metricsRow}>
+          <MetricTile
+            value={money(project.budget.actualSpend)}
+            label="Spent"
+            size="sm"
+            style={styles.metricFlex}
+          />
+          <MetricTile
+            value={money(project.budget.ceiling)}
+            label="Ceiling"
+            size="sm"
+            style={styles.metricFlex}
+          />
+        </View>
+        <Text style={styles.mutedText}>{burnPct.toFixed(1)}% burned</Text>
+        <ProgressBar
+          value={burnPct}
+          color={burnBarColor(burnPct)}
+        />
         {project.budget.overrunRisk > 0.2 ? (
-          <Text style={styles.warning}>Overrun risk: {pct(project.budget.overrunRisk)} - may add unplanned spend during production</Text>
+          <Text style={[styles.mutedText, { color: colors.accentRed }]}>
+            ⚠ Overrun risk: {pct(project.budget.overrunRisk)} — may add unplanned spend
+          </Text>
         ) : null}
-      </View>
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Timeline & Risks</Text>
-        <Text style={styles.body}>Blocking crises: {projectCrises.length}</Text>
-        <Text style={styles.body}>Project decisions in inbox: {projectDecisions.length}</Text>
-        {projectCrises.slice(0, 3).map((crisis) => (
-          <Text key={crisis.id} style={styles.muted}>
-            Crisis: {crisis.title}
-          </Text>
+      {/* ── Timeline & Risks ── */}
+      <GlassCard variant={projectCrises.length > 0 ? 'red' : 'default'}>
+        <SectionLabel label="Timeline & Risks" />
+        <Text style={[styles.bodyText, { color: projectCrises.length > 0 ? colors.accentRed : colors.textMuted }]}>
+          {projectCrises.length > 0 ? `${projectCrises.length} blocking crisis${projectCrises.length > 1 ? 'es' : ''}` : 'No blocking crises'}
+        </Text>
+        {projectDecisions.length > 0 ? (
+          <Text style={styles.mutedText}>{projectDecisions.length} project decision{projectDecisions.length > 1 ? 's' : ''} in inbox</Text>
+        ) : null}
+        {projectCrises.slice(0, 3).map((c) => (
+          <Text key={c.id} style={[styles.mutedText, { color: colors.accentRed }]}>— {c.title}</Text>
         ))}
-        {projectDecisions.slice(0, 3).map((decision) => (
-          <Text key={decision.id} style={styles.muted}>
-            Decision: {decision.title} ({Math.max(0, decision.weeksUntilExpiry)}w)
-          </Text>
+        {projectDecisions.slice(0, 3).map((d) => (
+          <View key={d.id} style={styles.decisionRow}>
+            <Text style={styles.mutedText}>{d.title}</Text>
+            <View style={[
+              styles.expiryPill,
+              { borderColor: Math.max(0, d.weeksUntilExpiry) < 3 ? colors.accentRed : colors.goldMid },
+            ]}>
+              <Text style={[
+                styles.expiryPillText,
+                { color: Math.max(0, d.weeksUntilExpiry) < 3 ? colors.accentRed : colors.goldMid },
+              ]}>
+                {Math.max(0, d.weeksUntilExpiry)}w
+              </Text>
+            </View>
+          </View>
         ))}
-      </View>
+      </GlassCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Projection - what if release slips?</Text>
-        <Text style={styles.body}>Scenario week: {projectionWeek}</Text>
-        <Text style={styles.body}>Genre cycle modifier: {genreDemand.toFixed(2)}x</Text>
-        <View style={styles.actions}>
-          <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value - 1)}>
-            <Text style={styles.buttonText}>-1w</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => setProjectionWeekShift((value) => value + 1)}>
-            <Text style={styles.buttonText}>+1w</Text>
-          </Pressable>
-          <Pressable style={styles.button} onPress={() => setProjectionWeekShift(0)}>
-            <Text style={styles.buttonText}>Reset</Text>
-          </Pressable>
+      {/* ── Projection ── */}
+      <GlassCard variant="elevated">
+        <SectionLabel label="Box Office Projection" />
+        <View style={styles.buttonRow}>
+          <PremiumButton
+            variant="ghost"
+            size="sm"
+            label="-1w"
+            onPress={() => setProjectionWeekShift((v) => v - 1)}
+            style={styles.buttonFlex}
+          />
+          <PremiumButton
+            variant="ghost"
+            size="sm"
+            label="+1w"
+            onPress={() => setProjectionWeekShift((v) => v + 1)}
+            style={styles.buttonFlex}
+          />
+          <PremiumButton
+            variant="ghost"
+            size="sm"
+            label="Reset"
+            onPress={() => setProjectionWeekShift(0)}
+            style={styles.buttonFlex}
+          />
         </View>
+        <Text style={styles.mutedText}>Scenario: Week {projectionWeek} · Genre cycle {genreDemand.toFixed(2)}x</Text>
         {projection ? (
-          <>
-            <Text style={styles.body}>Critic forecast: {projection.critical.toFixed(0)}</Text>
-            <Text style={styles.body}>
-              Opening: {money(projection.openingLow)} - {money(projection.openingHigh)}
-            </Text>
-            <Text style={styles.body}>ROI forecast: {projection.roi.toFixed(2)}x</Text>
-          </>
+          <View style={styles.metricsRow}>
+            <MetricTile value={projection.critical.toFixed(0)} label="Critics" size="sm" style={styles.metricFlex} />
+            <View style={[styles.metricFlex, { gap: 2 }]}>
+              <Text style={[styles.bodyText, { color: colors.textPrimary, fontFamily: typography.fontBodyBold }]}>
+                {money(projection.openingLow)} – {money(projection.openingHigh)}
+              </Text>
+              <Text style={styles.mutedText}>Opening Range</Text>
+            </View>
+            <MetricTile
+              value={`${projection.roi.toFixed(2)}x`}
+              label="ROI"
+              size="sm"
+              accent={roiColor(projection.roi)}
+              style={styles.metricFlex}
+            />
+          </View>
         ) : (
-          <Text style={styles.muted}>Projection unavailable right now.</Text>
+          <Text style={styles.mutedText}>Projection unavailable.</Text>
         )}
-      </View>
+      </GlassCard>
 
+      {/* ── Marketing ── */}
       {project.phase === 'postProduction' ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Marketing</Text>
-          <Text style={styles.body}>Budget: {money(project.marketingBudget)}</Text>
-          <Text style={styles.body}>Polish passes used: {project.postPolishPasses ?? 0} / 2</Text>
+        <GlassCard>
+          <SectionLabel label="Marketing" />
+          <View style={styles.metricsRow}>
+            <MetricTile value={money(project.marketingBudget)} label="Budget" size="sm" style={styles.metricFlex} />
+            <MetricTile value={`${project.postPolishPasses ?? 0} / 2`} label="Polish Passes" size="sm" style={styles.metricFlex} />
+          </View>
           {project.marketingBudget <= 0 ? (
-            <Text style={styles.warning}>Marketing budget required before entering distribution.</Text>
+            <Text style={[styles.mutedText, { color: colors.accentRed }]}>
+              ⚠ Marketing budget required before distribution.
+            </Text>
           ) : null}
-          <Pressable
-            style={[styles.button, !canPush ? styles.buttonDisabled : null]}
+          <PremiumButton
+            variant="primary"
+            size="md"
+            label={`Marketing Push ${money(ACTION_BALANCE.OPTIONAL_ACTION_COST)} (+${money(ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST)} budget, +${ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST.toFixed(0)} hype)`}
+            onPress={() => runMarketingPush(project.id)}
             disabled={!canPush}
-            onPress={() => runMarketingPush(project.id)}>
-            <Text style={styles.buttonText}>
-              Marketing Push {money(ACTION_BALANCE.OPTIONAL_ACTION_COST)} (+{money(ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST)} budget, +
-              {ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST.toFixed(0)} hype)
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.button, !canPolishPass ? styles.buttonDisabled : null]}
+          />
+          <PremiumButton
+            variant="secondary"
+            size="md"
+            label={`Polish Pass ${money(ACTION_BALANCE.POLISH_PASS_COST)} (+${ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST.toFixed(0)} editorial, ${ACTION_BALANCE.POLISH_PASS_MAX_USES} uses max)`}
+            onPress={() => runPostPolishPass(project.id)}
             disabled={!canPolishPass}
-            onPress={() => runPostPolishPass(project.id)}>
-            <Text style={styles.buttonText}>
-              Polish Pass {money(ACTION_BALANCE.POLISH_PASS_COST)} (+{ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST.toFixed(0)} editorial, max{' '}
-              {ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL.toFixed(0)}, {ACTION_BALANCE.POLISH_PASS_MAX_USES.toFixed(0)} uses)
-            </Text>
-          </Pressable>
-        </View>
+          />
+        </GlassCard>
       ) : null}
 
+      {/* ── Test Screenings ── */}
       {(project.phase === 'postProduction' || project.phase === 'distribution') ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Test Screenings</Text>
-          <Text style={styles.body}>
-            Status: {project.testScreeningCompleted ? `Completed (W${project.testScreeningWeek ?? '-'})` : 'Not run'}
+        <GlassCard>
+          <SectionLabel label="Test Screenings" />
+          <Text style={[styles.bodyText, { color: project.testScreeningCompleted ? colors.accentTeal : colors.textMuted }]}>
+            {project.testScreeningCompleted ? `Completed W${project.testScreeningWeek ?? '-'}` : 'Not run yet'}
           </Text>
           {project.testScreeningCompleted ? (
             <>
-              <Text style={styles.body}>
-                Critic signal: {(project.testScreeningCriticalLow ?? 0).toFixed(0)} - {(project.testScreeningCriticalHigh ?? 0).toFixed(0)}
+              <Text style={styles.bodyText}>
+                Critic signal: {(project.testScreeningCriticalLow ?? 0).toFixed(0)} – {(project.testScreeningCriticalHigh ?? 0).toFixed(0)}
               </Text>
-              <Text style={styles.body}>Audience sentiment: {project.testScreeningAudienceSentiment ?? 'mixed'}</Text>
+              <Text style={styles.bodyText}>Audience: {project.testScreeningAudienceSentiment ?? 'mixed'}</Text>
             </>
           ) : (
-            <Text style={styles.muted}>Run once to reveal a pre-release quality band before launch.</Text>
+            <Text style={styles.mutedText}>Run once to reveal a pre-release quality band before launch.</Text>
           )}
-          <Pressable
-            style={[styles.button, !canTestScreening ? styles.buttonDisabled : null]}
+          <PremiumButton
+            variant="secondary"
+            size="md"
+            label={`Run Test Screening ${money(ACTION_BALANCE.TEST_SCREENING_COST)}`}
+            onPress={() => runTestScreening(project.id)}
             disabled={!canTestScreening}
-            onPress={() => runTestScreening(project.id)}>
-            <Text style={styles.buttonText}>Run Test Screening {money(ACTION_BALANCE.TEST_SCREENING_COST)}</Text>
-          </Pressable>
+          />
           {project.phase === 'postProduction' ? (
-            <Pressable
-              style={[styles.button, !canReshoot ? styles.buttonDisabled : null]}
+            <PremiumButton
+              variant="ghost"
+              size="md"
+              label={`Order Reshoots ${money(ACTION_BALANCE.RESHOOT_COST)} (+${ACTION_BALANCE.RESHOOT_SCHEDULE_WEEKS.toFixed(0)}w)`}
+              onPress={() => runReshoots(project.id)}
               disabled={!canReshoot}
-              onPress={() => runReshoots(project.id)}>
-              <Text style={styles.buttonText}>
-                Order Reshoots {money(ACTION_BALANCE.RESHOOT_COST)} (+{ACTION_BALANCE.RESHOOT_SCHEDULE_WEEKS.toFixed(0)}w)
-              </Text>
-            </Pressable>
+            />
           ) : null}
-        </View>
+        </GlassCard>
       ) : null}
 
+      {/* ── Festival Circuit ── */}
       {(project.phase === 'postProduction' || project.phase === 'distribution' || project.phase === 'released') ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Festival Circuit</Text>
-          <Text style={styles.body}>Status: {project.festivalStatus}</Text>
-          <Text style={styles.body}>Target: {project.festivalTarget ?? 'None'}</Text>
-          <Text style={styles.body}>Buzz: {project.festivalBuzz.toFixed(0)}</Text>
+        <GlassCard>
+          <SectionLabel label="Festival Circuit" />
+          <Text style={styles.bodyText}>Status: {project.festivalStatus}</Text>
+          <Text style={styles.bodyText}>Target: {project.festivalTarget ?? 'None'}</Text>
+          <Text style={styles.bodyText}>Buzz: {project.festivalBuzz.toFixed(0)}</Text>
           {project.festivalStatus === 'submitted' && project.festivalResolutionWeek ? (
-            <Text style={styles.muted}>Decision expected around week {project.festivalResolutionWeek}</Text>
+            <Text style={styles.mutedText}>Decision expected around week {project.festivalResolutionWeek}</Text>
           ) : null}
-          <Pressable
-            style={[styles.button, !canFestivalSubmit ? styles.buttonDisabled : null]}
+          <PremiumButton
+            variant="gold-outline"
+            size="md"
+            label={`Submit Festival Cut ${money(FESTIVAL_RULES.SUBMISSION_COST)}`}
+            onPress={() => runFestivalSubmission(project.id)}
             disabled={!canFestivalSubmit}
-            onPress={() => runFestivalSubmission(project.id)}>
-            <Text style={styles.buttonText}>Submit Festival Cut {money(FESTIVAL_RULES.SUBMISSION_COST)}</Text>
-          </Pressable>
-        </View>
+          />
+        </GlassCard>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Release Plan</Text>
-        <Text style={styles.body}>Release week: {project.releaseWeek ?? '-'}</Text>
-        <Text style={styles.body}>Window: {project.releaseWindow ?? 'Not selected'}</Text>
-        <Text style={styles.body}>Distribution partner: {project.distributionPartner ?? 'None'}</Text>
-        <Text style={styles.body}>Marketing budget: {money(project.marketingBudget)}</Text>
+      {/* ── Release Plan ── */}
+      <GlassCard variant={offers.length > 0 ? 'gold' : 'default'}>
+        <SectionLabel label="Release Plan" />
+        <Text style={styles.bodyText}>Week: {project.releaseWeek ?? '—'}</Text>
+        <Text style={styles.bodyText}>Window: {project.releaseWindow ?? 'Not selected'}</Text>
+        <Text style={styles.bodyText}>Partner: {project.distributionPartner ?? 'None'}</Text>
+        <Text style={styles.bodyText}>Marketing: {money(project.marketingBudget)}</Text>
+
         {project.phase === 'distribution' ? (
           <>
-            <View style={styles.actions}>
-              <Pressable
-                style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+            <View style={styles.buttonRow}>
+              <PremiumButton
+                variant="ghost"
+                size="sm"
+                label="Release −1w"
+                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}
                 disabled={!project.releaseWeek}
-                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}>
-                <Text style={styles.buttonText}>Release -1w</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.button, !project.releaseWeek ? styles.buttonDisabled : null]}
+                style={styles.buttonFlex}
+              />
+              <PremiumButton
+                variant="ghost"
+                size="sm"
+                label="Release +1w"
+                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}
                 disabled={!project.releaseWeek}
-                onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}>
-                <Text style={styles.buttonText}>Release +1w</Text>
-              </Pressable>
+                style={styles.buttonFlex}
+              />
             </View>
-            <Pressable
-              style={[styles.button, !canTrackingLeverage ? styles.buttonDisabled : null]}
+            <PremiumButton
+              variant="secondary"
+              size="md"
+              label="Leverage Tracking Projection"
+              onPress={() => runTrackingLeverage(project.id)}
               disabled={!canTrackingLeverage}
-              onPress={() => runTrackingLeverage(project.id)}>
-              <Text style={styles.buttonText}>Leverage Tracking Projection</Text>
-            </Pressable>
+            />
             {(project.trackingLeverageAmount ?? 0) > 0 ? (
-              <Text style={styles.muted}>
-                Leveraged: {money(project.trackingLeverageAmount ?? 0)} | confidence {Math.round((project.trackingConfidence ?? 0) * 100)}%
+              <Text style={styles.mutedText}>
+                Leveraged: {money(project.trackingLeverageAmount ?? 0)} · Confidence {Math.round((project.trackingConfidence ?? 0) * 100)}%
               </Text>
             ) : null}
           </>
@@ -508,218 +707,351 @@ export default function ProjectDetailScreen() {
         {offers.length > 0 ? (
           <View style={styles.offersWrap}>
             {offers.map((offer) => (
-              <View key={offer.id} style={styles.offerCard}>
-                <Text style={styles.bodyStrong}>
-                  {offer.partner} | {offer.releaseWindow}
+              <GlassCard key={offer.id} variant="elevated">
+                <Text style={styles.offerTitle}>{offer.partner} · {offer.releaseWindow}</Text>
+                <Text style={styles.mutedText}>
+                  MG {money(offer.minimumGuarantee)} · P&A {money(offer.pAndACommitment)} · {(offer.revenueShareToStudio * 100).toFixed(0)}% share
                 </Text>
-                <Text style={styles.muted}>
-                  MG {money(offer.minimumGuarantee)} | P&A {money(offer.pAndACommitment)} | Share {(offer.revenueShareToStudio * 100).toFixed(0)}%
-                </Text>
-                <View style={styles.actions}>
-                  <Pressable style={styles.button} onPress={() => acceptOffer(project.id, offer.id)}>
-                    <Text style={styles.buttonText}>Accept</Text>
-                  </Pressable>
-                  <Pressable style={styles.button} onPress={() => counterOffer(project.id, offer.id)}>
-                    <Text style={styles.buttonText}>Counter</Text>
-                  </Pressable>
+                <View style={styles.buttonRow}>
+                  <PremiumButton
+                    variant="primary"
+                    size="sm"
+                    label="Accept"
+                    onPress={() => acceptOffer(project.id, offer.id)}
+                    style={styles.buttonFlex}
+                  />
+                  <PremiumButton
+                    variant="gold-outline"
+                    size="sm"
+                    label="Counter"
+                    onPress={() => counterOffer(project.id, offer.id)}
+                    style={styles.buttonFlex}
+                  />
                 </View>
-              </View>
+              </GlassCard>
             ))}
-            <Pressable style={styles.walkButton} onPress={() => walkAwayOffer(project.id)}>
-              <Text style={styles.walkButtonText}>Walk Away From Current Offers</Text>
-            </Pressable>
+            <PremiumButton
+              variant="danger"
+              size="md"
+              label="Walk Away From Current Offers"
+              onPress={() => walkAwayOffer(project.id)}
+            />
           </View>
         ) : (
-          <Text style={styles.muted}>No active distribution offers. End Turn to refresh offer flow if no window is selected.</Text>
+          <Text style={styles.mutedText}>No active offers. End Turn to refresh if no window is selected.</Text>
         )}
-      </View>
+      </GlassCard>
 
+      {/* ── Advance Phase ── */}
       {project.phase !== 'released' ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Advance Phase</Text>
+        <GlassCard variant={blockers.length > 0 ? 'red' : 'default'}>
+          <SectionLabel label="Advance Phase" />
           {blockers.length > 0 ? (
             blockers.map((b) => (
-              <Text key={b} style={styles.blocker}>
-                - {b}
-              </Text>
+              <Text key={b} style={[styles.mutedText, { color: colors.accentRed }]}>— {b}</Text>
             ))
           ) : (
-            <Text style={styles.readyText}>Ready to advance</Text>
+            <Text style={[styles.bodyText, { color: colors.accentGreen }]}>✓ Ready to advance</Text>
           )}
-          <Pressable
-            style={[styles.advanceButton, blockers.length > 0 ? styles.advanceButtonBlocked : null]}
+          <PremiumButton
+            variant={blockers.length > 0 ? 'secondary' : 'primary'}
+            size="lg"
+            label="Advance Phase →"
+            onPress={() => advancePhase(project.id)}
             disabled={blockers.length > 0}
-            onPress={() => advancePhase(project.id)}>
-            <Text style={styles.advanceButtonText}>{'Advance Phase ->'}</Text>
-          </Pressable>
-        </View>
+          />
+        </GlassCard>
       ) : null}
 
+      {/* ── Release Performance ── */}
       {project.phase === 'released' ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Release Performance</Text>
-          <Text style={styles.body}>Opening weekend: {money(project.openingWeekendGross ?? 0)}</Text>
-          <Text style={styles.body}>Current gross: {money(project.finalBoxOffice ?? 0)}</Text>
-          <Text style={styles.body}>Critics: {project.criticalScore?.toFixed(0) ?? '--'}</Text>
-          <Text style={styles.body}>Audience: {project.audienceScore?.toFixed(0) ?? '--'}</Text>
-          <Text style={styles.body}>Awards: {project.awardsNominations} nomination(s), {project.awardsWins} win(s)</Text>
-          <Text style={styles.body}>Current ROI: {project.projectedROI.toFixed(2)}x</Text>
+        <GlassCard variant="gold">
+          <SectionLabel label="Release Performance" />
+          {releaseReport ? (
+            <View style={styles.outcomeRow}>
+              <OutcomeBadge outcome={outcomeFromReport(releaseReport.outcome)} />
+            </View>
+          ) : null}
+          <View style={styles.metricsRow}>
+            <MetricTile value={money(project.openingWeekendGross ?? 0)} label="Opening" size="sm" style={styles.metricFlex} />
+            <MetricTile value={money(project.finalBoxOffice ?? 0)} label="Total Gross" size="sm" style={styles.metricFlex} />
+          </View>
+          <View style={styles.metricsRow}>
+            <MetricTile value={project.criticalScore?.toFixed(0) ?? '--'} label="Critics" size="sm" style={styles.metricFlex} />
+            <MetricTile value={project.audienceScore?.toFixed(0) ?? '--'} label="Audience" size="sm" style={styles.metricFlex} />
+          </View>
+          <MetricTile
+            value={`${project.projectedROI.toFixed(2)}x`}
+            label="ROI"
+            size="md"
+            accent={roiColor(project.projectedROI)}
+          />
+          <Text style={styles.mutedText}>{project.awardsNominations} nomination{project.awardsNominations !== 1 ? 's' : ''} · {project.awardsWins} win{project.awardsWins !== 1 ? 's' : ''}</Text>
+
           {releaseReport ? (
             <>
-              <Text style={styles.body}>
-                Outcome: {releaseReport.outcome.toUpperCase()} | Profit/Loss: {money(releaseReport.profit)}
-              </Text>
-              <Text style={styles.muted}>
-                Drivers S:{releaseReport.breakdown.script >= 0 ? '+' : ''}
-                {releaseReport.breakdown.script} D:{releaseReport.breakdown.direction >= 0 ? '+' : ''}
-                {releaseReport.breakdown.direction} Star:{releaseReport.breakdown.starPower >= 0 ? '+' : ''}
-                {releaseReport.breakdown.starPower}
-              </Text>
-              <Text style={styles.muted}>
-                Mkt:{releaseReport.breakdown.marketing >= 0 ? '+' : ''}
-                {releaseReport.breakdown.marketing} Time:{releaseReport.breakdown.timing >= 0 ? '+' : ''}
-                {releaseReport.breakdown.timing} Cycle:{releaseReport.breakdown.genreCycle >= 0 ? '+' : ''}
-                {releaseReport.breakdown.genreCycle}
-              </Text>
+              <MetricTile
+                value={money(Math.abs(releaseReport.profit))}
+                label={releaseReport.profit >= 0 ? 'Profit' : 'Loss'}
+                size="sm"
+                accent={releaseReport.profit >= 0 ? colors.accentGreen : colors.accentRed}
+              />
+              <SectionLabel label="Performance Drivers" style={{ marginTop: spacing.sp2 }} />
+              {(Object.entries(releaseReport.breakdown) as [string, number][]).map(([key, val]) => (
+                <View key={key} style={{ gap: 2 }}>
+                  <Text style={styles.mutedText}>
+                    {key.replace(/([A-Z])/g, ' $1').trim()} {val >= 0 ? '+' : ''}{val}
+                  </Text>
+                  <ProgressBar
+                    value={50 + Math.max(-50, Math.min(50, val))}
+                    color={val >= 0 ? colors.accentTeal : colors.accentRed}
+                    height={6}
+                  />
+                </View>
+              ))}
             </>
           ) : null}
+
           {sequelEligibility ? (
             <>
-              <Text style={styles.body}>
-                Next sequel: Episode {sequelEligibility.nextEpisode} | Upfront {money(sequelEligibility.upfrontCost)}
+              <SectionLabel label="Sequel Eligibility" style={{ marginTop: spacing.sp3 }} />
+              <Text style={styles.bodyText}>
+                Episode {sequelEligibility.nextEpisode} · Upfront {money(sequelEligibility.upfrontCost)}
               </Text>
-              <Text style={styles.muted}>
-                Momentum {sequelEligibility.projectedMomentum.toFixed(0)} | Fatigue {sequelEligibility.projectedFatigue.toFixed(0)} | Carryover hype {sequelEligibility.carryoverHype.toFixed(0)}
-              </Text>
+              <View style={styles.metricsRow}>
+                <MetricTile value={sequelEligibility.projectedMomentum.toFixed(0)} label="Momentum" size="sm" style={styles.metricFlex} />
+                <MetricTile value={sequelEligibility.projectedFatigue.toFixed(0)} label="Fatigue" size="sm" style={styles.metricFlex} />
+                <MetricTile value={sequelEligibility.carryoverHype.toFixed(0)} label="Carry Hype" size="sm" style={styles.metricFlex} />
+              </View>
               {!sequelEligibility.eligible && sequelEligibility.reason ? (
-                <Text style={styles.warning}>{sequelEligibility.reason}</Text>
+                <Text style={[styles.mutedText, { color: colors.accentRed }]}>{sequelEligibility.reason}</Text>
               ) : null}
-              <Pressable
-                style={[styles.button, !sequelEligibility.eligible ? styles.buttonDisabled : null]}
+              <PremiumButton
+                variant="primary"
+                size="md"
+                label="Start Sequel Development"
+                onPress={() => startSequel(project.id)}
                 disabled={!sequelEligibility.eligible}
-                onPress={() => startSequel(project.id)}>
-                <Text style={styles.buttonText}>Start Sequel Development</Text>
-              </Pressable>
+              />
             </>
           ) : null}
-        </View>
+        </GlassCard>
       ) : null}
 
+      {/* ── Abandon Project ── */}
       {project.phase !== 'released' ? (
-        <View style={styles.abandonWrap}>
+        <View style={styles.abandonSection}>
           {confirmAbandon ? (
-            <>
-              <Text style={styles.abandonWarning}>
-                Abandon {project.title}? Costs 20% of actual spend ({money(Math.round(project.budget.actualSpend * 0.2))}) as a write-down and -4 studio heat. This cannot be undone.
+            <GlassCard variant="red">
+              <Text style={[styles.bodyText, { color: colors.accentRed }]}>
+                Abandon {project.title}? Costs {money(Math.round(project.budget.actualSpend * 0.2))} write-down and −4 studio heat. Cannot be undone.
               </Text>
-              <View style={styles.actions}>
-                <Pressable style={styles.walkButton} onPress={() => { setConfirmAbandon(false); abandonProject(project.id); }}>
-                  <Text style={styles.walkButtonText}>Confirm Abandon</Text>
-                </Pressable>
-                <Pressable style={styles.button} onPress={() => setConfirmAbandon(false)}>
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </Pressable>
+              <View style={styles.buttonRow}>
+                <PremiumButton
+                  variant="danger"
+                  size="md"
+                  label="Confirm Abandon"
+                  onPress={() => { setConfirmAbandon(false); abandonProject(project.id); }}
+                  style={styles.buttonFlex}
+                />
+                <PremiumButton
+                  variant="ghost"
+                  size="md"
+                  label="Cancel"
+                  onPress={() => setConfirmAbandon(false)}
+                  style={styles.buttonFlex}
+                />
               </View>
-            </>
+            </GlassCard>
           ) : (
-            <Pressable style={styles.abandonButton} onPress={() => setConfirmAbandon(true)}>
-              <Text style={styles.abandonButtonText}>Abandon Project</Text>
-            </Pressable>
+            <PremiumButton
+              variant="ghost"
+              size="sm"
+              label="Abandon Project"
+              onPress={() => setConfirmAbandon(true)}
+              style={styles.abandonButton}
+            />
           )}
         </View>
       ) : null}
+
     </ScrollView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: tokens.bgPrimary },
-  content: { padding: 16, gap: 12, paddingBottom: 120 },
-  title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
-  subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
-  message: { color: tokens.accentTeal, fontSize: 13 },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgSurface,
-    padding: 12,
-    gap: 6,
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
-  sectionLabel: {
-    color: tokens.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontSize: 11,
-    fontWeight: '600',
+  content: {
+    padding: spacing.sp4,
+    gap: spacing.sp3,
+    paddingBottom: 120,
   },
-  body: { color: tokens.textSecondary, fontSize: 14 },
-  bodyStrong: { color: tokens.textPrimary, fontSize: 14, fontWeight: '700' },
-  muted: { color: tokens.textMuted, fontSize: 12 },
-  warning: { color: tokens.accentGold, fontSize: 12 },
-  blocker: { color: tokens.accentGold, fontSize: 13 },
-  readyText: { color: tokens.accentTeal, fontSize: 13 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 4, flexWrap: 'wrap' },
-  button: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: '#2A3650',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+
+  // Header
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    zIndex: 0,
   },
-  buttonDisabled: { opacity: 0.45 },
-  buttonText: { color: tokens.textPrimary, fontSize: 12, fontWeight: '600' },
-  offersWrap: { gap: 8 },
-  offerCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgElevated,
-    padding: 10,
-    gap: 4,
-  },
-  walkButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.accentRed,
-    paddingVertical: 10,
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sp2,
   },
-  walkButtonText: { color: tokens.accentRed, fontWeight: '700', fontSize: 12 },
-  advanceButton: {
-    borderRadius: 10,
+  phasePill: {
+    borderRadius: radius.rFull,
     borderWidth: 1,
-    borderColor: tokens.accentGold,
-    backgroundColor: '#6A5222',
-    paddingVertical: 10,
+    paddingVertical: 3,
+    paddingHorizontal: spacing.sp2,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  phasePillText: {
+    fontSize: typography.sizeXS,
+    fontFamily: typography.fontBodySemiBold,
+    letterSpacing: typography.trackingWide,
+    textTransform: 'capitalize',
+  },
+  title: {
+    fontFamily: typography.fontDisplay,
+    fontSize: 28,
+    color: colors.textPrimary,
+    letterSpacing: typography.trackingTight,
+    lineHeight: 34,
+  },
+  subtitle: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeSM,
+    color: colors.textMuted,
+    marginTop: -2,
+  },
+
+  // Message
+  messageCard: {
+    borderColor: colors.borderTeal,
+  },
+  messageText: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeSM,
+    color: colors.accentTeal,
+  },
+
+  // Layout helpers
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.sp2,
+    flexWrap: 'wrap',
+  },
+  metricFlex: {
+    flex: 1,
+    minWidth: 70,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sp2,
+    flexWrap: 'wrap',
+  },
+  buttonFlex: {
+    flex: 1,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sp2,
+  },
+
+  // Text styles
+  bodyText: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeSM,
+    color: colors.textSecondary,
+  },
+  mutedText: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeXS,
+    color: colors.textMuted,
+  },
+
+  // Status pill
+  statusPill: {
+    borderRadius: radius.rFull,
+    borderWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: spacing.sp2,
+  },
+  statusPillText: {
+    fontSize: typography.sizeXS,
+    fontFamily: typography.fontBodySemiBold,
+  },
+
+  // Decision row
+  decisionRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    justifyContent: 'space-between',
+    gap: spacing.sp2,
   },
-  advanceButtonBlocked: {
-    borderColor: tokens.border,
-    backgroundColor: tokens.bgElevated,
-    opacity: 0.6,
+  expiryPill: {
+    borderRadius: radius.rFull,
+    borderWidth: 1,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
   },
-  advanceButtonText: { color: tokens.textPrimary, fontSize: 14, fontWeight: '700' },
-  abandonWrap: { gap: 8 },
+  expiryPillText: {
+    fontSize: 10,
+    fontFamily: typography.fontBodyBold,
+  },
+
+  // Offers
+  offersWrap: {
+    gap: spacing.sp2,
+    marginTop: spacing.sp2,
+  },
+  offerTitle: {
+    fontFamily: typography.fontBodyBold,
+    fontSize: typography.sizeSM,
+    color: colors.textPrimary,
+  },
+
+  // Outcome badge centering
+  outcomeRow: {
+    alignItems: 'center',
+    paddingVertical: spacing.sp2,
+  },
+
+  // Abandon
+  abandonSection: {
+    paddingTop: spacing.sp2,
+  },
   abandonButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: tokens.border,
-    paddingVertical: 8,
-    alignItems: 'center',
+    alignSelf: 'center',
   },
-  abandonButtonText: { color: tokens.textMuted, fontSize: 12 },
-  abandonWarning: { color: tokens.accentGold, fontSize: 13 },
+
+  // Empty state
   emptyWrap: {
     flex: 1,
-    backgroundColor: tokens.bgPrimary,
+    backgroundColor: colors.bgPrimary,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    gap: 8,
+    paddingHorizontal: spacing.sp6,
+    gap: spacing.sp2,
   },
-  emptyTitle: { color: tokens.textPrimary, fontSize: 24, fontWeight: '700' },
-  emptyBody: { color: tokens.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyTitle: {
+    fontFamily: typography.fontDisplay,
+    fontSize: typography.sizeXL,
+    color: colors.textPrimary,
+  },
+  emptyBody: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeSM,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
 });
