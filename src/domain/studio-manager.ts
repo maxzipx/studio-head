@@ -99,6 +99,18 @@ import {
   getSequelCandidatesForManager,
   getSequelEligibilityForManager,
 } from './studio-manager.franchise.selectors';
+import {
+  runGreenlightReviewForManager,
+  runTestScreeningForManager,
+  runReshootsForManager,
+  runTrackingLeverageForManager,
+  runScriptDevelopmentSprintForManager,
+  runPostProductionPolishPassForManager,
+  runFestivalSubmissionForManager,
+  abandonProjectForManager,
+  runOptionalActionForManager,
+  runMarketingPushOnProjectForManager,
+} from './project.service';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -182,10 +194,10 @@ interface NegotiationEvaluation {
 }
 
 export class StudioManager {
-  private readonly crisisRng: () => number;
-  private readonly eventRng: () => number;
-  private readonly negotiationRng: () => number;
-  private readonly rivalRng: () => number;
+  readonly crisisRng: () => number;
+  readonly eventRng: () => number;
+  readonly negotiationRng: () => number;
+  readonly rivalRng: () => number;
   private readonly eventDeck: EventTemplate[] = getEventDeck();
   private readonly lastEventWeek = new Map<string, number>();
 
@@ -758,132 +770,19 @@ export class StudioManager {
   }
 
   runGreenlightReview(projectId: string, approve: boolean): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'development') {
-      return { success: false, message: 'Greenlight review is only available during development.' };
-    }
-    if (!project.directorId || project.castIds.length < 1 || project.scriptQuality < 6) {
-      return { success: false, message: 'Project is not ready for a greenlight review yet.' };
-    }
-
-    if (!approve) {
-      project.greenlightApproved = false;
-      project.sentBackForRewriteCount = (project.sentBackForRewriteCount ?? 0) + 1;
-      project.scriptQuality = clamp(project.scriptQuality + 0.2, 0, 9.5);
-      project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
-      return {
-        success: true,
-        message: `${project.title} sent back for rewrite. Script +0.2, hype -1.`,
-      };
-    }
-
-    const feeReduction = this.departmentLevels.development * 15_000;
-    const approvalFee = Math.max(120_000, ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE - feeReduction);
-    if (this.cash < approvalFee) {
-      return {
-        success: false,
-        message: `Insufficient cash for greenlight approval ($${Math.round(approvalFee / 1000)}K needed).`,
-      };
-    }
-    this.adjustCash(-approvalFee);
-    project.greenlightApproved = true;
-    project.greenlightWeek = this.currentWeek;
-    project.greenlightFeePaid = (project.greenlightFeePaid ?? 0) + approvalFee;
-    project.greenlightLockedCeiling = project.budget.ceiling;
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `${project.title} greenlit. Approval fee paid and budget ceiling locked.`,
-    };
+    return runGreenlightReviewForManager(this, projectId, approve);
   }
 
   runTestScreening(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'postProduction' && project.phase !== 'distribution') {
-      return { success: false, message: 'Test screenings are only available in post-production or distribution.' };
-    }
-    if (this.cash < ACTION_BALANCE.TEST_SCREENING_COST) {
-      return { success: false, message: 'Insufficient cash for test screening.' };
-    }
-
-    const projection = this.getProjectedForProject(projectId);
-    if (!projection) return { success: false, message: 'Projection unavailable.' };
-    const confidence = clamp(0.58 + this.marketingTeamLevel * 0.08, 0.6, 0.9);
-    const variance = (1 - confidence) * 18;
-    const offset = (this.eventRng() - 0.5) * variance;
-    const center = clamp(projection.critical + offset, 20, 95);
-    const low = clamp(center - (7 + (1 - confidence) * 6), 10, 98);
-    const high = clamp(center + (7 + (1 - confidence) * 6), 12, 99);
-    const sentiment: MovieProject['testScreeningAudienceSentiment'] =
-      center >= 74 ? 'strong' : center >= 58 ? 'mixed' : 'weak';
-
-    this.adjustCash(-ACTION_BALANCE.TEST_SCREENING_COST);
-    project.testScreeningCompleted = true;
-    project.testScreeningWeek = this.currentWeek;
-    project.testScreeningCriticalLow = low;
-    project.testScreeningCriticalHigh = high;
-    project.testScreeningAudienceSentiment = sentiment;
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `${project.title} test screening complete. Critics look ${low.toFixed(0)}-${high.toFixed(0)} with ${sentiment} audience sentiment.`,
-    };
+    return runTestScreeningForManager(this, projectId);
   }
 
   runReshoots(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'postProduction') {
-      return { success: false, message: 'Reshoots are only available during post-production.' };
-    }
-    if (!project.testScreeningCompleted) {
-      return { success: false, message: 'Run a test screening first to justify reshoots.' };
-    }
-    if (this.cash < ACTION_BALANCE.RESHOOT_COST) {
-      return { success: false, message: 'Insufficient cash for reshoots.' };
-    }
-
-    this.adjustCash(-ACTION_BALANCE.RESHOOT_COST);
-    project.scriptQuality = clamp(project.scriptQuality + 0.25, 0, 10);
-    project.editorialScore = clamp(project.editorialScore + 0.4, 0, 10);
-    project.scheduledWeeksRemaining += ACTION_BALANCE.RESHOOT_SCHEDULE_WEEKS;
-    project.reshootCount = (project.reshootCount ?? 0) + 1;
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `${project.title} reshoots approved. +1 week schedule, quality and editorial improved.`,
-    };
+    return runReshootsForManager(this, projectId);
   }
 
   runTrackingLeverage(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'distribution') {
-      return { success: false, message: 'Tracking leverage is only available in distribution.' };
-    }
-    if ((project.trackingLeverageAmount ?? 0) > 0) {
-      return { success: false, message: 'Tracking leverage already used on this project.' };
-    }
-    const projection = this.getProjectedForProject(project.id);
-    if (!projection) return { success: false, message: 'Tracking unavailable right now.' };
-
-    const confidence = clamp(0.57 + this.marketingTeamLevel * 0.075, 0.6, 0.9);
-    const projectedOpening = projection.openingHigh * (0.86 + confidence * 0.24);
-    const leverageCap = projectedOpening * project.studioRevenueShare * ACTION_BALANCE.TRACKING_LEVERAGE_SHARE_CAP;
-    const advance = Math.round(leverageCap);
-    if (advance <= 0) return { success: false, message: 'Tracking confidence is too low for leverage this week.' };
-
-    project.trackingProjectionOpening = projectedOpening;
-    project.trackingConfidence = confidence;
-    project.trackingLeverageAmount = advance;
-    project.trackingSettled = false;
-    this.adjustCash(advance);
-    return {
-      success: true,
-      message: `Leveraged ${project.title} tracking for $${Math.round(advance / 1000)}K in early cash.`,
-    };
+    return runTrackingLeverageForManager(this, projectId);
   }
 
   upgradeMarketingTeam(): { success: boolean; message: string } {
@@ -1169,154 +1068,27 @@ export class StudioManager {
   }
 
   runOptionalAction(): { success: boolean; message: string } {
-    const project = this.activeProjects
-      .filter((item) => item.phase !== 'released')
-      .sort((a, b) => {
-        if (a.marketingBudget === b.marketingBudget) return b.hypeScore - a.hypeScore;
-        return a.marketingBudget - b.marketingBudget;
-      })[0];
-    if (!project) return { success: false, message: 'No active project available for optional action.' };
-    if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) {
-      return { success: false, message: 'Insufficient cash for optional campaign action.' };
-    }
-
-    const bonusLevels = Math.max(0, this.marketingTeamLevel - 1);
-    const hypeGain =
-      ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
-    const marketingGain =
-      ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
-    project.hypeScore = clamp(project.hypeScore + hypeGain, 0, 100);
-    project.marketingBudget += marketingGain;
-    this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `Optional campaign executed on ${project.title}. Hype +${Math.round(hypeGain)} and marketing +$${Math.round(marketingGain / 1000)}K.`,
-    };
+    return runOptionalActionForManager(this);
   }
 
   runMarketingPushOnProject(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase === 'distribution' || project.phase === 'released') {
-      return { success: false, message: 'Marketing push not available after distribution begins.' };
-    }
-    if (this.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) return { success: false, message: 'Insufficient cash for marketing push ($180K needed).' };
-    const bonusLevels = Math.max(0, this.marketingTeamLevel - 1);
-    const hypeGain =
-      ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
-    const marketingGain =
-      ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST + bonusLevels * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
-    project.hypeScore = clamp(project.hypeScore + hypeGain, 0, 100);
-    project.marketingBudget += marketingGain;
-    this.adjustCash(-ACTION_BALANCE.OPTIONAL_ACTION_COST);
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `Marketing push on ${project.title}. Hype +${Math.round(hypeGain)}, marketing +$${Math.round(marketingGain / 1000)}K.`,
-    };
+    return runMarketingPushOnProjectForManager(this, projectId);
   }
 
   runScriptDevelopmentSprint(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'development') {
-      return { success: false, message: 'Script sprint is only available during development.' };
-    }
-    if (project.scriptQuality >= ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY) {
-      return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
-    }
-    if (this.cash < ACTION_BALANCE.SCRIPT_SPRINT_COST) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
-    const sprintBoost = ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST + this.departmentLevels.development * 0.08;
-    this.adjustCash(-ACTION_BALANCE.SCRIPT_SPRINT_COST);
-    project.scriptQuality = clamp(
-      project.scriptQuality + sprintBoost,
-      0,
-      ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY
-    );
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `Script sprint on ${project.title}. Script quality now ${project.scriptQuality.toFixed(1)}.`,
-    };
+    return runScriptDevelopmentSprintForManager(this, projectId);
   }
 
   runPostProductionPolishPass(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'postProduction') {
-      return { success: false, message: 'Polish pass is only available during post-production.' };
-    }
-    if (
-      (project.postPolishPasses ?? 0) >= ACTION_BALANCE.POLISH_PASS_MAX_USES ||
-      project.editorialScore >= ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL
-    ) {
-      return { success: false, message: `${project.title} has no polish passes remaining.` };
-    }
-    if (this.cash < ACTION_BALANCE.POLISH_PASS_COST) return { success: false, message: 'Insufficient cash for polish pass ($120K needed).' };
-    this.adjustCash(-ACTION_BALANCE.POLISH_PASS_COST);
-    project.postPolishPasses = Math.min(ACTION_BALANCE.POLISH_PASS_MAX_USES, (project.postPolishPasses ?? 0) + 1);
-    project.editorialScore = clamp(
-      project.editorialScore + ACTION_BALANCE.POLISH_PASS_EDITORIAL_BOOST,
-      0,
-      ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL
-    );
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `Polish pass on ${project.title}. Editorial score now ${project.editorialScore.toFixed(1)}.`,
-    };
+    return runPostProductionPolishPassForManager(this, projectId);
   }
 
   runFestivalSubmission(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase !== 'postProduction' && project.phase !== 'distribution') {
-      return { success: false, message: 'Festival submissions are only available in post-production or distribution.' };
-    }
-    if (project.festivalStatus === 'submitted' && project.festivalResolutionWeek && this.currentWeek < project.festivalResolutionWeek) {
-      return { success: false, message: `${project.title} already has a pending festival submission.` };
-    }
-    if (project.festivalStatus === 'selected' || project.festivalStatus === 'buzzed') {
-      return { success: false, message: `${project.title} already has a completed festival run.` };
-    }
-    if (this.cash < FESTIVAL_RULES.SUBMISSION_COST) {
-      return { success: false, message: `Insufficient cash for festival submission ($${Math.round(FESTIVAL_RULES.SUBMISSION_COST / 1000)}K needed).` };
-    }
-
-    const targetFestival = this.pickFestivalTarget(project);
-    this.adjustCash(-FESTIVAL_RULES.SUBMISSION_COST);
-    project.festivalStatus = 'submitted';
-    project.festivalTarget = targetFestival;
-    project.festivalSubmissionWeek = this.currentWeek;
-    project.festivalResolutionWeek = this.currentWeek + FESTIVAL_RULES.RESOLUTION_WEEKS;
-    project.hypeScore = clamp(project.hypeScore + 1, 0, 100);
-    this.evaluateBankruptcy();
-
-    return {
-      success: true,
-      message: `${project.title} submitted to ${targetFestival}. Results expected around week ${project.festivalResolutionWeek}.`,
-    };
+    return runFestivalSubmissionForManager(this, projectId);
   }
 
   abandonProject(projectId: string): { success: boolean; message: string } {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return { success: false, message: 'Project not found.' };
-    if (project.phase === 'released') return { success: false, message: 'Released projects cannot be abandoned.' };
-    const writeDown = Math.round(project.budget.actualSpend * 0.2);
-    this.adjustCash(-writeDown);
-    this.adjustReputation(-4, 'talent');
-    this.evaluateBankruptcy();
-    this.releaseTalent(projectId, 'abandoned');
-    removeProjectFromFranchiseForManager(this, projectId);
-    this.activeProjects = this.activeProjects.filter((item) => item.id !== projectId);
-    this.distributionOffers = this.distributionOffers.filter((item) => item.projectId !== projectId);
-    this.pendingCrises = this.pendingCrises.filter((item) => item.projectId !== projectId);
-    this.decisionQueue = this.decisionQueue.filter((item) => item.projectId !== projectId);
-    return {
-      success: true,
-      message: `${project.title} abandoned. $${Math.round(writeDown / 1000)}K write-down charged. Talent rep -4.`,
-    };
+    return abandonProjectForManager(this, projectId);
   }
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
@@ -2414,12 +2186,7 @@ export class StudioManager {
     }
   }
 
-  private pickFestivalTarget(project: MovieProject): string {
-    const prestigeBias = project.prestige + project.scriptQuality * 4 + project.originality * 0.18;
-    if (prestigeBias >= 78) return 'Cannes';
-    if (project.genre === 'documentary' || project.genre === 'drama') return 'Sundance';
-    return 'Toronto';
-  }
+
 
   private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
     if (!decision.title.startsWith('Counterplay:')) return;
@@ -2900,7 +2667,7 @@ export class StudioManager {
     generateDistributionOffersForManager(this, projectId);
   }
 
-  private releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {
+  releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {
     const project = this.activeProjects.find((item) => item.id === projectId);
     for (const talent of this.talentPool) {
       if (talent.attachedProjectId === projectId) {
@@ -2937,7 +2704,7 @@ export class StudioManager {
     openingDecision.projectId = leadProject.id;
   }
 
-  private evaluateBankruptcy(events?: string[]): void {
+  evaluateBankruptcy(events?: string[]): void {
     evaluateBankruptcyForManager(this, events);
   }
 }
