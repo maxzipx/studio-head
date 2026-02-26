@@ -107,6 +107,7 @@ import {
   createSeedScriptMarket,
   createSeedTalentPool,
 } from './seeds';
+import { adjustCashForManager, evaluateBankruptcyForManager } from './finance.service';
 import {
   AGENT_DIFFICULTY,
   ARC_LABELS,
@@ -338,14 +339,7 @@ export class StudioManager {
   }
 
   adjustCash(delta: number): void {
-    if (!Number.isFinite(delta) || delta === 0) return;
-    if (delta > 0) this.lifetimeRevenue += Math.round(delta);
-    if (delta < 0) this.lifetimeExpenses += Math.round(Math.abs(delta));
-    this.lifetimeProfit = this.lifetimeRevenue - this.lifetimeExpenses;
-    this.cash = Math.round(this.cash + delta);
-    if (this.isBankrupt) {
-      this.cash = Math.max(BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD, this.cash);
-    }
+    adjustCashForManager(this, delta);
   }
 
   private getTalentMemory(talent: Talent): Talent['relationshipMemory'] {
@@ -2362,12 +2356,12 @@ export class StudioManager {
       const cycleBoost = (this.getGenreDemandMultiplier(project.genre) - 1) * 12;
       const score = clamp(
         criticalAnchor * 0.48 +
-          project.scriptQuality * 2.8 +
-          project.prestige * 0.2 +
-          project.originality * 0.18 +
-          project.festivalBuzz * 0.12 +
-          cycleBoost -
-          project.controversy * 0.15,
+        project.scriptQuality * 2.8 +
+        project.prestige * 0.2 +
+        project.originality * 0.18 +
+        project.festivalBuzz * 0.12 +
+        cycleBoost -
+        project.controversy * 0.15,
         0,
         100
       );
@@ -2944,12 +2938,6 @@ export class StudioManager {
   }
 
   private evaluateBankruptcy(events?: string[]): void {
-    if (this.isBankrupt) return;
-    if (this.cash > BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD) return;
-    this.isBankrupt = true;
-    const roundedCash = Math.round(this.cash);
-    this.cash = Math.max(BANKRUPTCY_RULES.GAME_OVER_CASH_THRESHOLD, roundedCash);
-    this.bankruptcyReason = `Bankruptcy declared at week ${this.currentWeek} with cash $${roundedCash.toLocaleString()}.`;
-    events?.push('Bankruptcy declared. The studio has run out of operating cash.');
+    evaluateBankruptcyForManager(this, events);
   }
 }

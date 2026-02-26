@@ -1,93 +1,48 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
+import { useStore } from 'zustand';
 
-import { StudioManager } from '@/src/domain/studio-manager';
-import { loadManagerFromStorage, saveManagerToStorage } from '@/src/state/persistence';
-import { buildGameActions } from '@/src/state/game-actions';
+import { createGameStore, type GameState } from '@/src/state/game-store';
 import type { GameContextValue } from '@/src/state/game-types';
 
-const GameContext = createContext<GameContextValue | null>(null);
-const AUTOSAVE_WARNING = 'Autosave failed: local storage is full. Gameplay continues, but progress may not persist.';
+type GameStore = ReturnType<typeof createGameStore>;
+
+const GameContext = createContext<GameStore | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const managerRef = useRef<StudioManager | null>(null);
-  const hasSaveFailureRef = useRef(false);
-  const [tick, setTick] = useState(0);
-  const [lastMessage, setLastMessage] = useState<string | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const storeRef = useRef<GameStore | null>(null);
 
-  if (!managerRef.current) {
-    managerRef.current = new StudioManager();
-    void loadManagerFromStorage().then((loaded) => {
-      if (loaded) {
-        managerRef.current = loaded;
-      }
-      setIsHydrated(true);
-      setTick((value) => value + 1);
-    }).catch(() => {
-      setIsHydrated(true);
-      setLastMessage('Save load failed. Started a fresh session for now.');
-    });
+  if (!storeRef.current) {
+    storeRef.current = createGameStore();
   }
-  const manager = managerRef.current;
 
-  const saveAndTick = useCallback(
-    (message?: string) => {
-      const bankruptcySuffix = manager.isBankrupt
-        ? ` Game over: ${manager.bankruptcyReason ?? 'Studio is bankrupt.'}`
-        : '';
-      if (message) {
-        const nextMessage = hasSaveFailureRef.current
-          ? `${message}${bankruptcySuffix} ${AUTOSAVE_WARNING}`
-          : `${message}${bankruptcySuffix}`;
-        setLastMessage(nextMessage);
-      } else if (bankruptcySuffix) {
-        setLastMessage(bankruptcySuffix.trim());
-      }
-      void saveManagerToStorage(manager)
-        .then(() => {
-          hasSaveFailureRef.current = false;
-        })
-        .catch(() => {
-          hasSaveFailureRef.current = true;
-          setLastMessage(AUTOSAVE_WARNING);
-        });
-      setTick((value) => value + 1);
-    },
-    [manager]
-  );
+  useEffect(() => {
+    // Only init once on mount
+    if (storeRef.current) {
+      void storeRef.current.getState()._init();
+    }
+  }, []);
 
-  const runWhenHydrated = useCallback(
-    (action: () => void, options?: { allowWhenBankrupt?: boolean }) => {
-      if (!isHydrated) {
-        setLastMessage('Loading saved game... controls unlock in a moment.');
-        return;
-      }
-      if (manager.isBankrupt && !options?.allowWhenBankrupt) {
-        setLastMessage(`Game over: ${manager.bankruptcyReason ?? 'Studio is bankrupt.'}`);
-        return;
-      }
-      action();
-    },
-    [isHydrated, manager.bankruptcyReason, manager.isBankrupt]
-  );
-
-  const value = useMemo(
-    () => ({
-      manager,
-      tick,
-      lastMessage,
-      ...buildGameActions({ manager, runWhenHydrated, saveAndTick }),
-    }),
-    [lastMessage, manager, runWhenHydrated, saveAndTick, tick]
-  );
-
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  return <GameContext.Provider value={storeRef.current}>{children}</GameContext.Provider>;
 }
 
-export function useGame(): GameContextValue {
-  const context = useContext(GameContext);
-  if (!context) {
-    throw new Error('useGame must be used within GameProvider');
+// Global selector wrapper
+export function useGameStore<T>(selector: (state: GameState) => T): T {
+  const store = useContext(GameContext);
+  if (!store) {
+    throw new Error('useGameStore must be used within GameProvider');
   }
-  return context;
+  // We use the useStore hook from zustand which handles the subscription to the passed store
+  return useStore(store, selector);
+}
+
+// Backwards compatible hook that returns everything (will cause re-renders on every tick)
+export function useGame(): GameContextValue {
+  return useGameStore((state) => ({
+    manager: state.manager,
+    tick: state.tick,
+    lastMessage: state.lastMessage,
+    ...Object.fromEntries(
+      Object.entries(state).filter(([key]) => !key.startsWith('_') && key !== 'manager' && key !== 'tick' && key !== 'lastMessage' && key !== 'isHydrated' && key !== 'hasSaveFailure')
+    ) as Omit<GameState, 'manager' | 'tick' | 'lastMessage' | 'isHydrated' | 'hasSaveFailure' | '_init' | '_saveAndTick' | '_runWhenHydrated'>
+  })) as unknown as GameContextValue; // Cast is fine since GameContextValue matches the spread game state
 }

@@ -1,42 +1,58 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
 import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, spacing, typography } from '@/src/ui/tokens';
 
 function money(amount: number): string {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000)     return `$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
   return `$${Math.round(abs).toLocaleString()}`;
 }
 
 function roiToOutcome(roi: number): OutcomeType {
-  if (roi >= 3)   return 'blockbuster';
-  if (roi >= 2)   return 'hit';
+  if (roi >= 3) return 'blockbuster';
+  if (roi >= 2) return 'hit';
   if (roi >= 1.2) return 'solid';
   if (roi >= 0.8) return 'flop';
   return 'bomb';
 }
 
 export default function FinancialsScreen() {
-  const { manager } = useGame();
-  const projects     = manager.activeProjects;
-  const totalBudget  = projects.reduce((s, p) => s + p.budget.ceiling, 0);
-  const totalSpend   = projects.reduce((s, p) => s + p.budget.actualSpend, 0);
-  const released     = projects.filter((p) => p.phase === 'released');
-  const burnThisWeek = manager.estimateWeeklyBurn();
+  // Subscribe specifically to the financials slice. 
+  // This component will only re-render when these derived values change.
+  const financials = useGameStore((state) => {
+    const mgr = state.manager;
+    const projects = mgr.activeProjects;
+    const totalBudget = projects.reduce((s, p) => s + p.budget.ceiling, 0);
+    const totalSpend = projects.reduce((s, p) => s + p.budget.actualSpend, 0);
+
+    return {
+      cash: mgr.cash,
+      lifetimeProfit: mgr.lifetimeProfit,
+      lifetimeRevenue: mgr.lifetimeRevenue,
+      projects,
+      totalBudget,
+      totalSpend,
+      released: projects.filter((p) => p.phase === 'released'),
+      burnThisWeek: mgr.estimateWeeklyBurn(),
+      lastDelta: mgr.lastWeekSummary?.cashDelta ?? 0,
+    };
+  });
+
+  const { cash, lifetimeProfit, lifetimeRevenue, projects, totalBudget, totalSpend, released, burnThisWeek, lastDelta } = financials;
+
   const completionPct = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
-  const lastDelta     = manager.lastWeekSummary?.cashDelta ?? 0;
-  const runwayWeeks   = burnThisWeek > 0 ? manager.cash / burnThisWeek : 0;
+  const runwayWeeks = burnThisWeek > 0 ? cash / burnThisWeek : 0;
   const isPositiveDelta = lastDelta >= 0;
 
   // Runway danger threshold
   const runwayColor =
-    runwayWeeks <= 4  ? colors.accentRed  :
-    runwayWeeks <= 10 ? colors.goldMid    :
-    colors.accentTeal;
+    runwayWeeks <= 4 ? colors.accentRed :
+      runwayWeeks <= 10 ? colors.goldMid :
+        colors.accentTeal;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -56,7 +72,7 @@ export default function FinancialsScreen() {
       <View style={styles.heroRow}>
         <GlassCard variant="gold" style={styles.heroCard}>
           <MetricTile
-            value={money(manager.cash)}
+            value={money(cash)}
             label="Cash on Hand"
             size="lg"
             centered
@@ -64,10 +80,10 @@ export default function FinancialsScreen() {
         </GlassCard>
         <GlassCard variant="elevated" style={styles.heroCard}>
           <MetricTile
-            value={money(manager.lifetimeProfit)}
+            value={money(lifetimeProfit)}
             label="Lifetime Profit"
             size="lg"
-            accent={manager.lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed}
+            accent={lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed}
             centered
           />
         </GlassCard>
@@ -108,7 +124,7 @@ export default function FinancialsScreen() {
       <GlassCard>
         <SectionLabel label="Lifetime Revenue" />
         <MetricTile
-          value={money(manager.lifetimeRevenue)}
+          value={money(lifetimeRevenue)}
           label="Total Gross Revenue"
           size="md"
           accent={colors.accentTeal}
@@ -119,7 +135,7 @@ export default function FinancialsScreen() {
       <GlassCard>
         <SectionLabel label="Budget Utilization" />
         <View style={styles.budgetRow}>
-          <MetricTile value={money(totalSpend)} label="Spent"    size="sm" />
+          <MetricTile value={money(totalSpend)} label="Spent" size="sm" />
           <MetricTile value={money(totalBudget)} label="Budgeted" size="sm" />
           <MetricTile value={`${completionPct.toFixed(1)}%`} label="Consumed" size="sm" accent={completionPct > 85 ? colors.accentRed : colors.goldMid} />
         </View>
@@ -194,34 +210,34 @@ export default function FinancialsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: colors.bgPrimary },
-  content:  { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
+  screen: { flex: 1, backgroundColor: colors.bgPrimary },
+  content: { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
 
   // Header
-  header:     { gap: 4, marginBottom: spacing.sp1 },
+  header: { gap: 4, marginBottom: spacing.sp1 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
-  title:      { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  subtitle:   { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
+  title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
+  subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
 
   // Hero metrics
-  heroRow:    { flexDirection: 'row', gap: spacing.sp3 },
-  heroCard:   { flex: 1 },
+  heroRow: { flexDirection: 'row', gap: spacing.sp3 },
+  heroCard: { flex: 1 },
 
   // Metric grid helpers
-  metricRow:  { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
-  metricCol:  { flex: 1 },
-  budgetRow:  { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
+  metricRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
+  metricCol: { flex: 1 },
+  budgetRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp2 },
 
   // ROI Matrix
   roiRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.sp2,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
-  roiLeft:  { flex: 1, gap: 2 },
+  roiLeft: { flex: 1, gap: 2 },
   roiRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
   roiTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
   roiPhase: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, textTransform: 'capitalize' },
