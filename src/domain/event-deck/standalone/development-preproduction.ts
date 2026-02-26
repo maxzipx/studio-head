@@ -1,0 +1,200 @@
+import type { EventTemplate } from '../../types';
+
+export const developmentPreproductionEvents: EventTemplate[] = [
+// ─── Phase 4: New Standalone Events ──────────────────────────────────────
+
+    {
+      id: 'emerging-talent-showcase',
+      category: 'talent',
+      scope: 'project',
+      targetPhases: ['production'],
+      title: 'Breakout Performance',
+      decisionTitle: 'Breakout Performance',
+      body: 'Dailies show a supporting cast member delivering work well above their billing. Agents have already noticed.',
+      cooldownWeeks: 5,
+      baseWeight: 1.1,
+      minWeek: 3,
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+        id: idFactory('decision'),
+        projectId,
+        category: 'talent',
+        title: 'Breakout Performance',
+        body: projectTitle
+          ? `A supporting actor on ${projectTitle} is outperforming their role. Agents have already noticed.`
+          : 'A supporting actor is outperforming their role. Agents have already noticed.',
+        weeksUntilExpiry: 2,
+        options: [
+          {
+            id: idFactory('opt'),
+            label: 'Renegotiate Their Deal Now',
+            preview: 'Costs now, earns loyalty and press.',
+            cashDelta: -150_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 2,
+            talentRepDelta: 2,
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Flag For Press Positioning',
+            preview: 'Free upside on campaign. No commitment.',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 3,
+            setFlag: 'breakout_talent',
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Do Nothing',
+            preview: "They'll remember.",
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+            talentRepDelta: -1,
+          },
+        ],
+      }),
+    },
+
+    {
+      id: 'veteran-mentor-attachment',
+      category: 'talent',
+      scope: 'project',
+      targetPhases: ['development', 'preProduction'],
+      title: 'Veteran Mentor Offer',
+      decisionTitle: 'Veteran Mentor Offer',
+      body: 'A legendary filmmaker, now semi-retired, is available for a consulting credit. The name still carries weight in the room.',
+      cooldownWeeks: 8,
+      baseWeight: 0.9,
+      minWeek: 2,
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+        id: idFactory('decision'),
+        projectId,
+        category: 'talent',
+        title: 'Veteran Mentor Offer',
+        body: projectTitle
+          ? `A legendary filmmaker is available to consult on ${projectTitle} for a credit and a fee.`
+          : 'A legendary filmmaker is available for a consulting credit — for a fee.',
+        weeksUntilExpiry: 2,
+        options: [
+          {
+            id: idFactory('opt'),
+            label: 'Bring Them On',
+            preview: 'Prestige signal. Costs more than it looks.',
+            cashDelta: -180_000,
+            scriptQualityDelta: 0.4,
+            hypeDelta: 0,
+            criticsDelta: 2,
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Pass',
+            preview: 'No cost, no gain.',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+          },
+        ],
+      }),
+    },
+
+    {
+      id: 'union-action-warning',
+      category: 'talent',
+      scope: 'project',
+      targetPhases: ['production'],
+      title: 'Union Warning',
+      decisionTitle: 'Union Warning',
+      body: 'A guild rep delivers a formal notice about overtime conditions in your production department. Not a threat yet. Noted.',
+      cooldownWeeks: 4,
+      baseWeight: 1.15,
+      minWeek: 3,
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+        id: idFactory('decision'),
+        projectId,
+        category: 'talent',
+        title: 'Union Warning',
+        body: projectTitle
+          ? `Guild rep has issued a formal overtime notice on ${projectTitle}. Address it now or absorb the friction.`
+          : 'Guild rep has issued a formal overtime notice. Address it now or absorb the friction.',
+        weeksUntilExpiry: 2,
+        options: [
+          {
+            id: idFactory('opt'),
+            label: 'Schedule A Rest Block',
+            preview: 'Delays the shoot. Earns goodwill.',
+            cashDelta: -200_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+            scheduleDelta: 1,
+            talentRepDelta: 2,
+            overrunRiskDelta: -0.04,
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Negotiate A Quiet Settlement',
+            preview: 'Faster and cheaper. Partial fix.',
+            cashDelta: -120_000,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+            talentRepDelta: 1,
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Continue Current Schedule',
+            preview: 'Makes schedule. Will cost you at the next negotiating table.',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 1,
+            talentRepDelta: -2,
+            overrunRiskDelta: 0.06,
+          },
+        ],
+      }),
+    },
+
+    {
+      id: 'breakout-casting-instinct',
+      category: 'talent',
+      scope: 'project',
+      targetPhases: ['development', 'preProduction'],
+      title: 'Unknown Lead Recommendation',
+      decisionTitle: 'Unknown Lead Recommendation',
+      body: 'Casting is pushing hard for a no-name lead. No agent, no track record. The audition tape is exceptional.',
+      cooldownWeeks: 6,
+      baseWeight: 0.95,
+      minWeek: 2,
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+        id: idFactory('decision'),
+        projectId,
+        category: 'talent',
+        title: 'Unknown Lead Recommendation',
+        body: projectTitle
+          ? `Casting wants an unknown lead for ${projectTitle}. Exceptional audition, zero industry profile.`
+          : 'Casting wants an unknown lead. Exceptional audition, zero industry profile.',
+        weeksUntilExpiry: 2,
+        options: [
+          {
+            id: idFactory('opt'),
+            label: 'Greenlight The Casting',
+            preview: 'Critical upside. Opens the door for awards narrative.',
+            cashDelta: 0,
+            scriptQualityDelta: 0.2,
+            hypeDelta: 0,
+            criticsDelta: 2,
+            audienceDelta: -1,
+            setFlag: 'underdog_lead',
+          },
+          {
+            id: idFactory('opt'),
+            label: 'Go With The Safe Choice',
+            preview: 'Audience-safe. Leaves prestige points on the table.',
+            cashDelta: 0,
+            scriptQualityDelta: -0.1,
+            hypeDelta: 0,
+            criticsDelta: -1,
+            audienceDelta: 1,
+          },
+        ],
+      }),
+    },
+];

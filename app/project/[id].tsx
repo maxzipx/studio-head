@@ -1,100 +1,30 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ACTION_BALANCE, FESTIVAL_RULES } from '@/src/domain/balance-constants';
 import { useGame } from '@/src/state/game-context';
-import { colors, typography, spacing, radius } from '@/src/ui/tokens';
+import { colors, typography } from '@/src/ui/tokens';
 import {
   GlassCard,
   PremiumButton,
   SectionLabel,
   MetricTile,
-  OutcomeBadge,
   ProgressBar,
 } from '@/src/ui/components';
-import type { OutcomeType } from '@/src/ui/components';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function money(amount: number): string {
-  return `$${Math.round(amount).toLocaleString()}`;
-}
-
-function pct(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-function resolveParam(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) return value[0] ?? '';
-  return value ?? '';
-}
-
-function franchiseStrategyLabel(strategy: string): string {
-  if (strategy === 'safe') return 'Safe Continuation';
-  if (strategy === 'reinvention') return 'Reinvention';
-  if (strategy === 'balanced') return 'Balanced';
-  return 'Standalone';
-}
-
-function outcomeFromReport(outcome: string): OutcomeType {
-  if (outcome === 'blockbuster') return 'blockbuster';
-  if (outcome === 'hit') return 'hit';
-  if (outcome === 'solid') return 'solid';
-  if (outcome === 'flop') return 'flop';
-  return 'bomb';
-}
-
-function phaseColor(phase: string): string {
-  if (phase === 'development') return colors.accentTeal;
-  if (phase === 'preProduction' || phase === 'production') return colors.goldMid;
-  if (phase === 'postProduction') return colors.accentTeal;
-  if (phase === 'distribution') return '#6FAEEA';
-  if (phase === 'released') return colors.accentGreen;
-  return colors.textMuted;
-}
-
-function burnBarColor(pct: number): string {
-  if (pct < 80) return colors.accentTeal;
-  if (pct < 95) return colors.goldMid;
-  return colors.accentRed;
-}
-
-function roiColor(roi: number): string {
-  if (roi >= 1.5) return colors.accentTeal;
-  if (roi >= 1.0) return colors.goldMid;
-  return colors.accentRed;
-}
-
-function advanceBlockers(project: {
-  phase: string;
-  directorId: string | null;
-  castIds: string[];
-  scriptQuality: number;
-  greenlightApproved?: boolean;
-  scheduledWeeksRemaining: number;
-  marketingBudget: number;
-  releaseWindow: string | null;
-  releaseWeek: number | null;
-}, currentWeek: number, crisisCount: number): string[] {
-  const blockers: string[] = [];
-  if (project.phase === 'development') {
-    if (!project.directorId) blockers.push('Director not attached');
-    if (project.castIds.length < 1) blockers.push('No lead actor attached');
-    if (project.scriptQuality < 6) blockers.push(`Script quality too low (${project.scriptQuality.toFixed(1)} / min 6.0)`);
-    if (!project.greenlightApproved) blockers.push('Greenlight decision not approved');
-  } else if (project.phase === 'preProduction' || project.phase === 'production' || project.phase === 'postProduction') {
-    if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w remaining in phase`);
-    if (project.phase === 'production' && crisisCount > 0) blockers.push(`${crisisCount} unresolved crisis`);
-    if (project.phase === 'postProduction' && project.marketingBudget <= 0) blockers.push('Marketing budget required (use push below)');
-  } else if (project.phase === 'distribution') {
-    if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w setup remaining`);
-    if (!project.releaseWindow) blockers.push('Distribution deal not selected');
-    if (project.releaseWeek && currentWeek < project.releaseWeek) blockers.push(`Release date is week ${project.releaseWeek} (now week ${currentWeek})`);
-  }
-  return blockers;
-}
+import { ProjectReleasePerformanceCard } from '@/src/ui/project/ProjectReleasePerformanceCard';
+import {
+  advanceBlockers,
+  burnBarColor,
+  franchiseStrategyLabel,
+  money,
+  pct,
+  phaseColor,
+  resolveParam,
+  roiColor,
+} from '@/src/ui/project/project-helpers';
+import { styles } from '@/src/ui/project/project-styles';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -763,80 +693,12 @@ export default function ProjectDetailScreen() {
         </GlassCard>
       ) : null}
 
-      {/* ── Release Performance ── */}
-      {project.phase === 'released' ? (
-        <GlassCard variant="gold">
-          <SectionLabel label="Release Performance" />
-          {releaseReport ? (
-            <View style={styles.outcomeRow}>
-              <OutcomeBadge outcome={outcomeFromReport(releaseReport.outcome)} />
-            </View>
-          ) : null}
-          <View style={styles.metricsRow}>
-            <MetricTile value={money(project.openingWeekendGross ?? 0)} label="Opening" size="sm" style={styles.metricFlex} />
-            <MetricTile value={money(project.finalBoxOffice ?? 0)} label="Total Gross" size="sm" style={styles.metricFlex} />
-          </View>
-          <View style={styles.metricsRow}>
-            <MetricTile value={project.criticalScore?.toFixed(0) ?? '--'} label="Critics" size="sm" style={styles.metricFlex} />
-            <MetricTile value={project.audienceScore?.toFixed(0) ?? '--'} label="Audience" size="sm" style={styles.metricFlex} />
-          </View>
-          <MetricTile
-            value={`${project.projectedROI.toFixed(2)}x`}
-            label="ROI"
-            size="md"
-            accent={roiColor(project.projectedROI)}
-          />
-          <Text style={styles.mutedText}>{project.awardsNominations} nomination{project.awardsNominations !== 1 ? 's' : ''} · {project.awardsWins} win{project.awardsWins !== 1 ? 's' : ''}</Text>
-
-          {releaseReport ? (
-            <>
-              <MetricTile
-                value={money(Math.abs(releaseReport.profit))}
-                label={releaseReport.profit >= 0 ? 'Profit' : 'Loss'}
-                size="sm"
-                accent={releaseReport.profit >= 0 ? colors.accentGreen : colors.accentRed}
-              />
-              <SectionLabel label="Performance Drivers" style={{ marginTop: spacing.sp2 }} />
-              {(Object.entries(releaseReport.breakdown) as [string, number][]).map(([key, val]) => (
-                <View key={key} style={{ gap: 2 }}>
-                  <Text style={styles.mutedText}>
-                    {key.replace(/([A-Z])/g, ' $1').trim()} {val >= 0 ? '+' : ''}{val}
-                  </Text>
-                  <ProgressBar
-                    value={50 + Math.max(-50, Math.min(50, val))}
-                    color={val >= 0 ? colors.accentTeal : colors.accentRed}
-                    height={6}
-                  />
-                </View>
-              ))}
-            </>
-          ) : null}
-
-          {sequelEligibility ? (
-            <>
-              <SectionLabel label="Sequel Eligibility" style={{ marginTop: spacing.sp3 }} />
-              <Text style={styles.bodyText}>
-                Episode {sequelEligibility.nextEpisode} · Upfront {money(sequelEligibility.upfrontCost)}
-              </Text>
-              <View style={styles.metricsRow}>
-                <MetricTile value={sequelEligibility.projectedMomentum.toFixed(0)} label="Momentum" size="sm" style={styles.metricFlex} />
-                <MetricTile value={sequelEligibility.projectedFatigue.toFixed(0)} label="Fatigue" size="sm" style={styles.metricFlex} />
-                <MetricTile value={sequelEligibility.carryoverHype.toFixed(0)} label="Carry Hype" size="sm" style={styles.metricFlex} />
-              </View>
-              {!sequelEligibility.eligible && sequelEligibility.reason ? (
-                <Text style={[styles.mutedText, { color: colors.accentRed }]}>{sequelEligibility.reason}</Text>
-              ) : null}
-              <PremiumButton
-                variant="primary"
-                size="md"
-                label="Start Sequel Development"
-                onPress={() => startSequel(project.id)}
-                disabled={!sequelEligibility.eligible}
-              />
-            </>
-          ) : null}
-        </GlassCard>
-      ) : null}
+      <ProjectReleasePerformanceCard
+        project={project}
+        releaseReport={releaseReport}
+        sequelEligibility={sequelEligibility}
+        onStartSequel={startSequel}
+      />
 
       {/* ── Abandon Project ── */}
       {project.phase !== 'released' ? (
@@ -879,179 +741,3 @@ export default function ProjectDetailScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-  },
-  content: {
-    padding: spacing.sp4,
-    gap: spacing.sp3,
-    paddingBottom: 120,
-  },
-
-  // Header
-  headerGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    zIndex: 0,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sp2,
-  },
-  phasePill: {
-    borderRadius: radius.rFull,
-    borderWidth: 1,
-    paddingVertical: 3,
-    paddingHorizontal: spacing.sp2,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  phasePillText: {
-    fontSize: typography.sizeXS,
-    fontFamily: typography.fontBodySemiBold,
-    letterSpacing: typography.trackingWide,
-    textTransform: 'capitalize',
-  },
-  title: {
-    fontFamily: typography.fontDisplay,
-    fontSize: 28,
-    color: colors.textPrimary,
-    letterSpacing: typography.trackingTight,
-    lineHeight: 34,
-  },
-  subtitle: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeSM,
-    color: colors.textMuted,
-    marginTop: -2,
-  },
-
-  // Message
-  messageCard: {
-    borderColor: colors.borderTeal,
-  },
-  messageText: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeSM,
-    color: colors.accentTeal,
-  },
-
-  // Layout helpers
-  metricsRow: {
-    flexDirection: 'row',
-    gap: spacing.sp2,
-    flexWrap: 'wrap',
-  },
-  metricFlex: {
-    flex: 1,
-    minWidth: 70,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: spacing.sp2,
-    flexWrap: 'wrap',
-  },
-  buttonFlex: {
-    flex: 1,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sp2,
-  },
-
-  // Text styles
-  bodyText: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeSM,
-    color: colors.textSecondary,
-  },
-  mutedText: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeXS,
-    color: colors.textMuted,
-  },
-
-  // Status pill
-  statusPill: {
-    borderRadius: radius.rFull,
-    borderWidth: 1,
-    paddingVertical: 3,
-    paddingHorizontal: spacing.sp2,
-  },
-  statusPillText: {
-    fontSize: typography.sizeXS,
-    fontFamily: typography.fontBodySemiBold,
-  },
-
-  // Decision row
-  decisionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sp2,
-  },
-  expiryPill: {
-    borderRadius: radius.rFull,
-    borderWidth: 1,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  expiryPillText: {
-    fontSize: 10,
-    fontFamily: typography.fontBodyBold,
-  },
-
-  // Offers
-  offersWrap: {
-    gap: spacing.sp2,
-    marginTop: spacing.sp2,
-  },
-  offerTitle: {
-    fontFamily: typography.fontBodyBold,
-    fontSize: typography.sizeSM,
-    color: colors.textPrimary,
-  },
-
-  // Outcome badge centering
-  outcomeRow: {
-    alignItems: 'center',
-    paddingVertical: spacing.sp2,
-  },
-
-  // Abandon
-  abandonSection: {
-    paddingTop: spacing.sp2,
-  },
-  abandonButton: {
-    alignSelf: 'center',
-  },
-
-  // Empty state
-  emptyWrap: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sp6,
-    gap: spacing.sp2,
-  },
-  emptyTitle: {
-    fontFamily: typography.fontDisplay,
-    fontSize: typography.sizeXL,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeSM,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-});
