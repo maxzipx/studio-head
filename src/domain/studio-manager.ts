@@ -87,7 +87,6 @@ import {
 } from './studio-manager.franchise.evaluation';
 import {
   markFranchiseReleaseForManager,
-  removeProjectFromFranchiseForManager,
   runFranchiseBrandResetForManager,
   runFranchiseHiatusPlanningForManager,
   runFranchiseLegacyCastingCampaignForManager,

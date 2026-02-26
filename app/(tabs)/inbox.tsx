@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 
 function money(amount: number): string {
@@ -8,7 +9,17 @@ function money(amount: number): string {
 }
 
 export default function InboxScreen() {
-  const { manager, resolveCrisis, resolveDecision } = useGame();
+  const { manager, resolveCrisis, resolveDecision } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      resolveCrisis: state.resolveCrisis,
+      resolveDecision: state.resolveDecision,
+      crisesSignature: mgr.pendingCrises.map(c => c.id).join('|'),
+      decisionsSignature: mgr.decisionQueue.map(d => d.id).join('|'),
+      projectsSignature: mgr.activeProjects.map(p => p.id).join('|'),
+    };
+  }));
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, spacing, typography } from '@/src/ui/tokens';
 
@@ -23,7 +24,7 @@ function roiToOutcome(roi: number): OutcomeType {
 export default function FinancialsScreen() {
   // Subscribe specifically to the financials slice. 
   // This component will only re-render when these derived values change.
-  const financials = useGameStore((state) => {
+  const financials = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     const projects = mgr.activeProjects;
     const totalBudget = projects.reduce((s, p) => s + p.budget.ceiling, 0);
@@ -34,15 +35,19 @@ export default function FinancialsScreen() {
       lifetimeProfit: mgr.lifetimeProfit,
       lifetimeRevenue: mgr.lifetimeRevenue,
       projects,
+      // Keep selector output shallow-comparable even with mutable project objects.
+      projectsSignature: projects.map((p) =>
+        `${p.id}:${p.phase}:${p.projectedROI}:${p.finalBoxOffice ?? 0}:${p.studioRevenueShare}:${p.budget.actualSpend}:${p.budget.ceiling}`
+      ).join('|'),
       totalBudget,
       totalSpend,
-      released: projects.filter((p) => p.phase === 'released'),
       burnThisWeek: mgr.estimateWeeklyBurn(),
       lastDelta: mgr.lastWeekSummary?.cashDelta ?? 0,
     };
-  });
+  }));
 
-  const { cash, lifetimeProfit, lifetimeRevenue, projects, totalBudget, totalSpend, released, burnThisWeek, lastDelta } = financials;
+  const { cash, lifetimeProfit, lifetimeRevenue, projects, totalBudget, totalSpend, burnThisWeek, lastDelta } = financials;
+  const released = projects.filter((p) => p.phase === 'released');
 
   const completionPct = totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
   const runwayWeeks = burnThisWeek > 0 ? cash / burnThisWeek : 0;

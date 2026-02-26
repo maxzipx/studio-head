@@ -2,14 +2,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { GlassCard, MetricTile, PremiumButton, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 
 function money(amount: number): string {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000)     return `$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
   return `$${Math.round(abs).toLocaleString()}`;
 }
 
@@ -18,23 +19,23 @@ function pct(value: number): string {
 }
 
 function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
-  if (value === 'strongBuy')   return 'Strong Buy';
+  if (value === 'strongBuy') return 'Strong Buy';
   if (value === 'conditional') return 'Conditional';
   return 'Pass';
 }
 
 function recommendationColor(value: 'strongBuy' | 'conditional' | 'pass'): string {
-  if (value === 'strongBuy')   return colors.accentGreen;
+  if (value === 'strongBuy') return colors.accentGreen;
   if (value === 'conditional') return colors.goldMid;
   return colors.accentRed;
 }
 
 function phaseColor(phase: string): string {
-  if (phase === 'development')    return colors.accentTeal;
-  if (phase === 'preProduction')  return colors.goldMid;
-  if (phase === 'production')     return '#6FAEEA';
+  if (phase === 'development') return colors.accentTeal;
+  if (phase === 'preProduction') return colors.goldMid;
+  if (phase === 'production') return '#6FAEEA';
   if (phase === 'postProduction') return colors.accentGreen;
-  if (phase === 'distribution')   return colors.goldDeep;
+  if (phase === 'distribution') return colors.goldDeep;
   return colors.textMuted;
 }
 
@@ -48,11 +49,39 @@ function phaseProgress(phase: string, weeksRemaining: number): number {
 
 export default function SlateScreen() {
   const router = useRouter();
-  const { manager, acquireScript, advancePhase, passScript, setReleaseWeek, acceptOffer, counterOffer, walkAwayOffer, lastMessage } =
-    useGame();
 
-  const projects     = manager.activeProjects;
-  const inFlight     = projects.filter((p) => p.phase !== 'released' && p.phase !== 'distribution');
+  const {
+    manager,
+    acquireScript,
+    advancePhase,
+    passScript,
+    setReleaseWeek,
+    acceptOffer,
+    counterOffer,
+    walkAwayOffer,
+    lastMessage,
+  } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      acquireScript: state.acquireScript,
+      advancePhase: state.advancePhase,
+      passScript: state.passScript,
+      setReleaseWeek: state.setReleaseWeek,
+      acceptOffer: state.acceptOffer,
+      counterOffer: state.counterOffer,
+      walkAwayOffer: state.walkAwayOffer,
+      lastMessage: state.lastMessage,
+      // Create primitive signatures so useShallow can detect deep mutations without forcing updates every single tick
+      projectsSignature: mgr.activeProjects.map(p => `${p.id}:${p.phase}:${p.scheduledWeeksRemaining}:${p.budget.actualSpend}:${p.releaseWeek}`).join('|'),
+      scriptsSignature: mgr.scriptMarket.map(s => s.id).join('|'),
+      offersSignature: mgr.distributionOffers.map(o => `${o.id}:${o.counterAttempts}`).join('|'),
+      rivalsSignature: mgr.rivals.map(r => r.upcomingReleases.length).join('|'),
+    };
+  }));
+
+  const projects = manager.activeProjects;
+  const inFlight = projects.filter((p) => p.phase !== 'released' && p.phase !== 'distribution');
   const distribution = projects.filter((p) => p.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
@@ -63,8 +92,8 @@ export default function SlateScreen() {
   function pressureForWeek(week: number | null): { label: string; color: string } {
     if (!week) return { label: 'Unknown', color: colors.textMuted };
     const overlaps = rivalCalendar.filter((film) => Math.abs(film.week - week) <= 1).length;
-    if (overlaps === 0) return { label: 'Clear',    color: colors.accentTeal };
-    if (overlaps <= 2)  return { label: 'Moderate', color: colors.goldMid   };
+    if (overlaps === 0) return { label: 'Clear', color: colors.accentTeal };
+    if (overlaps <= 2) return { label: 'Moderate', color: colors.goldMid };
     return { label: 'High', color: colors.accentRed };
   }
 
@@ -93,9 +122,9 @@ export default function SlateScreen() {
         <SectionLabel label="Pipeline Snapshot" />
         <View style={styles.snapshotRow}>
           {[
-            { label: 'In Flight',    value: inFlight.length + distribution.length },
-            { label: 'Scripts',      value: manager.scriptMarket.length           },
-            { label: 'Distribution', value: distribution.length                   },
+            { label: 'In Flight', value: inFlight.length + distribution.length },
+            { label: 'Scripts', value: manager.scriptMarket.length },
+            { label: 'Distribution', value: distribution.length },
           ].map(({ label, value }) => (
             <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
               <MetricTile value={value} label={label} size="sm" centered />
@@ -142,7 +171,7 @@ export default function SlateScreen() {
                 {evalResult && (
                   <View style={styles.recRow}>
                     <View style={[styles.recBadge, {
-                      borderColor:     recommendationColor(evalResult.recommendation) + '60',
+                      borderColor: recommendationColor(evalResult.recommendation) + '60',
                       backgroundColor: recommendationColor(evalResult.recommendation) + '14',
                     }]}>
                       <Text style={[styles.recText, { color: recommendationColor(evalResult.recommendation) }]}>
@@ -157,7 +186,7 @@ export default function SlateScreen() {
 
                 <View style={styles.actions}>
                   <PremiumButton label="Acquire" onPress={() => acquireScript(script.id)} variant="primary" size="sm" style={styles.flexBtn} />
-                  <PremiumButton label="Pass"    onPress={() => passScript(script.id)}    variant="ghost"   size="sm" style={styles.flexBtn} />
+                  <PremiumButton label="Pass" onPress={() => passScript(script.id)} variant="ghost" size="sm" style={styles.flexBtn} />
                 </View>
               </GlassCard>
             );
@@ -172,8 +201,8 @@ export default function SlateScreen() {
           ? <Text style={styles.empty}>No projects currently moving through production phases.</Text>
           : inFlight.map((project) => {
             const projection = manager.getProjectedForProject(project.id);
-            const burnPct    = (project.budget.actualSpend / project.budget.ceiling) * 100;
-            const director   = project.directorId
+            const burnPct = (project.budget.actualSpend / project.budget.ceiling) * 100;
+            const director = project.directorId
               ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
               : 'Unattached';
             const cast = project.castIds
@@ -204,8 +233,8 @@ export default function SlateScreen() {
                 <ProgressBar value={progress} color={phaseCol} height={4} animated />
 
                 <View style={styles.metricRow}>
-                  <MetricTile value={money(project.budget.actualSpend)} label="Spent"    size="sm" />
-                  <MetricTile value={money(project.budget.ceiling)}     label="Ceiling"  size="sm" />
+                  <MetricTile value={money(project.budget.actualSpend)} label="Spent" size="sm" />
+                  <MetricTile value={money(project.budget.ceiling)} label="Ceiling" size="sm" />
                   <MetricTile
                     value={`${burnPct.toFixed(0)}%`}
                     label="Consumed"
@@ -232,7 +261,7 @@ export default function SlateScreen() {
                         size="sm"
                         accent={projection.critical >= 70 ? colors.accentTeal : projection.critical < 50 ? colors.accentRed : colors.goldMid}
                       />
-                      <MetricTile value={money(projection.openingLow)}  label="Opening Low"  size="sm" />
+                      <MetricTile value={money(projection.openingLow)} label="Opening Low" size="sm" />
                       <MetricTile value={money(projection.openingHigh)} label="Opening High" size="sm" accent={colors.accentTeal} />
                     </View>
                   </GlassCard>
@@ -266,7 +295,7 @@ export default function SlateScreen() {
         {distribution.length === 0
           ? <Text style={styles.empty}>No projects in distribution phase.</Text>
           : distribution.map((project) => {
-            const offers   = manager.getOffersForProject(project.id);
+            const offers = manager.getOffersForProject(project.id);
             const pressure = pressureForWeek(project.releaseWeek);
             return (
               <GlassCard key={project.id} variant="gold" style={{ gap: spacing.sp2 }}>
@@ -313,11 +342,11 @@ export default function SlateScreen() {
                     </View>
                     <View style={styles.metricRow}>
                       <MetricTile value={money(offer.minimumGuarantee)} label="Min Guarantee" size="sm" accent={colors.accentTeal} />
-                      <MetricTile value={money(offer.pAndACommitment)}  label="P&A"           size="sm" />
+                      <MetricTile value={money(offer.pAndACommitment)} label="P&A" size="sm" />
                       <MetricTile value={`${(offer.revenueShareToStudio * 100).toFixed(0)}%`} label="Rev Share" size="sm" accent={colors.goldMid} />
                     </View>
                     <View style={styles.actions}>
-                      <PremiumButton label="Accept"  onPress={() => acceptOffer(project.id, offer.id)}  variant="primary"      size="sm" style={styles.flexBtn} />
+                      <PremiumButton label="Accept" onPress={() => acceptOffer(project.id, offer.id)} variant="primary" size="sm" style={styles.flexBtn} />
                       <PremiumButton label="Counter" onPress={() => counterOffer(project.id, offer.id)} variant="gold-outline" size="sm" style={styles.flexBtn} />
                     </View>
                   </GlassCard>
@@ -358,38 +387,38 @@ export default function SlateScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: colors.bgPrimary },
+  screen: { flex: 1, backgroundColor: colors.bgPrimary },
   content: { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
   section: { gap: spacing.sp2 },
 
-  header:     { gap: 4, marginBottom: spacing.sp1 },
+  header: { gap: 4, marginBottom: spacing.sp1 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
-  title:      { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  subtitle:   { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
+  title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
+  subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
 
   message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
-  empty:   { fontFamily: typography.fontBody,       fontSize: typography.sizeSM, color: colors.textMuted },
+  empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
 
-  snapshotRow:  { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
+  snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
   snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
 
-  cardHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle:   { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary, flex: 1, marginRight: spacing.sp2 },
-  logline:     { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
-  rowMeta:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2, flexWrap: 'wrap' },
-  metaText:    { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
-  metricRow:   { flexDirection: 'row', gap: spacing.sp3 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary, flex: 1, marginRight: spacing.sp2 },
+  logline: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
+  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2, flexWrap: 'wrap' },
+  metaText: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
+  metricRow: { flexDirection: 'row', gap: spacing.sp3 },
 
-  pill:     { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
+  pill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
   pillText: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.goldMid, letterSpacing: 0.4, textTransform: 'capitalize' },
 
-  recRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
+  recRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
   recBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  recText:  { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4, textTransform: 'uppercase' },
+  recText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4, textTransform: 'uppercase' },
 
-  pressureLabel:   { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, textTransform: 'uppercase', letterSpacing: 0.6 },
+  pressureLabel: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, textTransform: 'uppercase', letterSpacing: 0.6 },
   releaseWeekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary },
-  offerPartner:    { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  offerPartner: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
 
   actions: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp1, flexWrap: 'wrap' },
   flexBtn: { flex: 1 },
