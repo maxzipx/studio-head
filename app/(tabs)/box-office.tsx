@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 
 function money(amount: number): string {
@@ -14,7 +15,23 @@ function outcomeLabel(roi: number): string {
 }
 
 export default function BoxOfficeScreen() {
-  const { manager, lastMessage } = useGame();
+  const { manager, lastMessage } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      lastMessage: state.lastMessage,
+      releasedSignature: mgr.activeProjects
+        .filter((p) => p.phase === 'released')
+        .map(
+          (p) =>
+            `${p.id}:${p.finalBoxOffice ?? 0}:${p.projectedROI}:${p.budget.ceiling}:${p.marketingBudget}:${p.criticalScore ?? -1}:` +
+            `${p.audienceScore ?? -1}:${p.openingWeekendGross ?? 0}:${p.awardsNominations}:${p.awardsWins}:${p.studioRevenueShare}:` +
+            `${p.distributionPartner ?? 'none'}:${mgr.getLatestReleaseReport(p.id)?.weekResolved ?? -1}:` +
+            `${mgr.getLatestReleaseReport(p.id)?.roi ?? -1}`
+        )
+        .join('|'),
+    };
+  }));
   const released = manager.activeProjects
     .filter((project) => project.phase === 'released')
     .sort((a, b) => (b.finalBoxOffice ?? 0) - (a.finalBoxOffice ?? 0));

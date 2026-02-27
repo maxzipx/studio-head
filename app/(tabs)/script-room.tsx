@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 
 function money(amount: number): string {
@@ -19,7 +20,54 @@ function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): strin
 }
 
 export default function ScriptRoomScreen() {
-  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGame();
+  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      acquireScript: state.acquireScript,
+      passScript: state.passScript,
+      startNegotiation: state.startNegotiation,
+      adjustNegotiation: state.adjustNegotiation,
+      attachTalent: state.attachTalent,
+      acquireIpRights: state.acquireIpRights,
+      developFromIp: state.developFromIp,
+      lastMessage: state.lastMessage,
+      developmentSignature: mgr.activeProjects
+        .filter((project) => project.phase === 'development')
+        .map(
+          (p) =>
+            `${p.id}:${p.title}:${p.genre}:${p.scriptQuality}:${p.conceptStrength}:${p.directorId ?? 'none'}:${p.castIds.join(',')}:` +
+            `${p.hypeScore}:${p.budget.actualSpend}:${p.budget.ceiling}:${p.franchiseId ?? 'none'}:${p.franchiseEpisode ?? 0}`
+        )
+        .join('|'),
+      talentSignature: mgr.talentPool
+        .map(
+          (t) =>
+            `${t.id}:${t.role}:${t.starPower}:${t.craftScore}:${t.availability}:${t.attachedProjectId ?? 'none'}:` +
+            `${t.unavailableUntilWeek ?? -1}`
+        )
+        .join('|'),
+      ipMarketSignature: mgr.ownedIps
+        .map(
+          (ip) =>
+            `${ip.id}:${ip.kind}:${ip.name}:${ip.major}:${ip.acquisitionCost}:${ip.expiresWeek}:${ip.usedProjectId ?? 'none'}`
+        )
+        .join('|'),
+      scriptMarketSignature: mgr.scriptMarket
+        .map(
+          (s) =>
+            `${s.id}:${s.title}:${s.genre}:${s.askingPrice}:${s.scriptQuality}:${s.conceptStrength}:${s.expiresInWeeks}`
+        )
+        .join('|'),
+      negotiationSignature: mgr.playerNegotiations
+        .map(
+          (n) =>
+            `${n.talentId}:${n.projectId}:${n.rounds ?? 0}:${n.holdLineCount ?? 0}:${n.offerSalaryMultiplier ?? -1}:` +
+            `${n.offerBackendPoints ?? -1}:${n.offerPerksBudget ?? -1}`
+        )
+        .join('|'),
+    };
+  }));
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const availableDirectors = manager.getAvailableTalentForRole('director');
   const availableLeads = manager.getAvailableTalentForRole('leadActor');

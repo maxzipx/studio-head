@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
 import {
   GlassCard,
   MetricTile,
@@ -27,6 +27,7 @@ import {
 import { ReleaseRevealModal } from '@/src/ui/hq/ReleaseRevealModal';
 import { styles } from '@/src/ui/hq/hq-styles';
 import { colors, spacing, typography } from '@/src/ui/tokens';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function HQScreen() {
   const {
@@ -46,7 +47,89 @@ export default function HQScreen() {
     signExclusivePartner,
     poachExecutiveTeam,
     lastMessage,
-  } = useGame();
+  } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      dismissReleaseReveal: state.dismissReleaseReveal,
+      endWeek: state.endWeek,
+      advanceToNextDecision: state.advanceToNextDecision,
+      setTurnLength: state.setTurnLength,
+      resolveCrisis: state.resolveCrisis,
+      resolveDecision: state.resolveDecision,
+      runOptionalAction: state.runOptionalAction,
+      renameStudio: state.renameStudio,
+      upgradeMarketingTeam: state.upgradeMarketingTeam,
+      upgradeStudioCapacity: state.upgradeStudioCapacity,
+      setStudioSpecialization: state.setStudioSpecialization,
+      investDepartment: state.investDepartment,
+      signExclusivePartner: state.signExclusivePartner,
+      poachExecutiveTeam: state.poachExecutiveTeam,
+      lastMessage: state.lastMessage,
+      statusSignature:
+        `${mgr.currentWeek}:${mgr.turnLengthWeeks}:${mgr.canEndWeek ? 1 : 0}:${mgr.cash}:${mgr.studioHeat}:` +
+        `${mgr.isBankrupt ? 1 : 0}:${mgr.bankruptcyReason ?? 'none'}:${mgr.consecutiveLowCashWeeks}:${mgr.studioName}:` +
+        `${mgr.studioTier}:${mgr.studioSpecialization}:${mgr.legacyScore}:${mgr.lifetimeProfit}:${mgr.lifetimeRevenue}:` +
+        `${mgr.lifetimeExpenses}:${mgr.marketingTeamLevel}:${mgr.projectCapacityUsed}:${mgr.projectCapacityLimit}:` +
+        `${mgr.executiveNetworkLevel}:${mgr.decisionQueue.length}:${mgr.pendingCrises.length}:${mgr.activeProjects.length}`,
+      repSignature:
+        `${mgr.reputation.critics}:${mgr.reputation.talent}:${mgr.reputation.distributor}:${mgr.reputation.audience}`,
+      projectsSignature: mgr.activeProjects
+        .map(
+          (p) =>
+            `${p.id}:${p.title}:${p.phase}:${p.genre}:${p.scheduledWeeksRemaining}:${p.releaseWeek ?? -1}:${p.releaseWindow ?? 'none'}:` +
+            `${p.budget.actualSpend}:${p.budget.ceiling}:${p.projectedROI}:${p.finalBoxOffice ?? 0}:${p.openingWeekendGross ?? 0}:` +
+            `${p.scriptQuality}:${p.conceptStrength}:${p.hypeScore}:${p.directorId ?? 'none'}:${p.castIds.join(',')}`
+        )
+        .join('|'),
+      decisionsSignature: mgr.decisionQueue
+        .map(
+          (d) =>
+            `${d.id}:${d.projectId ?? 'studio'}:${d.weeksUntilExpiry}:${d.options
+              .map((o) => `${o.id}:${o.cashDelta}:${o.hypeDelta}:${o.studioHeatDelta}`)
+              .join(',')}`
+        )
+        .join('|'),
+      crisesSignature: mgr.pendingCrises
+        .map(
+          (c) =>
+            `${c.id}:${c.projectId}:${c.severity}:${c.options
+              .map((o) => `${o.id}:${o.cashDelta}:${o.scheduleDelta}`)
+              .join(',')}`
+        )
+        .join('|'),
+      arcsSignature: Object.entries(mgr.storyArcs)
+        .map(([arcId, arc]) => `${arcId}:${arc.status}:${arc.stage}:${arc.lastUpdatedWeek}`)
+        .join('|'),
+      newsSignature: mgr.industryNewsLog.map((n) => `${n.id}:${n.week}:${n.studioName}:${n.heatDelta}`).join('|'),
+      chronicleSignature: mgr.studioChronicle.map((c) => `${c.id}:${c.week}:${c.type}:${c.impact}`).join('|'),
+      milestoneSignature: mgr.milestones.map((m) => `${m.id}:${m.unlockedWeek}:${m.value ?? -1}`).join('|'),
+      awardsSignature: mgr.awardsHistory
+        .map(
+          (a) =>
+            `${a.seasonYear}:${a.week}:${a.showName}:${a.results
+              .map((r) => `${r.projectId}:${r.nominations}:${r.wins}:${r.score}`)
+              .join(',')}`
+        )
+        .join('|'),
+      genreSignature: Object.entries(mgr.genreCycles)
+        .map(([genre, cycle]) => `${genre}:${cycle.demand}:${cycle.momentum}:${cycle.shockUntilWeek ?? -1}`)
+        .join('|'),
+      rivalsSignature: mgr.rivals
+        .map(
+          (r) =>
+            `${r.id}:${r.studioHeat}:${r.memory.hostility}:${r.memory.respect}:${r.memory.retaliationBias}:` +
+            `${r.memory.cooperationBias}:${r.lockedTalentIds.join(',')}:${r.upcomingReleases
+              .map((f) => `${f.id}:${f.releaseWeek}:${f.genre}`)
+              .join(',')}`
+        )
+        .join('|'),
+      releaseRevealSignature: `${mgr.pendingReleaseReveals.join(',')}|${mgr.pendingFinalReleaseReveals.join(',')}|${mgr.releaseReports
+        .map((r) => `${r.projectId}:${r.weekResolved}:${r.roi}:${r.outcome}`)
+        .join('|')}`,
+      availabilitySignature: `${mgr.firstSessionComplete ? 1 : 0}:${mgr.getActiveExclusivePartner() ?? 'none'}:${mgr.exclusivePartnerUntilWeek ?? -1}`,
+    };
+  }));
 
   const reveal        = manager.getNextReleaseReveal();
   const isFinalReveal = !!reveal && manager.isFinalReleaseReveal(reveal.id);

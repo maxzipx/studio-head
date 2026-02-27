@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/src/state/game-context';
+import { useGameStore } from '@/src/state/game-context';
+import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 
 function money(amount: number): string {
@@ -13,7 +14,42 @@ function signedMoney(amount: number): string {
 }
 
 export default function DistributionScreen() {
-  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGame();
+  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGameStore(useShallow((state) => {
+    const mgr = state.manager;
+    return {
+      manager: mgr,
+      acceptOffer: state.acceptOffer,
+      counterOffer: state.counterOffer,
+      walkAwayOffer: state.walkAwayOffer,
+      setReleaseWeek: state.setReleaseWeek,
+      advancePhase: state.advancePhase,
+      lastMessage: state.lastMessage,
+      distributionSignature: mgr.activeProjects
+        .filter((p) => p.phase === 'distribution')
+        .map(
+          (p) =>
+            `${p.id}:${p.scheduledWeeksRemaining}:${p.releaseWeek}:${p.releaseWindow ?? 'none'}:${p.budget.actualSpend}:` +
+            `${p.studioRevenueShare}:${p.marketingBudget}`
+        )
+        .join('|'),
+      offersSignature: mgr.activeProjects
+        .filter((p) => p.phase === 'distribution')
+        .map((p) =>
+          mgr
+            .getOffersForProject(p.id)
+            .map(
+              (o) =>
+                `${o.id}:${o.partner}:${o.releaseWindow}:${o.minimumGuarantee}:${o.pAndACommitment}:${o.revenueShareToStudio}:` +
+                `${o.counterAttempts}`
+            )
+            .join(',')
+        )
+        .join('|'),
+      rivalsSignature: mgr.rivals
+        .flatMap((r) => r.upcomingReleases.map((f) => `${r.id}:${f.id}:${f.releaseWeek}:${f.genre}:${f.estimatedBudget}`))
+        .join('|'),
+    };
+  }));
   const [showHelp, setShowHelp] = useState(false);
   const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
