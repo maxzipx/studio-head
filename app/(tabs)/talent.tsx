@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
@@ -140,21 +140,18 @@ export default function TalentScreen() {
     };
   }));
   const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
+  const developmentProjectIds = developmentProjects.map((p) => p.id).join('|');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
   const activeProject = selectedProjectId
     ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
     : null;
   const projectLedger = manager.activeProjects.filter((p) => p.phase !== 'released');
-  const talentRoster = useMemo(
-    () =>
-      [...manager.talentPool].sort((a, b) => {
-        if (a.availability !== b.availability) return a.availability === 'available' ? -1 : 1;
-        if (a.role !== b.role) return a.role.localeCompare(b.role);
-        return b.starPower - a.starPower;
-      }),
-    [manager.talentPool]
-  );
+  const talentRoster = [...manager.talentPool].sort((a, b) => {
+    if (a.availability !== b.availability) return a.availability === 'available' ? -1 : 1;
+    if (a.role !== b.role) return a.role.localeCompare(b.role);
+    return b.starPower - a.starPower;
+  });
   const availableTalentCount = talentRoster.filter((t) => t.availability === 'available').length;
   const rivalLockedCount = talentRoster.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
   const coolingOffCount = talentRoster.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
@@ -162,8 +159,11 @@ export default function TalentScreen() {
   useEffect(() => {
     const stillValid = !!selectedProjectId && developmentProjects.some((p) => p.id === selectedProjectId);
     if (stillValid) return;
-    setSelectedProjectId(developmentProjects[0]?.id ?? null);
-  }, [developmentProjects, selectedProjectId]);
+    const fallback = developmentProjects[0]?.id ?? null;
+    if (fallback !== selectedProjectId) {
+      setSelectedProjectId(fallback);
+    }
+  }, [developmentProjectIds, selectedProjectId]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
