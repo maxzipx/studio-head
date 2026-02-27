@@ -41,6 +41,13 @@ function roleLabel(value: string): string {
   return value;
 }
 
+function agencyLabel(agentTier: string): string {
+  if (agentTier === 'aea') return 'AEA';
+  if (agentTier === 'wma') return 'WMA';
+  if (agentTier === 'tca') return 'TCA';
+  return 'IND';
+}
+
 function trustLevelLabel(value: string): string {
   if (value === 'hostile') return 'Hostile';
   if (value === 'wary') return 'Wary';
@@ -333,6 +340,9 @@ export default function TalentScreen() {
                       </GlassCard>
                     </View>
                     <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
+                    <Text style={styles.muted}>
+                      Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
+                    </Text>
                     <View style={styles.actions}>
                       {[
                         { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
@@ -388,7 +398,7 @@ export default function TalentScreen() {
             <View style={styles.talentHeader}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.talentName}>{talent.name}</Text>
-                <Text style={styles.talentRole}>{roleLabel(talent.role)}</Text>
+                <Text style={styles.talentRole}>{roleLabel(talent.role)} · {agencyLabel(talent.agentTier)}</Text>
               </View>
               <View style={[styles.availBadge, {
                 borderColor: isAvailable ? colors.accentTeal + '60' : colors.textMuted + '40',

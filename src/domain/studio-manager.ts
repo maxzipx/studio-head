@@ -310,6 +310,43 @@ export class StudioManager {
     return baseByTier[this.studioTier] + this.studioCapacityUpgrades;
   }
 
+  getMarketingTeamTierCap(): number {
+    const capByTier: Record<StudioTier, number> = {
+      indieStudio: 2,
+      establishedIndie: 3,
+      midTier: 4,
+      majorStudio: ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL,
+      globalPowerhouse: ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL,
+    };
+    return capByTier[this.studioTier];
+  }
+
+  getMarketingTeamUpgradeCost(): number | null {
+    const tierCap = this.getMarketingTeamTierCap();
+    if (this.marketingTeamLevel >= tierCap) return null;
+    if (this.marketingTeamLevel >= ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL) return null;
+    const nextLevel = this.marketingTeamLevel + 1;
+    return ACTION_BALANCE.MARKETING_TEAM_UPGRADE_BASE_COST * nextLevel;
+  }
+
+  getStudioCapacityUpgradeTierCap(): number {
+    const capByTier: Record<StudioTier, number> = {
+      indieStudio: 1,
+      establishedIndie: 2,
+      midTier: 3,
+      majorStudio: 4,
+      globalPowerhouse: 5,
+    };
+    return capByTier[this.studioTier];
+  }
+
+  getStudioCapacityUpgradeCost(): number | null {
+    const tierCap = this.getStudioCapacityUpgradeTierCap();
+    if (this.studioCapacityUpgrades >= tierCap) return null;
+    const next = this.studioCapacityUpgrades + 1;
+    return 1_200_000 + next * 900_000;
+  }
+
   get projectCapacityUsed(): number {
     return this.activeProjects.filter((project) => project.phase !== 'released').length;
   }
@@ -670,11 +707,18 @@ export class StudioManager {
   }
 
   upgradeMarketingTeam(): { success: boolean; message: string } {
+    const tierCap = this.getMarketingTeamTierCap();
     if (this.marketingTeamLevel >= ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL) {
       return { success: false, message: 'Marketing team is already maxed.' };
     }
+    if (this.marketingTeamLevel >= tierCap) {
+      return {
+        success: false,
+        message: `Marketing upgrades are capped at level ${tierCap} for your current studio tier.`,
+      };
+    }
     const nextLevel = this.marketingTeamLevel + 1;
-    const cost = ACTION_BALANCE.MARKETING_TEAM_UPGRADE_BASE_COST * nextLevel;
+    const cost = this.getMarketingTeamUpgradeCost() ?? 0;
     if (this.cash < cost) return { success: false, message: `Insufficient cash to upgrade marketing team (${Math.round(cost / 1000)}K).` };
     this.adjustCash(-cost);
     this.marketingTeamLevel = nextLevel;
@@ -683,8 +727,15 @@ export class StudioManager {
   }
 
   upgradeStudioCapacity(): { success: boolean; message: string } {
+    const tierCap = this.getStudioCapacityUpgradeTierCap();
+    if (this.studioCapacityUpgrades >= tierCap) {
+      return {
+        success: false,
+        message: `Facility expansions are capped at +${tierCap} slots for your current studio tier.`,
+      };
+    }
     const next = this.studioCapacityUpgrades + 1;
-    const cost = 1_200_000 + next * 900_000;
+    const cost = this.getStudioCapacityUpgradeCost() ?? 0;
     if (this.cash < cost) {
       return { success: false, message: `Insufficient cash for facility expansion (${Math.round(cost / 1000)}K needed).` };
     }

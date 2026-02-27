@@ -17,6 +17,9 @@ export interface NegotiationSnapshot {
   demandSalaryMultiplier: number;
   demandBackendPoints: number;
   demandPerksBudget: number;
+  sweetenSalaryRetainerDelta: number;
+  sweetenPerksRetainerDelta: number;
+  sweetenBackendShareDeltaPct: number;
 }
 
 export function getNegotiationChanceForManager(manager: any, talentId: string, projectId?: string): number | null {
@@ -61,6 +64,27 @@ export function getNegotiationSnapshotForManager(manager: any, projectId: string
   const evaluation = manager.evaluateNegotiation(normalized, talent);
   const signal =
     normalized.lastResponse ?? manager.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
+  const currentTerms = manager.readNegotiationTerms(normalized, talent);
+  const currentMemoCost = manager.computeDealMemoCost(talent, currentTerms);
+
+  const nextSalaryTerms = {
+    ...currentTerms,
+    salaryMultiplier: clamp(currentTerms.salaryMultiplier + 0.06, 1, 1.5),
+  };
+  const nextSalaryMemoCost = manager.computeDealMemoCost(talent, nextSalaryTerms);
+
+  const nextPerksTerms = {
+    ...currentTerms,
+    perksBudget: Math.min(
+      talent.salary.perksCost * 3,
+      Math.max(talent.salary.perksCost * 0.4, Math.round(currentTerms.perksBudget + 60_000))
+    ),
+  };
+  const nextPerksMemoCost = manager.computeDealMemoCost(talent, nextPerksTerms);
+
+  const nextBackendPoints = clamp(currentTerms.backendPoints + 0.5, 0, 10);
+  const backendPointsDelta = Math.max(0, nextBackendPoints - currentTerms.backendPoints);
+  const backendShareDeltaPct = backendPointsDelta * 0.4;
 
   return {
     salaryMultiplier: normalized.offerSalaryMultiplier ?? 1,
@@ -75,6 +99,9 @@ export function getNegotiationSnapshotForManager(manager: any, projectId: string
     demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
     demandBackendPoints: evaluation.demand.backendPoints,
     demandPerksBudget: evaluation.demand.perksBudget,
+    sweetenSalaryRetainerDelta: Math.max(0, Math.round(nextSalaryMemoCost - currentMemoCost)),
+    sweetenPerksRetainerDelta: Math.max(0, Math.round(nextPerksMemoCost - currentMemoCost)),
+    sweetenBackendShareDeltaPct: backendShareDeltaPct,
   };
 }
 

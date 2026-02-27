@@ -24,6 +24,13 @@ function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): strin
   return 'Pass';
 }
 
+function agencyLabel(agentTier: string): string {
+  if (agentTier === 'aea') return 'AEA';
+  if (agentTier === 'wma') return 'WMA';
+  if (agentTier === 'tca') return 'TCA';
+  return 'IND';
+}
+
 export default function ScriptRoomScreen() {
   const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
@@ -175,6 +182,9 @@ export default function ScriptRoomScreen() {
                         {money(snapshot.demandPerksBudget)}
                       </Text>
                       <Text style={styles.signal}>{snapshot.signal}</Text>
+                      <Text style={styles.muted}>
+                        Counter impact: Salary +{money(snapshot.sweetenSalaryRetainerDelta)} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% studio share | Perks +{money(snapshot.sweetenPerksRetainerDelta)} retainer
+                      </Text>
                       <View style={styles.negotiationActions}>
                         <Pressable
                           style={styles.negotiationButton}
@@ -280,7 +290,7 @@ export default function ScriptRoomScreen() {
                   <View key={talent.id} style={styles.inlineActions}>
                     <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
                       <Text style={styles.talentText}>
-                        Open: {talent.name} | Craft {talent.craftScore.toFixed(1)} | {talent.agentTier.toUpperCase()}
+                        Open: {talent.name} | Craft {talent.craftScore.toFixed(1)} | {agencyLabel(talent.agentTier)}
                       </Text>
                       <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id, project.id) ?? 0)}</Text>
                     </Pressable>
@@ -295,7 +305,7 @@ export default function ScriptRoomScreen() {
                   <View key={talent.id} style={styles.inlineActions}>
                     <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
                       <Text style={styles.talentText}>
-                        Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {talent.agentTier.toUpperCase()}
+                        Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {agencyLabel(talent.agentTier)}
                       </Text>
                       <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id, project.id) ?? 0)}</Text>
                     </Pressable>

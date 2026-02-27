@@ -199,6 +199,23 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .filter((franchise) => franchise.projectIds.length > 0);
   if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
   for (const talent of manager.talentPool) {
+    const legacyAgentTierMap: Record<string, string> = {
+      caa: 'aea',
+      wme: 'wma',
+      uta: 'tca',
+    };
+    if (typeof talent.agentTier === 'string' && legacyAgentTierMap[talent.agentTier]) {
+      talent.agentTier = legacyAgentTierMap[talent.agentTier] as typeof talent.agentTier;
+    }
+    if (
+      talent.agentTier !== 'aea' &&
+      talent.agentTier !== 'wma' &&
+      talent.agentTier !== 'tca' &&
+      talent.agentTier !== 'independent'
+    ) {
+      talent.agentTier = 'independent';
+    }
+
     if (!isRecord(talent.relationshipMemory)) {
       const baselineTrust = Math.round(Math.min(100, Math.max(0, 35 + talent.studioRelationship * 45)));
       const baselineLoyalty = Math.round(Math.min(100, Math.max(0, 30 + talent.studioRelationship * 40)));

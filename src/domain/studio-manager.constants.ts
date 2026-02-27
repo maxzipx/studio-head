@@ -76,9 +76,9 @@ export function createInitialGenreCycles(): Record<MovieGenre, GenreCycleState> 
 
 export const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
   independent: 1,
-  uta: 1.2,
-  wme: 1.3,
-  caa: 1.4,
+  tca: 1.2,
+  wma: 1.3,
+  aea: 1.4,
 };
 
 export const ARC_LABELS: Record<string, string> = {

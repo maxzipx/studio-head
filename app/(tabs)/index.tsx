@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
-import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
+import { ACTION_BALANCE, AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
 import { useGameStore } from '@/src/state/game-context';
 import {
   CollapsibleCard,
@@ -141,6 +141,16 @@ export default function HQScreen() {
   const chronicle     = manager.studioChronicle.slice(0, 8);
   const milestones    = manager.getActiveMilestones().slice(0, 6);
   const weeklyExpenses = manager.estimateWeeklyBurn();
+  const marketingUpgradeCost = manager.getMarketingTeamUpgradeCost();
+  const capacityUpgradeCost = manager.getStudioCapacityUpgradeCost();
+  const marketingTierCap = manager.getMarketingTeamTierCap();
+  const capacityTierCap = manager.getStudioCapacityUpgradeTierCap();
+  const optionalActionHype = ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST +
+    Math.max(0, manager.marketingTeamLevel - 1) * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
+  const optionalActionMarketing = ACTION_BALANCE.OPTIONAL_ACTION_MARKETING_BOOST +
+    Math.max(0, manager.marketingTeamLevel - 1) * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
+  const trackingConfidenceLo = Math.round(Math.min(0.9, Math.max(0.6, 0.57 + manager.marketingTeamLevel * 0.075)) * 100);
+  const trackingConfidenceHi = Math.round(Math.min(0.9, Math.max(0.6, 0.58 + manager.marketingTeamLevel * 0.08)) * 100);
   const isGameOver    = manager.isBankrupt;
   const hasLowCashWarning       = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
   const hasUrgentLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.URGENT_WEEKS;
@@ -376,6 +386,10 @@ export default function HQScreen() {
         {/* Capacity */}
         <View>
           <SectionLabel label="Capacity" />
+          <Text style={styles.muted}>
+            Marketing improves optional-action output (+{optionalActionHype} hype and +{money(optionalActionMarketing)} project marketing)
+            and boosts tracking confidence ({trackingConfidenceLo}% - {trackingConfidenceHi}%).
+          </Text>
           <View style={[styles.capRow, { marginTop: spacing.sp1 }]}>
             <MetricTile value={`L${manager.marketingTeamLevel}`}    label="Marketing"    size="sm" />
             <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Slots" size="sm" />
@@ -389,9 +403,34 @@ export default function HQScreen() {
             style={{ marginTop: spacing.sp2 }}
           />
           <View style={[styles.actionsRow, { marginTop: spacing.sp2 }]}>
-            <PremiumButton label="Upgrade Marketing" onPress={upgradeMarketingTeam}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-            <PremiumButton label="Expand Capacity"   onPress={upgradeStudioCapacity} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+            <PremiumButton
+              label={
+                marketingUpgradeCost !== null
+                  ? `Upgrade Marketing (${money(marketingUpgradeCost)})`
+                  : `Marketing Cap Reached (L${marketingTierCap})`
+              }
+              onPress={upgradeMarketingTeam}
+              disabled={isGameOver || marketingUpgradeCost === null || (marketingUpgradeCost !== null && manager.cash < marketingUpgradeCost)}
+              variant="secondary"
+              size="sm"
+              style={styles.flexBtn}
+            />
+            <PremiumButton
+              label={
+                capacityUpgradeCost !== null
+                  ? `Expand Capacity (${money(capacityUpgradeCost)})`
+                  : `Capacity Cap Reached (+${capacityTierCap})`
+              }
+              onPress={upgradeStudioCapacity}
+              disabled={isGameOver || capacityUpgradeCost === null || (capacityUpgradeCost !== null && manager.cash < capacityUpgradeCost)}
+              variant="secondary"
+              size="sm"
+              style={styles.flexBtn}
+            />
           </View>
+          <Text style={styles.muted}>
+            Tier gates: marketing cap L{marketingTierCap}; expansion cap +{capacityTierCap} slot{capacityTierCap === 1 ? '' : 's'} at your current tier.
+          </Text>
         </View>
 
         {/* Studio Identity */}

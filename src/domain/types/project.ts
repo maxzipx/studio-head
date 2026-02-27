@@ -29,7 +29,7 @@ export type TalentRole =
   | 'cinematographer'
   | 'composer';
 
-export type AgentTier = 'caa' | 'wme' | 'uta' | 'independent';
+export type AgentTier = 'aea' | 'wma' | 'tca' | 'independent';
 
 export type AvailabilityStatus = 'available' | 'inNegotiation' | 'attached' | 'unavailable';
 
