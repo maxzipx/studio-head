@@ -803,6 +803,27 @@ export class StudioManager {
     return { success: true, message: `${ip.name} rights secured.` };
   }
 
+  /** Generates a film title from an acquired IP — smarter than the old ": Adaptation" suffix. */
+  private generateIpTitle(ip: OwnedIp): string {
+    // For books and games the IP name is already a strong film title
+    if (ip.kind === 'book' || ip.kind === 'game') return ip.name;
+
+    // Comics and superhero IPs get a subtitle — deterministic hash on ip.id so it's stable
+    const SUPERHERO_SUBTITLES = [
+      'The Origin', 'First Strike', 'Dark Horizon', 'Rise of the Guard', 'The Legacy',
+      'Dawn of Heroes', 'The Reckoning', 'Revelation', 'Beyond the Veil', 'The First Chapter',
+    ];
+    const COMIC_SUBTITLES = [
+      'Origins', 'The Hidden Truth', 'Dark Rising', 'Awakening', 'The First Arc',
+      'New Blood', 'The Comeback', 'Into the Breach', 'Unmasked', 'The Long Shot',
+    ];
+    const pool = ip.kind === 'superhero' ? SUPERHERO_SUBTITLES : COMIC_SUBTITLES;
+    let h = 0;
+    for (let i = 0; i < ip.id.length; i++) h = (h * 31 + ip.id.charCodeAt(i)) | 0;
+    const subtitle = pool[Math.abs(h) % pool.length];
+    return `${ip.name}: ${subtitle}`;
+  }
+
   developProjectFromIp(ipId: string): { success: boolean; message: string; projectId?: string } {
     const ip = this.ownedIps.find((entry) => entry.id === ipId);
     if (!ip) return { success: false, message: 'IP not found.' };
@@ -823,7 +844,7 @@ export class StudioManager {
     const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
     const project: MovieProject = {
       id: createId('project'),
-      title: `${ip.name}: Adaptation`,
+      title: this.generateIpTitle(ip),
       genre: ip.genre,
       phase: 'development',
       budget: {

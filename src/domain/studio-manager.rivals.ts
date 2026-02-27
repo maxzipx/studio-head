@@ -7,6 +7,64 @@ function clamp(value: number, min: number, max: number): number {
 
 const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
 
+// ── Rival Film Title Generator ───────────────────────────────────────────────
+// Uses a deterministic hash of rival name + genre + salt so titles are stable
+// across saves without touching the shared rivalRng sequence.
+
+const RIVAL_TITLE_WORDS: Partial<Record<MovieGenre, [string[], string[]]>> = {
+  thriller: [
+    ['Silent', 'Dark', 'Hollow', 'Cold', 'Shattered', 'Last', 'Broken', 'Blind', 'Black', 'Hidden', 'Closed', 'Buried'],
+    ['Protocol', 'Signal', 'Circuit', 'Mark', 'Hour', 'Echo', 'Wire', 'Gate', 'Chain', 'Threshold', 'Ledger', 'Archive'],
+  ],
+  drama: [
+    ['Still', 'Long', 'Ordinary', 'Small', 'Quiet', 'Deep', 'Slow', 'Clear', 'Simple', 'Tender', 'Open', 'Distant'],
+    ['Hours', 'Light', 'Distance', 'Ground', 'Shore', 'Weight', 'House', 'Road', 'Season', 'Mercy', 'Grace', 'Silence'],
+  ],
+  sciFi: [
+    ['Parallel', 'Deep', 'Cascade', 'Solar', 'Quantum', 'Terminal', 'Orbital', 'Zero', 'Binary', 'Echo', 'Fractal', 'Static'],
+    ['Drift', 'Station', 'Protocol', 'Horizon', 'Signal', 'Lattice', 'Substrate', 'Pulse', 'Vector', 'Fold', 'Threshold', 'Relay'],
+  ],
+  horror: [
+    ['Pale', 'Hollow', 'Still', 'Bone', 'Salt', 'Glass', 'Tender', 'Cold', 'Deep', 'Dark', 'Quiet', 'Empty'],
+    ['Warden', 'Garden', 'Hour', 'Root', 'Ward', 'Wake', 'Refrain', 'Siren', 'Timber', 'Fold', 'Signal', 'Hollow'],
+  ],
+  action: [
+    ['Iron', 'Red', 'High', 'Dead', 'Hard', 'Final', 'Ground', 'Black', 'Fast', 'Zero', 'Strike', 'Open'],
+    ['Circuit', 'Line', 'Zone', 'Drop', 'Cut', 'Point', 'Strike', 'Force', 'Chain', 'Protocol', 'Grid', 'Breach'],
+  ],
+  comedy: [
+    ['Perfect', 'Accidental', 'Unexpected', 'Lucky', 'Unlikely', 'Reluctant', 'Almost', 'Second', 'Hopeless', 'Emergency', 'Optional', 'Backup'],
+    ['Partner', 'Plan', 'Exit', 'Clause', 'Option', 'Strategy', 'Arrangement', 'Terms', 'Notice', 'Agreement', 'Scenario', 'Condition'],
+  ],
+  animation: [
+    ['Lost', 'Little', 'Wild', 'Brave', 'Bright', 'Ancient', 'Last', 'Small', 'Grand', 'Young', 'Silver', 'Golden'],
+    ['Kingdom', 'Star', 'Wing', 'Light', 'Forest', 'Dream', 'Storm', 'Road', 'Flame', 'Shadow', 'Garden', 'Sky'],
+  ],
+  documentary: [
+    ['Inside', 'Hidden', 'Last', 'Unknown', 'Real', 'True', 'Long', 'Deep', 'Missing', 'Forgotten', 'Silent', 'Buried'],
+    ['Story', 'Voice', 'Season', 'Ground', 'Record', 'Hours', 'Chain', 'Archive', 'Memory', 'Line', 'Signal', 'Frame'],
+  ],
+};
+
+const DEFAULT_RIVAL_TITLE_WORDS: [string[], string[]] = [
+  ['Iron', 'Silver', 'Dark', 'Deep', 'Long', 'Hard', 'Cold', 'True', 'Clear', 'Still', 'Wide', 'Sharp'],
+  ['Line', 'Road', 'Point', 'Force', 'Ground', 'Hour', 'Edge', 'Gate', 'Mark', 'Zone', 'Circuit', 'Signal'],
+];
+
+/** Deterministic title pick from the genre word bank — does not consume shared RNG. */
+function pickRivalTitle(rivalName: string, genre: string, salt: number): string {
+  // Simple polynomial hash: stable across platforms, no floating-point
+  let h = salt * 2_654_435_761;
+  for (let i = 0; i < rivalName.length; i++) h = (h * 31 + rivalName.charCodeAt(i)) | 0;
+  for (let i = 0; i < genre.length; i++) h = (h * 31 + genre.charCodeAt(i)) | 0;
+  const abs = Math.abs(h);
+  const [adjectives, nouns] = RIVAL_TITLE_WORDS[genre as MovieGenre] ?? DEFAULT_RIVAL_TITLE_WORDS;
+  const adj = adjectives[abs % adjectives.length];
+  const noun = nouns[(abs * 13 + 7) % nouns.length];
+  return `${adj} ${noun}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getGenreDemandForManager(manager: any, genre: MovieGenre): number {
   if (typeof manager.getGenreDemandMultiplier === 'function') {
     return manager.getGenreDemandMultiplier(genre);
@@ -234,7 +292,7 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
 
     const film: RivalFilm = {
       id: createId('r-film'),
-      title: `${rival.name.split(' ')[0]} Untitled ${manager.currentWeek}`,
+      title: pickRivalTitle(rival.name, genre, manager.currentWeek),
       genre,
       releaseWeek: week,
       releaseWindow: 'wideTheatrical',
@@ -310,10 +368,11 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
     if (rival.personality === 'blockbusterFactory') {
       const target = manager.activeProjects.find((project: any) => project.phase === 'distribution' && project.releaseWeek !== null);
       if (target?.releaseWeek) {
+        const tentpoleGenre = pickGenreForRivalRelease(manager, rival);
         rival.upcomingReleases.unshift({
           id: createId('r-film'),
-          title: `${rival.name.split(' ')[0]} Event Tentpole`,
-          genre: pickGenreForRivalRelease(manager, rival),
+          title: pickRivalTitle(rival.name, tentpoleGenre, manager.currentWeek + 1_000),
+          genre: tentpoleGenre,
           releaseWeek: target.releaseWeek,
           releaseWindow: 'wideTheatrical',
           estimatedBudget: 170_000_000 + manager.rivalRng() * 80_000_000,
@@ -448,10 +507,11 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
       if (movedFilm) {
         movedFilm.releaseWeek = nextDistributionProject.releaseWeek;
       } else {
+        const cpGenre = pickGenreForRivalRelease(manager, rival);
         rival.upcomingReleases.unshift({
           id: createId('r-film'),
-          title: `${rival.name.split(' ')[0]} Counterprogrammer`,
-          genre: pickGenreForRivalRelease(manager, rival),
+          title: pickRivalTitle(rival.name, cpGenre, manager.currentWeek + 2_000),
+          genre: cpGenre,
           releaseWeek: nextDistributionProject.releaseWeek,
           releaseWindow: 'wideTheatrical',
           estimatedBudget: 120_000_000 + manager.rivalRng() * 60_000_000,

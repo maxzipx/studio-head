@@ -14,6 +14,78 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+// ── Sequel subtitle generator ─────────────────────────────────────────────────
+// Produces deterministic subtitles like "Night Ledger II: Cold Signal" without
+// consuming the shared RNG sequence (pure hash on franchiseId + genre + episode).
+
+const SEQUEL_SUBTITLE_WORDS: Partial<Record<string, string[]>> = {
+  thriller: [
+    'Cold Signal', 'The Dark Protocol', 'Last Watch', 'Hidden Wire', 'Black Echo',
+    'Broken Chain', 'Silent Gate', 'Shadow Mark', 'Final Circuit', 'The Blind Hour',
+    'Dead Channel', 'The Severance', 'Open Account', 'Turncoat', 'Residue',
+    'Pressure Point', 'Chain of Custody', 'The Cutoff', 'Ground Control', 'Bright Line',
+  ],
+  drama: [
+    'Long Distance', 'Still Ground', 'The Weight', 'Second Shore', 'Open Season',
+    'Quiet House', 'Simple Mercy', 'Slow Light', 'The Good Road', 'What Remains',
+    'Concession', 'The Relay', 'November', 'All Clear', 'Summer Schedule',
+    'The Restoration', 'What We Carried', 'Staying On', 'Drift Season', 'Night Soil',
+  ],
+  sciFi: [
+    'The Parallel', 'Deep Horizon', 'Cascade Effect', 'Zero Signal', 'The Quantum Fold',
+    'Orbital Drift', 'Binary Protocol', 'The Substrate', 'Threshold Mapping', 'Coldframe',
+    'The Long Quiet', 'Revision', 'Boundary Condition', 'Watcher Protocol', 'The Remainder',
+    'Signal Harvest', 'Grey Protocol', 'The Warming', 'Tidal Lock', 'The Archivist',
+  ],
+  horror: [
+    'The Hollow', 'Bone Season', 'Still Ward', 'Salt Root', 'Dark Refrain',
+    'Glass Hour', 'Pale Signal', 'Cold Timber', 'Second Growth', 'The Shift',
+    'Low Water', 'Skin Deep', 'Night Bloom', 'Undertow', 'Closed Season',
+    'Dry Rot', 'Long Exposure', 'Mariner', 'Deep Root', 'The Census',
+  ],
+  action: [
+    'Iron Protocol', 'Red Zone', 'High Ground', 'Dead Circuit', 'Hard Strike',
+    'Final Drop', 'Black Force', 'Fast Chain', 'Extract', 'Fallthrough',
+    'Point of Entry', 'Over the Wire', 'Depth Charge', 'The Sweep', 'Hard Target',
+    'Blackout Protocol', 'Low Profile', 'Force Multiplier', 'The Retrieval', 'Perimeter',
+  ],
+  comedy: [
+    'The Perfect Plan', 'Accidental Terms', 'The Lucky Clause', 'Unexpected Exit',
+    'Backup Strategy', 'Second Notice', 'Almost Perfect', 'Emergency Agreement',
+    'Full Disclosure', 'Wrong Number', 'The Promotion', 'Best Case Scenario',
+    'Paper Trail', 'The Referral', 'Working Title', 'Overlap', 'The Handoff',
+    'Mandatory Fun', 'The Advisor', 'On the Record',
+  ],
+  animation: [
+    'The Lost Kingdom', 'Wild Star', 'Little Wing', 'Brave Light', 'Ancient Forest',
+    'Last Dream', 'Grand Storm', 'Young Flame', 'The Weighmaster', 'Cloudwright',
+    'Paper Army', 'The Salt Merchant', 'Tidal', 'The Inkwright', 'Hollow Mountain',
+    'The Folded Map', 'Kindled', 'Drift Line', 'The Dreamer\'s Atlas', 'Iron Bloom',
+  ],
+  documentary: [
+    'Inside Story', 'Hidden Voice', 'Last Season', 'Unknown Ground', 'The Real Record',
+    'True Hours', 'Long Memory', 'Deep Archive', 'Night Shift', 'Return',
+    'The Builders', 'Under the Line', 'Last Session', 'The Flood Line', 'Open Season',
+    'The Seed Library', 'Terminal Velocity', 'Backroom', 'The Count', 'Before the Lights Go Out',
+  ],
+};
+
+const DEFAULT_SEQUEL_SUBTITLES = [
+  'The Return', 'Dark Horizon', 'The Reckoning', 'Final Act', 'The Legacy',
+  'New World', 'The Rising', 'Last Stand', 'Revelation', 'The Long Game',
+];
+
+/** Picks a deterministic subtitle for a sequel — no shared RNG consumed. */
+function pickSequelSubtitle(franchiseId: string, genre: string, episode: number): string {
+  let h = episode * 2_654_435_761;
+  for (let i = 0; i < franchiseId.length; i++) h = (h * 31 + franchiseId.charCodeAt(i)) | 0;
+  for (let i = 0; i < genre.length; i++) h = (h * 31 + genre.charCodeAt(i)) | 0;
+  const abs = Math.abs(h);
+  const pool = SEQUEL_SUBTITLE_WORDS[genre] ?? DEFAULT_SEQUEL_SUBTITLES;
+  return pool[abs % pool.length];
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function toRomanNumeral(value: number): string {
   const numerals: [number, string][] = [
     [10, 'X'],
@@ -310,7 +382,8 @@ export function startSequelForManager(
   }
 
   const sequelNumber = eligibility.nextEpisode;
-  const sequelTitle = `${franchise.name} ${toRomanNumeral(sequelNumber)}`;
+  const sequelSubtitle = pickSequelSubtitle(franchise.id, baseProject.genre, sequelNumber);
+  const sequelTitle = `${franchise.name} ${toRomanNumeral(sequelNumber)}: ${sequelSubtitle}`;
   const budgetBase = PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[baseProject.genre];
   const budgetMultiplier = clamp(0.9 + eligibility.projectedMomentum / 180 - eligibility.projectedFatigue / 260, 0.75, 1.25);
   const ceiling = Math.round(budgetBase * budgetMultiplier);
