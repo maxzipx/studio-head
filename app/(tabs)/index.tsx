@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
 import { useGameStore } from '@/src/state/game-context';
 import {
+  CollapsibleCard,
   GlassCard,
   MetricTile,
   PremiumButton,
@@ -14,6 +15,7 @@ import {
 } from '@/src/ui/components';
 import {
   ARC_LABELS,
+  capitalize,
   CHRONICLE_ICONS,
   money,
   PARTNER_OPTIONS,
@@ -190,6 +192,21 @@ export default function HQScreen() {
         <Text style={styles.weekLine}>Week {manager.currentWeek} · {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
       </View>
 
+      {/* ── Getting Started — always at top when visible ── */}
+      {!manager.firstSessionComplete && (
+        <GlassCard variant="teal">
+          <SectionLabel label="Getting Started" />
+          {[
+            'Inbox decisions expire — resolve them within the listed weeks or lose the opportunity.',
+            'Projects need a Director + Lead Actor + Script Quality ≥ 6.0 to advance to Pre-Production.',
+            'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
+            'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
+          ].map((tip, i) => (
+            <Text key={i} style={[styles.body, { color: colors.accentTeal }]}>· {tip}</Text>
+          ))}
+        </GlassCard>
+      )}
+
       {lastMessage ? (
         <GlassCard variant="teal">
           <Text style={styles.message}>{lastMessage}</Text>
@@ -206,31 +223,12 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* ── Tutorial ── */}
-      {!manager.firstSessionComplete && (
-        <GlassCard variant="teal">
-          <SectionLabel label="Getting Started" />
-          {[
-            'Inbox decisions expire — resolve them within the listed weeks or lose the opportunity.',
-            'Projects need a director + lead actor + script quality ≥ 6.0 to advance to Pre-Production.',
-            'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
-            'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
-          ].map((tip, i) => (
-            <Text key={i} style={[styles.body, { color: colors.accentTeal }]}>· {tip}</Text>
-          ))}
-        </GlassCard>
-      )}
-
       {/* ── Weekly Status ── */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Weekly Status" />
         <View style={styles.statusRow}>
           <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile
-              value={manager.currentWeek}
-              label="Week"
-              size="sm"
-            />
+            <MetricTile value={manager.currentWeek} label="Week" size="sm" />
           </GlassCard>
           <GlassCard variant="elevated" style={styles.statusTile}>
             <MetricTile
@@ -241,11 +239,7 @@ export default function HQScreen() {
             />
           </GlassCard>
           <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile
-              value={manager.activeProjects.length}
-              label="Projects"
-              size="sm"
-            />
+            <MetricTile value={manager.activeProjects.length} label="Projects" size="sm" />
           </GlassCard>
           <GlassCard variant="elevated" style={styles.statusTile}>
             <MetricTile
@@ -259,8 +253,8 @@ export default function HQScreen() {
 
         {/* Cash snapshot */}
         <View style={styles.cashRow}>
-          <MetricTile value={money(manager.cash)}        label="Cash"         size="sm" />
-          <MetricTile value={money(weeklyExpenses)}      label="Weekly Burn"  size="sm" accent={colors.accentRed} />
+          <MetricTile value={money(manager.cash)}           label="Cash"         size="sm" />
+          <MetricTile value={money(weeklyExpenses)}         label="Weekly Burn"  size="sm" accent={colors.accentRed} />
           <MetricTile value={money(manager.lifetimeProfit)} label="Lifetime P/L" size="sm"
             accent={manager.lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed} />
         </View>
@@ -299,14 +293,14 @@ export default function HQScreen() {
         <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
       </GlassCard>
 
-      {/* ── Blocking Crises ── */}
+      {/* ── Blocking Crises (always visible - urgent) ── */}
       {manager.pendingCrises.length > 0 && (
         <GlassCard variant="red">
           <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
           {manager.pendingCrises.map((crisis) => (
             <GlassCard key={crisis.id} variant="elevated" style={{ gap: spacing.sp2, borderColor: colors.borderRed }}>
               <Text style={styles.muted}>
-                Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown project'}
+                Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
               </Text>
               <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
               <Text style={styles.body}>{crisis.body}</Text>
@@ -330,7 +324,7 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* ── Decision Inbox ── */}
+      {/* ── Decision Inbox (always visible) ── */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Decision Inbox" />
         {manager.decisionQueue.length === 0
@@ -340,7 +334,7 @@ export default function HQScreen() {
               <View style={styles.inboxHeader}>
                 <Text style={styles.muted}>
                   {item.projectId
-                    ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown project'
+                    ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown Project'
                     : 'Studio-wide'}
                 </Text>
                 <View style={[styles.expiryPill, { borderColor: item.weeksUntilExpiry <= 1 ? colors.borderRed : colors.borderGold }]}>
@@ -368,119 +362,137 @@ export default function HQScreen() {
         }
       </GlassCard>
 
-      {/* ── Operations Capacity ── */}
-      <GlassCard>
-        <SectionLabel label="Operations Capacity" />
-        <View style={styles.capRow}>
-          <MetricTile value={`L${manager.marketingTeamLevel}`} label="Marketing" size="sm" />
-          <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Capacity"  size="sm" />
-          <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
-        </View>
-        <ProgressBar
-          value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
-          color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentTeal}
-          height={4}
-          animated
-        />
-        <View style={styles.actionsRow}>
-          <PremiumButton label="Upgrade Marketing" onPress={upgradeMarketingTeam}   disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-          <PremiumButton label="Expand Capacity"   onPress={upgradeStudioCapacity}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-        </View>
-      </GlassCard>
+      {/* ════════════════════════════════════════════
+          COLLAPSIBLE SECTIONS
+          ════════════════════════════════════════════ */}
 
-      {/* ── Studio Identity ── */}
-      <GlassCard>
-        <SectionLabel label="Studio Identity" />
-        <TextInput
-          value={studioNameDraft}
-          onChangeText={setStudioNameDraft}
-          placeholder="Enter studio name"
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
-          maxLength={32}
-        />
-        <PremiumButton label="Rename Studio" onPress={() => renameStudio(studioNameDraft)} variant="secondary" size="sm" />
-
-        <SectionLabel label="Specialization" style={{ marginTop: spacing.sp2 }} />
-        <Text style={styles.muted}>Choose one focus. Pivoting later costs cash and partner trust.</Text>
-        <View style={styles.actionsRow}>
-          {SPECIALIZATION_OPTIONS.map((option) => (
-            <PremiumButton
-              key={option.key}
-              label={option.label}
-              onPress={() => setStudioSpecialization(option.key)}
-              disabled={isGameOver}
-              variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
-              size="sm"
-              style={styles.flexBtn}
-            />
-          ))}
+      {/* ── Operations (grouped collapsible) ── */}
+      <CollapsibleCard
+        title="Operations"
+        badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
+        badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentTeal}
+        defaultOpen={false}
+      >
+        {/* Capacity */}
+        <View>
+          <SectionLabel label="Capacity" />
+          <View style={[styles.capRow, { marginTop: spacing.sp1 }]}>
+            <MetricTile value={`L${manager.marketingTeamLevel}`}    label="Marketing"    size="sm" />
+            <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Slots" size="sm" />
+            <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
+          </View>
+          <ProgressBar
+            value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
+            color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentTeal}
+            height={4}
+            animated
+            style={{ marginTop: spacing.sp2 }}
+          />
+          <View style={[styles.actionsRow, { marginTop: spacing.sp2 }]}>
+            <PremiumButton label="Upgrade Marketing" onPress={upgradeMarketingTeam}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+            <PremiumButton label="Expand Capacity"   onPress={upgradeStudioCapacity} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+          </View>
         </View>
 
-        <SectionLabel label="Departments" style={{ marginTop: spacing.sp2 }} />
-        <Text style={styles.muted}>
-          Dev L{manager.departmentLevels.development} · Prod L{manager.departmentLevels.production} · Dist L{manager.departmentLevels.distribution}
-        </Text>
-        <View style={styles.actionsRow}>
-          <PremiumButton label="Invest Dev"    onPress={() => investDepartment('development')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-          <PremiumButton label="Invest Prod"   onPress={() => investDepartment('production')}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-          <PremiumButton label="Invest Dist"   onPress={() => investDepartment('distribution')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-        </View>
-      </GlassCard>
+        {/* Studio Identity */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+          <SectionLabel label="Studio Identity" />
+          <TextInput
+            value={studioNameDraft}
+            onChangeText={setStudioNameDraft}
+            placeholder="Enter studio name"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            maxLength={32}
+          />
+          <PremiumButton label="Rename Studio" onPress={() => renameStudio(studioNameDraft)} variant="secondary" size="sm" />
 
-      {/* ── Strategic Levers ── */}
-      <GlassCard>
-        <SectionLabel label="Strategic Levers" />
-        <Text style={styles.body}>
-          Exclusive Partner: <Text style={{ color: colors.goldMid }}>{manager.getActiveExclusivePartner() ?? 'None'}</Text>
-          {manager.exclusivePartnerUntilWeek ? ` (to W${manager.exclusivePartnerUntilWeek})` : ''}
-        </Text>
-        <View style={styles.actionsRow}>
-          {PARTNER_OPTIONS.map((partner) => (
-            <PremiumButton
-              key={partner}
-              label={partner.split(' ')[0]}
-              onPress={() => signExclusivePartner(partner)}
-              disabled={isGameOver}
-              variant="secondary"
-              size="sm"
-              style={styles.flexBtn}
-            />
-          ))}
-        </View>
-        <PremiumButton label="Poach Executive Team" onPress={poachExecutiveTeam} disabled={isGameOver} variant="gold-outline" size="sm" />
-      </GlassCard>
+          <SectionLabel label="Specialization" style={{ marginTop: spacing.sp1 }} />
+          <Text style={styles.muted}>Choose one focus. Pivoting later costs cash and partner trust.</Text>
+          <View style={styles.actionsRow}>
+            {SPECIALIZATION_OPTIONS.map((option) => (
+              <PremiumButton
+                key={option.key}
+                label={option.label}
+                onPress={() => setStudioSpecialization(option.key)}
+                disabled={isGameOver}
+                variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
+                size="sm"
+                style={styles.flexBtn}
+              />
+            ))}
+          </View>
 
-      {/* ── Turn Length ── */}
-      <GlassCard>
-        <SectionLabel label="Turn Length" />
-        <Text style={styles.muted}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
-        <View style={styles.actionsRow}>
-          {([
-            { weeks: 1 as const, desc: 'More control, safer pacing' },
-            { weeks: 2 as const, desc: 'Faster flow, bigger swings' },
-          ] as const).map(({ weeks, desc }) => (
-            <Pressable
-              key={weeks}
-              style={[
-                styles.turnBtn,
-                manager.turnLengthWeeks === weeks ? styles.turnBtnActive : null,
-              ]}
-              disabled={isGameOver}
-              onPress={() => setTurnLength(weeks)}
-            >
-              <Text style={[styles.optionTitle, manager.turnLengthWeeks === weeks ? { color: colors.goldMid } : null]}>
-                {weeks} Week{weeks > 1 ? 's' : ''}
-              </Text>
-              <Text style={styles.optionBody}>{desc}</Text>
-            </Pressable>
-          ))}
+          <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
+          <Text style={styles.muted}>
+            Development L{manager.departmentLevels.development} · Production L{manager.departmentLevels.production} · Distribution L{manager.departmentLevels.distribution}
+          </Text>
+          <View style={styles.actionsRow}>
+            <PremiumButton label="Invest Dev"  onPress={() => investDepartment('development')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+            <PremiumButton label="Invest Prod" onPress={() => investDepartment('production')}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+            <PremiumButton label="Invest Dist" onPress={() => investDepartment('distribution')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+          </View>
         </View>
-      </GlassCard>
+
+        {/* Strategic Levers */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+          <SectionLabel label="Strategic Levers" />
+          <Text style={styles.muted}>Lock in a distribution partner for favourable deal terms. Poach executive talent for network bonuses.</Text>
+          <Text style={styles.body}>
+            Partner: <Text style={{ color: colors.goldMid }}>{manager.getActiveExclusivePartner() ?? 'None'}</Text>
+            {manager.exclusivePartnerUntilWeek ? ` (to W${manager.exclusivePartnerUntilWeek})` : ''}
+          </Text>
+          <View style={styles.actionsRow}>
+            {PARTNER_OPTIONS.map((partner) => (
+              <PremiumButton
+                key={partner}
+                label={partner.split(' ')[0]}
+                onPress={() => signExclusivePartner(partner)}
+                disabled={isGameOver}
+                variant="secondary"
+                size="sm"
+                style={styles.flexBtn}
+              />
+            ))}
+          </View>
+          <PremiumButton label="Poach Executive Team" onPress={poachExecutiveTeam} disabled={isGameOver} variant="gold-outline" size="sm" />
+        </View>
+
+        {/* Turn Length */}
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+          <SectionLabel label="Turn Length" />
+          <Text style={styles.muted}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
+          <View style={styles.actionsRow}>
+            {([
+              { weeks: 1 as const, desc: 'More control, safer pacing' },
+              { weeks: 2 as const, desc: 'Faster flow, bigger swings' },
+            ] as const).map(({ weeks, desc }) => (
+              <Pressable
+                key={weeks}
+                style={[
+                  styles.turnBtn,
+                  manager.turnLengthWeeks === weeks ? styles.turnBtnActive : null,
+                ]}
+                disabled={isGameOver}
+                onPress={() => setTurnLength(weeks)}
+              >
+                <Text style={[styles.optionTitle, manager.turnLengthWeeks === weeks ? { color: colors.goldMid } : null]}>
+                  {weeks} Week{weeks > 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.optionBody}>{desc}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </CollapsibleCard>
 
       {/* ── Story Arcs ── */}
-      <GlassCard>
-        <SectionLabel label={`Story Arcs${activeArcCount > 0 ? ` · ${activeArcCount} Active` : ''}`} />
+      <CollapsibleCard
+        title="Story Arcs"
+        badge={activeArcCount > 0 ? `${activeArcCount} Active` : undefined}
+        badgeColor={colors.goldMid}
+        defaultOpen={activeArcCount > 0}
+      >
         {arcEntries.length === 0
           ? <Text style={styles.muted}>No major arc threads have started yet.</Text>
           : arcEntries.map(([arcId, arc]) => {
@@ -498,11 +510,44 @@ export default function HQScreen() {
             );
           })
         }
-      </GlassCard>
+      </CollapsibleCard>
+
+      {/* ── Last Week Summary ── */}
+      {manager.lastWeekSummary && (
+        <CollapsibleCard title="Last Week Summary" defaultOpen>
+          <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentTeal : colors.accentRed }]}>
+            Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
+          </Text>
+          {manager.lastWeekSummary.events.map((event) => (
+            <Text key={event} style={styles.muted}>· {event}</Text>
+          ))}
+        </CollapsibleCard>
+      )}
+
+      {/* ── Genre Cycles ── */}
+      <CollapsibleCard title="Genre Cycles">
+        <Text style={[styles.muted, { color: colors.accentTeal, fontFamily: typography.fontBodySemiBold }]}>↑ Heating</Text>
+        {hotGenres.map((entry) => (
+          <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
+            <Text style={styles.body}>{capitalize(entry.genre)}</Text>
+            <Text style={[styles.muted, { color: colors.accentTeal }]}>
+              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+            </Text>
+          </View>
+        ))}
+        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>↓ Cooling</Text>
+        {coolGenres.map((entry) => (
+          <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
+            <Text style={styles.body}>{capitalize(entry.genre)}</Text>
+            <Text style={[styles.muted, { color: colors.accentRed }]}>
+              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+            </Text>
+          </View>
+        ))}
+      </CollapsibleCard>
 
       {/* ── Industry Heat Leaderboard ── */}
-      <GlassCard>
-        <SectionLabel label="Industry Heat Leaderboard" />
+      <CollapsibleCard title="Industry Leaderboard">
         {leaderboard.map((entry, index) => (
           <View key={entry.name} style={styles.leaderRow}>
             <Text style={[styles.body, entry.isPlayer ? { color: colors.goldMid, fontFamily: typography.fontBodyBold } : null]}>
@@ -513,11 +558,10 @@ export default function HQScreen() {
             </Text>
           </View>
         ))}
-      </GlassCard>
+      </CollapsibleCard>
 
       {/* ── Rival Relations ── */}
-      <GlassCard>
-        <SectionLabel label="Rival Relations" />
+      <CollapsibleCard title="Rival Relations">
         {rivalRelations.map((rival) => {
           const stance = manager.getRivalStance(rival);
           return (
@@ -529,11 +573,10 @@ export default function HQScreen() {
             </View>
           );
         })}
-      </GlassCard>
+      </CollapsibleCard>
 
       {/* ── Awards Pulse ── */}
-      <GlassCard>
-        <SectionLabel label="Awards Pulse" />
+      <CollapsibleCard title="Awards Pulse">
         <Text style={styles.body}>Next awards week: <Text style={{ color: colors.goldMid }}>W{nextAwardsWeek}</Text></Text>
         {lastAwards ? (
           <>
@@ -547,34 +590,14 @@ export default function HQScreen() {
         ) : (
           <Text style={styles.muted}>No awards seasons have resolved yet.</Text>
         )}
-      </GlassCard>
-
-      {/* ── Genre Cycles ── */}
-      <GlassCard>
-        <SectionLabel label="Genre Cycles" />
-        <Text style={[styles.muted, { color: colors.accentTeal, fontFamily: typography.fontBodySemiBold }]}>↑ Heating</Text>
-        {hotGenres.map((entry) => (
-          <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
-            <Text style={styles.body}>{entry.genre}</Text>
-            <Text style={[styles.muted, { color: colors.accentTeal }]}>
-              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
-            </Text>
-          </View>
-        ))}
-        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>↓ Cooling</Text>
-        {coolGenres.map((entry) => (
-          <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
-            <Text style={styles.body}>{entry.genre}</Text>
-            <Text style={[styles.muted, { color: colors.accentRed }]}>
-              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
-            </Text>
-          </View>
-        ))}
-      </GlassCard>
+      </CollapsibleCard>
 
       {/* ── Milestones ── */}
-      <GlassCard>
-        <SectionLabel label="Milestones" />
+      <CollapsibleCard
+        title="Milestones"
+        badge={milestones.length > 0 ? `${milestones.length}` : undefined}
+        badgeColor={colors.goldMid}
+      >
         {milestones.length === 0
           ? <Text style={styles.muted}>No milestones unlocked yet.</Text>
           : milestones.map((milestone) => (
@@ -584,11 +607,10 @@ export default function HQScreen() {
             </View>
           ))
         }
-      </GlassCard>
+      </CollapsibleCard>
 
       {/* ── Studio Chronicle ── */}
-      <GlassCard>
-        <SectionLabel label="Studio Chronicle" />
+      <CollapsibleCard title="Studio Chronicle">
         {chronicle.length === 0
           ? <Text style={styles.muted}>No defining moments yet.</Text>
           : chronicle.map((entry) => (
@@ -607,31 +629,17 @@ export default function HQScreen() {
             </View>
           ))
         }
-      </GlassCard>
+      </CollapsibleCard>
 
       {/* ── Industry News ── */}
-      <GlassCard>
-        <SectionLabel label="Industry News" />
+      <CollapsibleCard title="Industry News">
         {news.length === 0
           ? <Text style={styles.muted}>No major rival movement yet.</Text>
           : news.map((item) => (
             <Text key={item.id} style={styles.muted}>W{item.week}: {item.headline}</Text>
           ))
         }
-      </GlassCard>
-
-      {/* ── Last Week Summary ── */}
-      {manager.lastWeekSummary && (
-        <GlassCard>
-          <SectionLabel label="Last Week Summary" />
-          <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentTeal : colors.accentRed }]}>
-            Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
-          </Text>
-          {manager.lastWeekSummary.events.map((event) => (
-            <Text key={event} style={styles.muted}>· {event}</Text>
-          ))}
-        </GlassCard>
-      )}
+      </CollapsibleCard>
 
       {/* ── Actions ── */}
       <PremiumButton
@@ -670,5 +678,3 @@ export default function HQScreen() {
     </ScrollView>
   );
 }
-
-

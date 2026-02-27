@@ -13,6 +13,11 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
   if (value === 'strongBuy') return 'Strong Buy';
   if (value === 'conditional') return 'Conditional Buy';
@@ -121,7 +126,7 @@ export default function ScriptRoomScreen() {
           <View key={ip.id} style={styles.card}>
             <Text style={styles.cardTitle}>{ip.name}</Text>
             <Text style={styles.muted}>
-              {ip.kind.toUpperCase()} | Genre {ip.genre} | Expires W{ip.expiresWeek}
+              {ip.kind.toUpperCase()} | {capitalize(ip.genre)} | Expires W{ip.expiresWeek}
             </Text>
             <Text style={styles.muted}>
               Rights {money(ip.acquisitionCost)} | Bonuses: +{ip.hypeBonus} hype, +{ip.qualityBonus.toFixed(1)} quality
@@ -259,7 +264,7 @@ export default function ScriptRoomScreen() {
               <View key={project.id} style={styles.card}>
                 <Text style={styles.cardTitle}>{project.title}</Text>
                 <Text style={styles.body}>
-                  {project.genre} | Director: {attachedDirector?.name ?? 'Unattached'}
+                  {capitalize(project.genre)} | Director: {attachedDirector?.name ?? 'Unattached'}
                 </Text>
                 <Text style={styles.body}>
                   Cast attached: {project.castIds.length} {castNames.length > 0 ? `(${castNames.join(', ')})` : ''}

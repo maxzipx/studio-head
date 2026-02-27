@@ -161,7 +161,7 @@ export default function ProjectDetailScreen() {
       </View>
       <Text style={styles.title}>{project.title}</Text>
       <Text style={styles.subtitle}>
-        {project.genre} · Week {manager.currentWeek}
+        {project.genre.charAt(0).toUpperCase() + project.genre.slice(1)} · Week {manager.currentWeek}
       </Text>
 
       {/* Last message */}

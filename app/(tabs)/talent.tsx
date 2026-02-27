@@ -27,6 +27,14 @@ function capitalized(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function phaseLabel(phase: string): string {
+  return phase
+    .replace(/([A-Z])/g, '-$1')
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('-');
+}
+
 function roleLabel(value: string): string {
   if (value === 'leadActor') return 'Lead Actor';
   if (value === 'supportingActor') return 'Supporting Actor';
@@ -223,7 +231,7 @@ export default function TalentScreen() {
             {developmentProjects.map((project) => (
               <PremiumButton
                 key={project.id}
-                label={`${project.title} (${project.genre})`}
+                label={`${project.title} (${capitalized(project.genre)})`}
                 onPress={() => setSelectedProjectId(project.id)}
                 variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
                 size="sm"
@@ -238,7 +246,7 @@ export default function TalentScreen() {
         <GlassCard variant="gold">
           <SectionLabel label="Active Target" />
           <Text style={styles.activeTitle}>{activeProject.title}</Text>
-          <Text style={styles.body}>{activeProject.genre} · {activeProject.phase}</Text>
+          <Text style={styles.body}>{capitalized(activeProject.genre)} · {phaseLabel(activeProject.phase)}</Text>
           <Text style={styles.muted}>
             Director:{' '}
             {activeProject.directorId
@@ -272,7 +280,7 @@ export default function TalentScreen() {
             return (
               <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
                 <Text style={styles.subTitle}>{project.title}</Text>
-                <Text style={styles.muted}>{project.genre} · {project.phase}</Text>
+                <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
                 <Text style={styles.muted}>Director: {director}</Text>
                 {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
               </GlassCard>

@@ -2,6 +2,15 @@ import type { OutcomeType } from '@/src/ui/components';
 import { colors } from '@/src/ui/tokens';
 import type { ReleaseReport } from '@/src/domain/types';
 
+/** Capitalizes the first letter of every word, e.g. "sci-fi horror" → "Sci-Fi Horror" */
+export function capitalize(str: string): string {
+  if (!str) return str;
+  return str
+    .split(/(\s+|-)/)
+    .map((part) => (part.match(/^[a-z]/) ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join('');
+}
+
 export function money(amount: number): string {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;

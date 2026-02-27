@@ -1,5 +1,7 @@
-export { GlassCard }      from './GlassCard';
+export { GlassCard }        from './GlassCard';
 export type { GlassCardVariant } from './GlassCard';
+
+export { CollapsibleCard }  from './CollapsibleCard';
 
 export { PremiumButton }  from './PremiumButton';
 export type { ButtonVariant, ButtonSize } from './PremiumButton';

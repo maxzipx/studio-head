@@ -13,6 +13,11 @@ function signedMoney(amount: number): string {
   return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
 }
 
+function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export default function DistributionScreen() {
   const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
@@ -230,7 +235,7 @@ export default function DistributionScreen() {
                 <Text style={styles.offerTitle}>Nearby Rival Releases</Text>
                 {nearby.map((film) => (
                   <Text key={`${film.rival}-${film.title}-${film.week}`} style={styles.meta}>
-                    W{film.week}: {film.rival} - {film.title} ({film.genre}, {film.budget > 100_000_000 ? 'Tentpole' : 'Mid'})
+                    W{film.week}: {film.rival} - {film.title} ({capitalize(film.genre)}, {film.budget > 100_000_000 ? 'Tentpole' : 'Mid'})
                   </Text>
                 ))}
               </View>
