@@ -1346,6 +1346,14 @@ describe('StudioManager', () => {
     const start = manager.startTalentNegotiation(project!.id, targetTalent!.id);
     expect(start.success).toBe(true);
 
+    // Force deterministic rival pick by taking other candidates off-market.
+    for (const talent of manager.talentPool) {
+      if (talent.id === targetTalent!.id) continue;
+      talent.availability = 'unavailable';
+      talent.unavailableUntilWeek = manager.currentWeek + 12;
+      talent.attachedProjectId = null;
+    }
+
     manager.endWeek();
     const poach = manager.pendingCrises.find((item) => item.kind === 'talentPoached');
     expect(poach).toBeTruthy();

@@ -1,4 +1,12 @@
-import type { DecisionItem, MovieProject, RivalStudio, ScriptPitch, Talent } from './types';
+import type {
+  DecisionItem,
+  MovieGenre,
+  MovieProject,
+  RivalStudio,
+  ScriptPitch,
+  Talent,
+  TalentRole,
+} from './types';
 import { createId } from './id';
 
 function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
@@ -27,60 +35,184 @@ function createInitialRivalMemory(
   };
 }
 
-export function createSeedTalentPool(): Talent[] {
-  return [
-    {
-      id: createId('talent'),
-      name: 'Rhea Colton',
-      role: 'director',
-      starPower: 6.8,
-      craftScore: 8.2,
-      genreFit: { thriller: 0.95, drama: 0.88, horror: 0.8 },
-      egoLevel: 5.2,
-      salary: { base: 2_000_000, backendPoints: 2, perksCost: 200_000 },
-      availability: 'available',
-      unavailableUntilWeek: null,
-      attachedProjectId: null,
-      reputation: 74,
-      agentTier: 'wma',
-      studioRelationship: 0.2,
-      relationshipMemory: createInitialRelationship(0.2),
-    },
-    {
-      id: createId('talent'),
-      name: 'Noah Kade',
-      role: 'leadActor',
-      starPower: 7.3,
-      craftScore: 7.4,
-      genreFit: { action: 0.9, thriller: 0.82, drama: 0.7 },
-      egoLevel: 6.3,
-      salary: { base: 3_500_000, backendPoints: 3, perksCost: 350_000 },
-      availability: 'available',
-      unavailableUntilWeek: null,
-      attachedProjectId: null,
-      reputation: 70,
-      agentTier: 'aea',
-      studioRelationship: 0.1,
-      relationshipMemory: createInitialRelationship(0.1),
-    },
-    {
-      id: createId('talent'),
-      name: 'Mila Soren',
-      role: 'leadActor',
-      starPower: 5.9,
-      craftScore: 8.6,
-      genreFit: { drama: 0.95, comedy: 0.72, documentary: 0.6 },
-      egoLevel: 3.1,
-      salary: { base: 1_800_000, backendPoints: 1.5, perksCost: 120_000 },
-      availability: 'available',
-      unavailableUntilWeek: null,
-      attachedProjectId: null,
-      reputation: 78,
-      agentTier: 'independent',
-      studioRelationship: 0.35,
-      relationshipMemory: createInitialRelationship(0.35),
-    },
+const TALENT_FIRST_NAMES = [
+  'Avery', 'Blake', 'Cameron', 'Devon', 'Emerson', 'Finley', 'Gray', 'Harper',
+  'Indigo', 'Jordan', 'Kai', 'Logan', 'Morgan', 'Nico', 'Oakley', 'Parker',
+  'Quinn', 'Reese', 'Sawyer', 'Taylor', 'Umber', 'Val', 'Winter', 'Zephyr',
+];
+
+const TALENT_LAST_NAMES = [
+  'Arden', 'Beck', 'Calloway', 'Dalton', 'Ellis', 'Frost', 'Grady', 'Hale',
+  'Irving', 'Jett', 'Keaton', 'Lane', 'Marlow', 'Nash', 'Onyx', 'Pryce',
+  'Quill', 'Rowe', 'Sterling', 'Thorne',
+];
+
+const TALENT_GENRES: MovieGenre[] = [
+  'action',
+  'drama',
+  'comedy',
+  'horror',
+  'thriller',
+  'sciFi',
+  'animation',
+  'documentary',
+];
+
+const DIRECTOR_POOL_SIZE = 60;
+const LEAD_ACTOR_POOL_SIZE = 200;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value / 10_000) * 10_000;
+}
+
+function seededUnit(seed: number, salt: number): number {
+  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43_758.545_312_3;
+  return x - Math.floor(x);
+}
+
+function buildTalentName(index: number): string {
+  const first = TALENT_FIRST_NAMES[index % TALENT_FIRST_NAMES.length];
+  const last = TALENT_LAST_NAMES[Math.floor(index / TALENT_FIRST_NAMES.length) % TALENT_LAST_NAMES.length];
+  return `${first} ${last}`;
+}
+
+function pickDistinctGenres(seedIndex: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
+  const total = TALENT_GENRES.length;
+  const picks: MovieGenre[] = [];
+  const bases = [
+    seedIndex % total,
+    (seedIndex * 3 + 1) % total,
+    (seedIndex * 5 + 2) % total,
+    (seedIndex * 7 + 3) % total,
   ];
+
+  for (const start of bases) {
+    for (let step = 0; step < total; step += 1) {
+      const genre = TALENT_GENRES[(start + step) % total];
+      if (!picks.includes(genre)) {
+        picks.push(genre);
+        break;
+      }
+    }
+  }
+
+  return picks as [MovieGenre, MovieGenre, MovieGenre, MovieGenre];
+}
+
+function buildGenreFit(seedIndex: number, role: TalentRole): Partial<Record<MovieGenre, number>> {
+  const [primary, secondary, tertiary, wildcard] = pickDistinctGenres(seedIndex);
+  const primaryBase = role === 'director' ? 0.8 : 0.76;
+  const secondaryBase = role === 'director' ? 0.67 : 0.64;
+  const tertiaryBase = role === 'director' ? 0.56 : 0.54;
+
+  return {
+    [primary]: roundTo(clampNumber(primaryBase + seededUnit(seedIndex, 31) * 0.2, 0.72, 0.98), 2),
+    [secondary]: roundTo(clampNumber(secondaryBase + seededUnit(seedIndex, 32) * 0.18, 0.55, 0.9), 2),
+    [tertiary]: roundTo(clampNumber(tertiaryBase + seededUnit(seedIndex, 33) * 0.16, 0.45, 0.82), 2),
+    [wildcard]: roundTo(clampNumber(0.42 + seededUnit(seedIndex, 34) * 0.22, 0.35, 0.75), 2),
+  };
+}
+
+function pickAgentTier(starPower: number, reputation: number, seedIndex: number): Talent['agentTier'] {
+  const agencyScore = starPower * 6 + reputation * 0.52 + seededUnit(seedIndex, 44) * 10;
+  if (agencyScore >= 105) return 'aea';
+  if (agencyScore >= 94) return 'wma';
+  if (agencyScore >= 84) return 'tca';
+  return 'independent';
+}
+
+function buildTalentSeed(seedIndex: number, role: TalentRole): Talent {
+  const starPower = roundTo(
+    clampNumber(
+      4.1 + seededUnit(seedIndex, 11) * 5.7 + (role === 'director' ? 0.35 : 0),
+      3.8,
+      9.9
+    ),
+    1
+  );
+
+  const craftScore = roundTo(
+    clampNumber(
+      4.6 + seededUnit(seedIndex, 12) * 5.1 + (role === 'director' ? 0.85 : 0),
+      4,
+      9.9
+    ),
+    1
+  );
+
+  const egoLevel = roundTo(
+    clampNumber(
+      2 + seededUnit(seedIndex, 13) * 7.4 + (role === 'leadActor' ? 0.45 : 0),
+      1.8,
+      9.8
+    ),
+    1
+  );
+
+  const reputation = Math.round(clampNumber(45 + seededUnit(seedIndex, 14) * 46 + (role === 'director' ? 3 : 0), 40, 96));
+  const studioRelationship = roundTo(clampNumber(0.05 + seededUnit(seedIndex, 15) * 0.57, 0.02, 0.75), 2);
+
+  const baseSalary =
+    role === 'director'
+      ? roundMoney(550_000 + craftScore * 220_000 + starPower * 95_000 + seededUnit(seedIndex, 16) * 500_000)
+      : roundMoney(650_000 + starPower * 260_000 + craftScore * 110_000 + seededUnit(seedIndex, 16) * 650_000);
+
+  const backendPoints = roundTo(
+    clampNumber(0.6 + starPower * 0.28 + craftScore * 0.12 + seededUnit(seedIndex, 17) * 0.9, 0.5, 5.5),
+    1
+  );
+
+  const perksCost = roundMoney(
+    50_000 + egoLevel * 55_000 + starPower * 22_000 + seededUnit(seedIndex, 18) * 120_000
+  );
+
+  return {
+    id: createId('talent'),
+    name: buildTalentName(seedIndex),
+    role,
+    starPower,
+    craftScore,
+    genreFit: buildGenreFit(seedIndex, role),
+    egoLevel,
+    salary: {
+      base: baseSalary,
+      backendPoints,
+      perksCost,
+    },
+    availability: 'available',
+    unavailableUntilWeek: null,
+    attachedProjectId: null,
+    reputation,
+    agentTier: pickAgentTier(starPower, reputation, seedIndex),
+    studioRelationship,
+    relationshipMemory: createInitialRelationship(studioRelationship),
+  };
+}
+
+export function createSeedTalentPool(): Talent[] {
+  const talentPool: Talent[] = [];
+  let seedIndex = 0;
+
+  for (let i = 0; i < DIRECTOR_POOL_SIZE; i += 1) {
+    talentPool.push(buildTalentSeed(seedIndex, 'director'));
+    seedIndex += 1;
+  }
+
+  for (let i = 0; i < LEAD_ACTOR_POOL_SIZE; i += 1) {
+    talentPool.push(buildTalentSeed(seedIndex, 'leadActor'));
+    seedIndex += 1;
+  }
+
+  return talentPool;
 }
 
 export function createSeedProjects(): MovieProject[] {
