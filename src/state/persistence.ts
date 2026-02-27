@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { MEMORY_RULES, STUDIO_STARTING } from '../domain/balance-constants';
+import { createSeedTalentPool } from '../domain/seeds';
 import { StudioManager } from '../domain/studio-manager';
 import type { ChronicleEntryImpact, ChronicleEntryType, MovieGenre } from '../domain/types';
 
@@ -27,6 +28,13 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (typeof manager.studioName !== 'string' || manager.studioName.trim().length < 1) {
     manager.studioName = defaults.studioName;
   }
+  if (!Number.isFinite((manager as StudioManager & { talentSeed?: number }).talentSeed)) {
+    (manager as StudioManager & { talentSeed: number }).talentSeed = 0;
+  }
+  (manager as StudioManager & { talentSeed: number }).talentSeed = Math.max(
+    0,
+    Math.floor(Math.abs((manager as StudioManager & { talentSeed: number }).talentSeed))
+  );
   if (!Number.isFinite(manager.cash)) manager.cash = defaults.cash;
   manager.cash = Math.round(manager.cash);
   if (typeof manager.isBankrupt !== 'boolean') manager.isBankrupt = false;
@@ -197,7 +205,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       hiatusPlanCount: Number.isFinite(entry.hiatusPlanCount) ? Math.max(0, Math.round(entry.hiatusPlanCount as number)) : 0,
     }))
     .filter((franchise) => franchise.projectIds.length > 0);
-  if (!Array.isArray(manager.talentPool)) manager.talentPool = defaults.talentPool;
+  if (!Array.isArray(manager.talentPool)) manager.talentPool = createSeedTalentPool((manager as StudioManager & { talentSeed: number }).talentSeed);
   for (const talent of manager.talentPool) {
     const legacyAgentTierMap: Record<string, string> = {
       caa: 'aea',

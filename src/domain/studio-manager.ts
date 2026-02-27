@@ -229,7 +229,8 @@ export class StudioManager {
   decisionQueue: DecisionItem[] = createOpeningDecisions();
   activeProjects: MovieProject[] = createSeedProjects();
   franchises: FranchiseTrack[] = [];
-  talentPool: Talent[] = createSeedTalentPool();
+  talentSeed = 0;
+  talentPool: Talent[] = createSeedTalentPool(this.talentSeed);
   scriptMarket: ScriptPitch[] = createSeedScriptMarket();
   rivals: RivalStudio[] = createSeedRivals();
   industryNewsLog: IndustryNewsItem[] = [];
@@ -500,11 +501,17 @@ export class StudioManager {
     eventRng?: () => number;
     negotiationRng?: () => number;
     rivalRng?: () => number;
+    talentSeed?: number;
   }) {
     this.crisisRng = input?.crisisRng ?? Math.random;
     this.eventRng = input?.eventRng ?? Math.random;
     this.negotiationRng = input?.negotiationRng ?? Math.random;
     this.rivalRng = input?.rivalRng ?? Math.random;
+    const inputTalentSeed = input?.talentSeed;
+    if (Number.isFinite(inputTalentSeed)) {
+      this.talentSeed = Math.max(0, Math.floor(Math.abs(inputTalentSeed as number)));
+      this.talentPool = createSeedTalentPool(this.talentSeed);
+    }
     this.bindOpeningDecisionToLeadProject();
     this.refreshIpMarketplace();
   }

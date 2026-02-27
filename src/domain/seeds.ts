@@ -79,20 +79,47 @@ function seededUnit(seed: number, salt: number): number {
   return x - Math.floor(x);
 }
 
-function buildTalentName(index: number): string {
-  const first = TALENT_FIRST_NAMES[index % TALENT_FIRST_NAMES.length];
-  const last = TALENT_LAST_NAMES[Math.floor(index / TALENT_FIRST_NAMES.length) % TALENT_LAST_NAMES.length];
-  return `${first} ${last}`;
+function createSeededRng(seed: number): () => number {
+  let state = (seed >>> 0) || 1;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 4_294_967_296;
+  };
 }
 
-function pickDistinctGenres(seedIndex: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
+function buildShuffledNamePool(worldSeed: number): string[] {
+  const names: string[] = [];
+  for (const first of TALENT_FIRST_NAMES) {
+    for (const last of TALENT_LAST_NAMES) {
+      names.push(`${first} ${last}`);
+    }
+  }
+  if (worldSeed === 0) return names;
+
+  const rng = createSeededRng(worldSeed);
+  for (let i = names.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const temp = names[i];
+    names[i] = names[j];
+    names[j] = temp;
+  }
+  return names;
+}
+
+function buildTalentName(index: number, namePool: string[]): string {
+  if (index < namePool.length) return namePool[index];
+  const fallbackBase = namePool[index % namePool.length] ?? `Talent ${index + 1}`;
+  return `${fallbackBase} ${Math.floor(index / Math.max(1, namePool.length)) + 2}`;
+}
+
+function pickDistinctGenres(seedIndex: number, seedOffset: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
   const total = TALENT_GENRES.length;
   const picks: MovieGenre[] = [];
   const bases = [
-    seedIndex % total,
-    (seedIndex * 3 + 1) % total,
-    (seedIndex * 5 + 2) % total,
-    (seedIndex * 7 + 3) % total,
+    (seedIndex + seedOffset) % total,
+    (seedIndex * 3 + 1 + seedOffset) % total,
+    (seedIndex * 5 + 2 + seedOffset) % total,
+    (seedIndex * 7 + 3 + seedOffset) % total,
   ];
 
   for (const start of bases) {
@@ -108,32 +135,36 @@ function pickDistinctGenres(seedIndex: number): [MovieGenre, MovieGenre, MovieGe
   return picks as [MovieGenre, MovieGenre, MovieGenre, MovieGenre];
 }
 
-function buildGenreFit(seedIndex: number, role: TalentRole): Partial<Record<MovieGenre, number>> {
-  const [primary, secondary, tertiary, wildcard] = pickDistinctGenres(seedIndex);
+function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): Partial<Record<MovieGenre, number>> {
+  const seedOffset = worldSeed % TALENT_GENRES.length;
+  const worldSalt = (worldSeed % 97) * 0.07;
+  const [primary, secondary, tertiary, wildcard] = pickDistinctGenres(seedIndex, seedOffset);
   const primaryBase = role === 'director' ? 0.8 : 0.76;
   const secondaryBase = role === 'director' ? 0.67 : 0.64;
   const tertiaryBase = role === 'director' ? 0.56 : 0.54;
 
   return {
-    [primary]: roundTo(clampNumber(primaryBase + seededUnit(seedIndex, 31) * 0.2, 0.72, 0.98), 2),
-    [secondary]: roundTo(clampNumber(secondaryBase + seededUnit(seedIndex, 32) * 0.18, 0.55, 0.9), 2),
-    [tertiary]: roundTo(clampNumber(tertiaryBase + seededUnit(seedIndex, 33) * 0.16, 0.45, 0.82), 2),
-    [wildcard]: roundTo(clampNumber(0.42 + seededUnit(seedIndex, 34) * 0.22, 0.35, 0.75), 2),
+    [primary]: roundTo(clampNumber(primaryBase + seededUnit(seedIndex, 31 + worldSalt) * 0.2, 0.72, 0.98), 2),
+    [secondary]: roundTo(clampNumber(secondaryBase + seededUnit(seedIndex, 32 + worldSalt) * 0.18, 0.55, 0.9), 2),
+    [tertiary]: roundTo(clampNumber(tertiaryBase + seededUnit(seedIndex, 33 + worldSalt) * 0.16, 0.45, 0.82), 2),
+    [wildcard]: roundTo(clampNumber(0.42 + seededUnit(seedIndex, 34 + worldSalt) * 0.22, 0.35, 0.75), 2),
   };
 }
 
-function pickAgentTier(starPower: number, reputation: number, seedIndex: number): Talent['agentTier'] {
-  const agencyScore = starPower * 6 + reputation * 0.52 + seededUnit(seedIndex, 44) * 10;
+function pickAgentTier(starPower: number, reputation: number, seedIndex: number, worldSeed: number): Talent['agentTier'] {
+  const worldSalt = (worldSeed % 83) * 0.09;
+  const agencyScore = starPower * 6 + reputation * 0.52 + seededUnit(seedIndex, 44 + worldSalt) * 10;
   if (agencyScore >= 105) return 'aea';
   if (agencyScore >= 94) return 'wma';
   if (agencyScore >= 84) return 'tca';
   return 'independent';
 }
 
-function buildTalentSeed(seedIndex: number, role: TalentRole): Talent {
+function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number, namePool: string[]): Talent {
+  const worldSalt = (worldSeed % 251) * 0.11;
   const starPower = roundTo(
     clampNumber(
-      4.1 + seededUnit(seedIndex, 11) * 5.7 + (role === 'director' ? 0.35 : 0),
+      4.1 + seededUnit(seedIndex, 11 + worldSalt) * 5.7 + (role === 'director' ? 0.35 : 0),
       3.8,
       9.9
     ),
@@ -142,7 +173,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole): Talent {
 
   const craftScore = roundTo(
     clampNumber(
-      4.6 + seededUnit(seedIndex, 12) * 5.1 + (role === 'director' ? 0.85 : 0),
+      4.6 + seededUnit(seedIndex, 12 + worldSalt) * 5.1 + (role === 'director' ? 0.85 : 0),
       4,
       9.9
     ),
@@ -151,37 +182,39 @@ function buildTalentSeed(seedIndex: number, role: TalentRole): Talent {
 
   const egoLevel = roundTo(
     clampNumber(
-      2 + seededUnit(seedIndex, 13) * 7.4 + (role === 'leadActor' ? 0.45 : 0),
+      2 + seededUnit(seedIndex, 13 + worldSalt) * 7.4 + (role === 'leadActor' ? 0.45 : 0),
       1.8,
       9.8
     ),
     1
   );
 
-  const reputation = Math.round(clampNumber(45 + seededUnit(seedIndex, 14) * 46 + (role === 'director' ? 3 : 0), 40, 96));
-  const studioRelationship = roundTo(clampNumber(0.05 + seededUnit(seedIndex, 15) * 0.57, 0.02, 0.75), 2);
+  const reputation = Math.round(
+    clampNumber(45 + seededUnit(seedIndex, 14 + worldSalt) * 46 + (role === 'director' ? 3 : 0), 40, 96)
+  );
+  const studioRelationship = roundTo(clampNumber(0.05 + seededUnit(seedIndex, 15 + worldSalt) * 0.57, 0.02, 0.75), 2);
 
   const baseSalary =
     role === 'director'
-      ? roundMoney(550_000 + craftScore * 220_000 + starPower * 95_000 + seededUnit(seedIndex, 16) * 500_000)
-      : roundMoney(650_000 + starPower * 260_000 + craftScore * 110_000 + seededUnit(seedIndex, 16) * 650_000);
+      ? roundMoney(550_000 + craftScore * 220_000 + starPower * 95_000 + seededUnit(seedIndex, 16 + worldSalt) * 500_000)
+      : roundMoney(650_000 + starPower * 260_000 + craftScore * 110_000 + seededUnit(seedIndex, 16 + worldSalt) * 650_000);
 
   const backendPoints = roundTo(
-    clampNumber(0.6 + starPower * 0.28 + craftScore * 0.12 + seededUnit(seedIndex, 17) * 0.9, 0.5, 5.5),
+    clampNumber(0.6 + starPower * 0.28 + craftScore * 0.12 + seededUnit(seedIndex, 17 + worldSalt) * 0.9, 0.5, 5.5),
     1
   );
 
   const perksCost = roundMoney(
-    50_000 + egoLevel * 55_000 + starPower * 22_000 + seededUnit(seedIndex, 18) * 120_000
+    50_000 + egoLevel * 55_000 + starPower * 22_000 + seededUnit(seedIndex, 18 + worldSalt) * 120_000
   );
 
   return {
     id: createId('talent'),
-    name: buildTalentName(seedIndex),
+    name: buildTalentName(seedIndex, namePool),
     role,
     starPower,
     craftScore,
-    genreFit: buildGenreFit(seedIndex, role),
+    genreFit: buildGenreFit(seedIndex, role, worldSeed),
     egoLevel,
     salary: {
       base: baseSalary,
@@ -192,23 +225,25 @@ function buildTalentSeed(seedIndex: number, role: TalentRole): Talent {
     unavailableUntilWeek: null,
     attachedProjectId: null,
     reputation,
-    agentTier: pickAgentTier(starPower, reputation, seedIndex),
+    agentTier: pickAgentTier(starPower, reputation, seedIndex, worldSeed),
     studioRelationship,
     relationshipMemory: createInitialRelationship(studioRelationship),
   };
 }
 
-export function createSeedTalentPool(): Talent[] {
+export function createSeedTalentPool(worldSeed = 0): Talent[] {
+  const normalizedSeed = Number.isFinite(worldSeed) ? Math.max(0, Math.floor(Math.abs(worldSeed))) : 0;
+  const namePool = buildShuffledNamePool(normalizedSeed);
   const talentPool: Talent[] = [];
   let seedIndex = 0;
 
   for (let i = 0; i < DIRECTOR_POOL_SIZE; i += 1) {
-    talentPool.push(buildTalentSeed(seedIndex, 'director'));
+    talentPool.push(buildTalentSeed(seedIndex, 'director', normalizedSeed, namePool));
     seedIndex += 1;
   }
 
   for (let i = 0; i < LEAD_ACTOR_POOL_SIZE; i += 1) {
-    talentPool.push(buildTalentSeed(seedIndex, 'leadActor'));
+    talentPool.push(buildTalentSeed(seedIndex, 'leadActor', normalizedSeed, namePool));
     seedIndex += 1;
   }
 
