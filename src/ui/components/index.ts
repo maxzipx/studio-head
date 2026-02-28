@@ -17,3 +17,4 @@ export type { OutcomeType } from './OutcomeBadge';
 
 export { RepPillarGrid }  from './RepPillarGrid';
 export { ProgressBar }    from './ProgressBar';
+export { MetricsStrip }   from './MetricsStrip';

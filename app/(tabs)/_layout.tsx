@@ -1,29 +1,16 @@
-import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { blur, colors, typography } from '@/src/ui/tokens';
-
-// Glassmorphism tab bar background (iOS only)
-function TabBarBackground() {
-  if (Platform.OS !== 'ios') return null;
-  return (
-    <BlurView
-      intensity={blur.tabBar}
-      tint="dark"
-      style={StyleSheet.absoluteFill}
-    />
-  );
-}
+import { colors, typography } from '@/src/ui/tokens';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor:   colors.goldMid,
+        tabBarActiveTintColor:   colors.navyPrimary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontFamily:    typography.fontBodyMedium,
@@ -32,27 +19,23 @@ export default function TabLayout() {
           marginTop:     2,
         },
         tabBarStyle: {
-          // Transparent so the BlurView shows through on iOS
-          backgroundColor: Platform.OS === 'ios'
-            ? 'rgba(8,10,15,0.65)'
-            : colors.bgSurface,
+          backgroundColor: colors.bgSurface,
           borderTopWidth:  1,
           borderTopColor:  colors.borderSubtle,
           height:          Platform.OS === 'ios' ? 88 : 64,
           paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
           paddingTop:      8,
         },
-        tabBarBackground: Platform.OS === 'ios' ? TabBarBackground : undefined,
         headerStyle: {
-          backgroundColor: colors.bgPrimary,
+          backgroundColor: colors.bgSurface,
         },
         headerShadowVisible: false,
         headerTitleStyle: {
           fontFamily: typography.fontDisplay,
           fontSize:   typography.sizeMD,
-          color:      colors.textPrimary,
+          color:      colors.navyPrimary,
         },
-        headerTintColor: colors.textPrimary,
+        headerTintColor: colors.navyPrimary,
         tabBarButton:    HapticTab,
       }}
     >
@@ -121,6 +104,6 @@ const styles = StyleSheet.create({
     width:           4,
     height:          4,
     borderRadius:    2,
-    backgroundColor: colors.goldMid,
+    backgroundColor: colors.navyPrimary,
   },
 });

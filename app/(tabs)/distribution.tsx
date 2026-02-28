@@ -70,7 +70,7 @@ export default function DistributionScreen() {
   function pressureForWeek(week: number | null): { label: string; color: string } {
     if (!week) return { label: 'Unknown', color: tokens.textMuted };
     const overlaps = rivalCalendar.filter((film) => Math.abs(film.week - week) <= 1).length;
-    if (overlaps === 0) return { label: 'Clear', color: tokens.accentTeal };
+    if (overlaps === 0) return { label: 'Clear', color: tokens.accentGreen };
     if (overlaps <= 2) return { label: 'Moderate', color: tokens.accentGold };
     return { label: 'High', color: tokens.accentRed };
   }
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 120, gap: 12 },
   title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
   subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
-  message: { color: tokens.accentTeal, fontSize: 13 },
+  message: { color: tokens.accentGreen, fontSize: 13 },
   card: {
     borderRadius: 12,
     borderWidth: 1,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   readinessReady: {
-    borderColor: tokens.accentTeal,
+    borderColor: tokens.accentGreen,
     backgroundColor: '#1A3030',
   },
   readinessBlocked: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 4,
   },
-  readyText: { color: tokens.accentTeal },
+  readyText: { color: tokens.accentGreen },
   blockedText: { color: tokens.accentRed },
   releaseButton: {
     borderRadius: 10,

@@ -28,7 +28,7 @@ export function StarRating({ value, maxStars = 5, size = 'md', style }: StarRati
         <Text style={[styles.star, { fontSize, color: colors.goldMid }]}>½</Text>
       )}
       {Array.from({ length: emptyStars }).map((_, i) => (
-        <Text key={`e${i}`} style={[styles.star, { fontSize, color: colors.textMuted }]}>★</Text>
+        <Text key={`e${i}`} style={[styles.star, { fontSize, color: colors.borderStrong }]}>★</Text>
       ))}
     </View>
   );

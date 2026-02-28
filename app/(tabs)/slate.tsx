@@ -31,7 +31,7 @@ function recommendationColor(value: 'strongBuy' | 'conditional' | 'pass'): strin
 }
 
 function phaseColor(phase: string): string {
-  if (phase === 'development') return colors.accentTeal;
+  if (phase === 'development') return colors.accentGreen;
   if (phase === 'preProduction') return colors.goldMid;
   if (phase === 'production') return '#6FAEEA';
   if (phase === 'postProduction') return colors.accentGreen;
@@ -92,7 +92,7 @@ export default function SlateScreen() {
   function pressureForWeek(week: number | null): { label: string; color: string } {
     if (!week) return { label: 'Unknown', color: colors.textMuted };
     const overlaps = rivalCalendar.filter((film) => Math.abs(film.week - week) <= 1).length;
-    if (overlaps === 0) return { label: 'Clear', color: colors.accentTeal };
+    if (overlaps === 0) return { label: 'Clear', color: colors.accentGreen };
     if (overlaps <= 2) return { label: 'Moderate', color: colors.goldMid };
     return { label: 'High', color: colors.accentRed };
   }
@@ -112,7 +112,7 @@ export default function SlateScreen() {
       </View>
 
       {lastMessage ? (
-        <GlassCard variant="teal">
+        <GlassCard variant="blue">
           <Text style={styles.message}>{lastMessage}</Text>
         </GlassCard>
       ) : null}
@@ -163,7 +163,7 @@ export default function SlateScreen() {
                       value={evalResult.expectedROI.toFixed(2) + '×'}
                       label="Proj ROI"
                       size="sm"
-                      accent={evalResult.expectedROI >= 2 ? colors.accentTeal : evalResult.expectedROI < 1 ? colors.accentRed : colors.goldMid}
+                      accent={evalResult.expectedROI >= 2 ? colors.accentGreen : evalResult.expectedROI < 1 ? colors.accentRed : colors.goldMid}
                     />
                   )}
                 </View>
@@ -244,7 +244,7 @@ export default function SlateScreen() {
                 </View>
                 <ProgressBar
                   value={burnPct}
-                  color={burnPct > 85 ? colors.accentRed : colors.accentTeal}
+                  color={burnPct > 85 ? colors.accentRed : colors.accentGreen}
                   height={3}
                   animated
                 />
@@ -259,10 +259,10 @@ export default function SlateScreen() {
                         value={projection.critical.toFixed(0)}
                         label="Critic"
                         size="sm"
-                        accent={projection.critical >= 70 ? colors.accentTeal : projection.critical < 50 ? colors.accentRed : colors.goldMid}
+                        accent={projection.critical >= 70 ? colors.accentGreen : projection.critical < 50 ? colors.accentRed : colors.goldMid}
                       />
                       <MetricTile value={money(projection.openingLow)} label="Opening Low" size="sm" />
-                      <MetricTile value={money(projection.openingHigh)} label="Opening High" size="sm" accent={colors.accentTeal} />
+                      <MetricTile value={money(projection.openingHigh)} label="Opening High" size="sm" accent={colors.accentGreen} />
                     </View>
                   </GlassCard>
                 )}
@@ -341,7 +341,7 @@ export default function SlateScreen() {
                       </View>
                     </View>
                     <View style={styles.metricRow}>
-                      <MetricTile value={money(offer.minimumGuarantee)} label="Min Guarantee" size="sm" accent={colors.accentTeal} />
+                      <MetricTile value={money(offer.minimumGuarantee)} label="Min Guarantee" size="sm" accent={colors.accentGreen} />
                       <MetricTile value={money(offer.pAndACommitment)} label="P&A" size="sm" />
                       <MetricTile value={`${(offer.revenueShareToStudio * 100).toFixed(0)}%`} label="Rev Share" size="sm" accent={colors.goldMid} />
                     </View>
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
   subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
 
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
+  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentGreen },
   empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
 
   snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },

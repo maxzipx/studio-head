@@ -235,13 +235,13 @@ export default function ProjectDetailScreen() {
             style={styles.metricFlex}
           />
         </View>
-        <Text style={[styles.bodyText, { color: genreDemand >= 1 ? colors.accentTeal : colors.textMuted }]}>
+        <Text style={[styles.bodyText, { color: genreDemand >= 1 ? colors.accentGreen : colors.textMuted }]}>
           Genre demand: {genreDemand >= 1 ? '+' : ''}{Math.round((genreDemand - 1) * 100)}%
         </Text>
         <Text style={styles.mutedText}>Editorial {project.editorialScore.toFixed(1)} / 10</Text>
         <ProgressBar
           value={project.editorialScore * 10}
-          color={colors.accentTeal}
+          color={colors.accentGreen}
         />
         {project.phase === 'development' ? (
           <View style={styles.pillRow}>
@@ -278,7 +278,7 @@ export default function ProjectDetailScreen() {
                   value={franchiseModifiers.momentum.toFixed(0)}
                   label="Momentum"
                   size="sm"
-                  accent={colors.accentTeal}
+                  accent={colors.accentGreen}
                   style={styles.metricFlex}
                 />
                 <MetricTile
@@ -352,7 +352,7 @@ export default function ProjectDetailScreen() {
           <Text style={styles.mutedText}>{project.scriptQuality.toFixed(1)} / {ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY.toFixed(1)} sprint cap</Text>
           <ProgressBar
             value={(project.scriptQuality / ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY) * 100}
-            color={colors.accentTeal}
+            color={colors.accentGreen}
           />
           <PremiumButton
             variant="primary"
@@ -565,7 +565,7 @@ export default function ProjectDetailScreen() {
       {(project.phase === 'postProduction' || project.phase === 'distribution') ? (
         <GlassCard>
           <SectionLabel label="Test Screenings" />
-          <Text style={[styles.bodyText, { color: project.testScreeningCompleted ? colors.accentTeal : colors.textMuted }]}>
+          <Text style={[styles.bodyText, { color: project.testScreeningCompleted ? colors.accentGreen : colors.textMuted }]}>
             {project.testScreeningCompleted ? `Completed W${project.testScreeningWeek ?? '-'}` : 'Not run yet'}
           </Text>
           {project.testScreeningCompleted ? (

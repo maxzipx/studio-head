@@ -15,12 +15,12 @@ interface ProgressBarProps {
 
 export function ProgressBar({
   value,
-  color      = colors.goldMid,
+  color      = colors.accentTeal,
   height     = 4,
   showLabel  = false,
   animated   = false,
   style,
-  bgColor    = 'rgba(255,255,255,0.08)',
+  bgColor    = colors.borderSubtle,
 }: ProgressBarProps) {
   const clampedValue = Math.max(0, Math.min(100, value));
   const widthAnim    = useRef(new Animated.Value(clampedValue)).current;

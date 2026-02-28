@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Modal, Text, View } from 'react-native';
@@ -12,7 +11,7 @@ import {
   ProgressBar,
   SectionLabel,
 } from '@/src/ui/components';
-import { blur, colors, spacing } from '@/src/ui/tokens';
+import { colors, spacing } from '@/src/ui/tokens';
 import { getReleaseSplashTone, money, splashGradientColor, splashToneToOutcome } from '@/src/ui/hq/hq-helpers';
 import { styles } from '@/src/ui/hq/hq-styles';
 
@@ -31,6 +30,7 @@ export function ReleaseRevealModal({
 }: ReleaseRevealModalProps) {
   const anim = useRef(new Animated.Value(0)).current;
   const splashTone = getReleaseSplashTone(revealReport);
+  const isBlockbuster = splashTone === 'blockbuster' || splashTone === 'record';
 
   useEffect(() => {
     if (!reveal) return;
@@ -50,8 +50,14 @@ export function ReleaseRevealModal({
       animationType="none"
       onRequestClose={() => reveal && dismissReleaseReveal(reveal.id)}
     >
-      <BlurView intensity={blur.modal} tint="dark" style={styles.modalOverlay}>
+      <View style={styles.modalOverlay}>
         <View style={styles.modalDimLayer} />
+
+        {/* Champagne wash for blockbuster/record outcomes */}
+        {isBlockbuster && (
+          <View style={[styles.modalDimLayer, { backgroundColor: 'rgba(251,246,233,0.55)' }]} />
+        )}
+
         {reveal && (
           <Animated.View
             style={[
@@ -83,8 +89,8 @@ export function ReleaseRevealModal({
                 <OutcomeBadge outcome={splashToneToOutcome(splashTone)} size="md" style={styles.outcomeBadge} />
 
                 <View style={styles.modalStatsGrid}>
-                  <MetricTile value={money(revealReport.totalGross)} label="Total Gross" size="md" centered />
-                  <MetricTile value={money(revealReport.studioNet)} label="Studio Net" size="md" centered accent={colors.accentTeal} />
+                  <MetricTile value={money(revealReport.totalGross)} label="Total Gross" size="md" centered accent={colors.goldMid} />
+                  <MetricTile value={money(revealReport.studioNet)} label="Studio Net" size="md" centered accent={colors.accentGreen} />
                 </View>
                 <View style={styles.modalStatsGrid}>
                   <MetricTile
@@ -92,14 +98,14 @@ export function ReleaseRevealModal({
                     label="Profit / Loss"
                     size="sm"
                     centered
-                    accent={revealReport.profit >= 0 ? colors.accentTeal : colors.accentRed}
+                    accent={revealReport.profit >= 0 ? colors.accentGreen : colors.accentRed}
                   />
                   <MetricTile
                     value={`${revealReport.roi.toFixed(2)}×`}
                     label="ROI"
                     size="sm"
                     centered
-                    accent={revealReport.roi >= 2 ? colors.accentTeal : revealReport.roi < 1 ? colors.accentRed : colors.goldMid}
+                    accent={revealReport.roi >= 2 ? colors.accentGreen : revealReport.roi < 1 ? colors.accentRed : colors.goldMid}
                   />
                 </View>
 
@@ -121,11 +127,11 @@ export function ReleaseRevealModal({
                       <Text style={styles.driverLabel}>{key}</Text>
                       <ProgressBar
                         value={50 + val}
-                        color={val >= 0 ? colors.accentTeal : colors.accentRed}
+                        color={val >= 0 ? colors.accentGreen : colors.accentRed}
                         height={5}
                         style={styles.driverBar}
                       />
-                      <Text style={[styles.driverVal, { color: val >= 0 ? colors.accentTeal : colors.accentRed }]}>
+                      <Text style={[styles.driverVal, { color: val >= 0 ? colors.accentGreen : colors.accentRed }]}>
                         {val >= 0 ? '+' : ''}
                         {val}
                       </Text>
@@ -139,7 +145,7 @@ export function ReleaseRevealModal({
                   <MetricTile value={money(reveal.openingWeekendGross ?? 0)} label="Opening Weekend" size="md" centered />
                 </View>
                 <View style={styles.modalStatsGrid}>
-                  <MetricTile value={reveal.criticalScore?.toFixed(0) ?? '--'} label="Critics" size="sm" centered accent={colors.accentTeal} />
+                  <MetricTile value={reveal.criticalScore?.toFixed(0) ?? '--'} label="Critics" size="sm" centered accent={colors.accentGreen} />
                   <MetricTile value={reveal.audienceScore?.toFixed(0) ?? '--'} label="Audience" size="sm" centered accent={colors.goldMid} />
                   <MetricTile value={`${reveal.releaseWeeksRemaining}w`} label="Forecast" size="sm" centered />
                 </View>
@@ -157,7 +163,7 @@ export function ReleaseRevealModal({
             />
           </Animated.View>
         )}
-      </BlurView>
+      </View>
     </Modal>
   );
 }

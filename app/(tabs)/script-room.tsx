@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   message: {
-    color: tokens.accentTeal,
+    color: tokens.accentGreen,
     fontSize: 13,
   },
   section: {

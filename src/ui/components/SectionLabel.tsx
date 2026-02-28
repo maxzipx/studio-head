@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   action: {
     fontFamily:    typography.fontBodyMedium,
     fontSize:      typography.sizeXS,
-    color:         colors.goldMid,
+    color:         colors.ctaBlue,
     letterSpacing: typography.trackingWide,
   },
 });

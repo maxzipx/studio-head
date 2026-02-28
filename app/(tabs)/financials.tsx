@@ -57,7 +57,7 @@ export default function FinancialsScreen() {
   const runwayColor =
     runwayWeeks <= 4 ? colors.accentRed :
       runwayWeeks <= 10 ? colors.goldMid :
-        colors.accentTeal;
+        colors.accentGreen;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -65,7 +65,7 @@ export default function FinancialsScreen() {
       {/* ── Header ── */}
       <View style={styles.header}>
         <LinearGradient
-          colors={[colors.goldDeep + '18', 'transparent']}
+          colors={[colors.navyPrimary + '14', 'transparent']}
           style={styles.headerGlow}
           pointerEvents="none"
         />
@@ -80,6 +80,7 @@ export default function FinancialsScreen() {
             value={money(cash)}
             label="Cash on Hand"
             size="lg"
+            accent={colors.goldMid}
             centered
           />
         </GlassCard>
@@ -88,7 +89,7 @@ export default function FinancialsScreen() {
             value={money(lifetimeProfit)}
             label="Lifetime Profit"
             size="lg"
-            accent={lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed}
+            accent={lifetimeProfit >= 0 ? colors.accentGreen : colors.accentRed}
             centered
           />
         </GlassCard>
@@ -111,7 +112,7 @@ export default function FinancialsScreen() {
               value={isPositiveDelta ? `+${money(lastDelta)}` : `-${money(Math.abs(lastDelta))}`}
               label="Last Week Δ"
               size="sm"
-              accent={isPositiveDelta ? colors.accentTeal : colors.accentRed}
+              accent={isPositiveDelta ? colors.accentGreen : colors.accentRed}
             />
           </View>
           <View style={styles.metricCol}>
@@ -132,7 +133,7 @@ export default function FinancialsScreen() {
           value={money(lifetimeRevenue)}
           label="Total Gross Revenue"
           size="md"
-          accent={colors.accentTeal}
+          accent={colors.accentGreen}
         />
       </GlassCard>
 
@@ -167,7 +168,7 @@ export default function FinancialsScreen() {
                 <OutcomeBadge outcome={roiToOutcome(project.projectedROI)} size="sm" />
                 <Text style={[
                   styles.roiValue,
-                  { color: project.projectedROI >= 2 ? colors.accentTeal : project.projectedROI < 1 ? colors.accentRed : colors.textPrimary }
+                  { color: project.projectedROI >= 2 ? colors.accentGreen : project.projectedROI < 1 ? colors.accentRed : colors.textPrimary }
                 ]}>
                   {project.projectedROI.toFixed(2)}×
                 </Text>
@@ -194,7 +195,7 @@ export default function FinancialsScreen() {
                   value={money((project.finalBoxOffice ?? 0) * project.studioRevenueShare)}
                   label="Studio Net"
                   size="sm"
-                  accent={colors.accentTeal}
+                  accent={colors.accentGreen}
                 />
                 <MetricTile value={`${(project.studioRevenueShare * 100).toFixed(0)}%`} label="Rev Share" size="sm" />
               </View>

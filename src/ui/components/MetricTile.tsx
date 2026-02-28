@@ -25,7 +25,7 @@ export function MetricTile({
   centered = false,
 }: MetricTileProps) {
   const cfg = sizeConfig[size];
-  const valueColor = accent ?? colors.goldMid;
+  const valueColor = accent ?? colors.navyPrimary;
 
   return (
     <View style={[styles.container, centered && styles.centered, style]}>
@@ -35,7 +35,7 @@ export function MetricTile({
       <View style={styles.labelRow}>
         <Text style={[styles.label, { fontSize: cfg.labelFontSize }]}>{label}</Text>
         {trend && trend !== 'flat' && (
-          <Text style={[styles.trend, { color: trend === 'up' ? colors.accentTeal : colors.accentRed }]}>
+          <Text style={[styles.trend, { color: trend === 'up' ? colors.accentGreen : colors.accentRed }]}>
             {trend === 'up' ? ' ▲' : ' ▼'}
           </Text>
         )}

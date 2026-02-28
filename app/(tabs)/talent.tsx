@@ -59,7 +59,7 @@ function trustLevelLabel(value: string): string {
 function trustLevelColor(value: string): string {
   if (value === 'hostile') return colors.accentRed;
   if (value === 'wary') return '#F5D089';
-  if (value === 'aligned') return colors.accentTeal;
+  if (value === 'aligned') return colors.accentGreen;
   if (value === 'loyal') return colors.accentGreen;
   return colors.textMuted;
 }
@@ -67,7 +67,7 @@ function trustLevelColor(value: string): string {
 function refusalRiskColor(value: string): string {
   if (value === 'critical') return colors.accentRed;
   if (value === 'elevated') return colors.goldMid;
-  return colors.accentTeal;
+  return colors.accentGreen;
 }
 
 function interactionLabel(kind: string): string {
@@ -180,7 +180,7 @@ export default function TalentScreen() {
       </View>
 
       {lastMessage ? (
-        <GlassCard variant="teal">
+        <GlassCard variant="blue">
           <Text style={styles.message}>{lastMessage}</Text>
         </GlassCard>
       ) : null}
@@ -206,7 +206,7 @@ export default function TalentScreen() {
         <Text style={styles.body}>
           <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
           {' = audience draw and launch heat. '}
-          <Text style={{ color: colors.accentTeal, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
+          <Text style={{ color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
           {' = execution quality and critic stability. Big stars open films; high craft sustains reviews.'}
         </Text>
       </GlassCard>
@@ -216,7 +216,7 @@ export default function TalentScreen() {
         <SectionLabel label="Market Snapshot" />
         <View style={styles.snapshotRow}>
           {[
-            { label: 'Available', value: availableTalentCount, accent: colors.accentTeal },
+            { label: 'Available', value: availableTalentCount, accent: colors.accentGreen },
             { label: 'Negotiations', value: manager.playerNegotiations.length, accent: colors.goldMid },
             { label: 'Rival Lock', value: rivalLockedCount, accent: colors.accentRed },
             { label: 'Cooling Off', value: coolingOffCount, accent: colors.textMuted },
@@ -401,10 +401,10 @@ export default function TalentScreen() {
                 <Text style={styles.talentRole}>{roleLabel(talent.role)} · {agencyLabel(talent.agentTier)}</Text>
               </View>
               <View style={[styles.availBadge, {
-                borderColor: isAvailable ? colors.accentTeal + '60' : colors.textMuted + '40',
-                backgroundColor: isAvailable ? colors.accentTeal + '14' : 'transparent',
+                borderColor: isAvailable ? colors.accentGreen + '60' : colors.textMuted + '40',
+                backgroundColor: isAvailable ? colors.accentGreen + '14' : 'transparent',
               }]}>
-                <Text style={[styles.availText, { color: isAvailable ? colors.accentTeal : colors.textMuted }]}>
+                <Text style={[styles.availText, { color: isAvailable ? colors.accentGreen : colors.textMuted }]}>
                   {isAvailable ? 'Available' : 'Locked'}
                 </Text>
               </View>
@@ -419,8 +419,8 @@ export default function TalentScreen() {
               </View>
               <View style={styles.statBlock}>
                 <Text style={styles.statLabel}>CRAFT</Text>
-                <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentTeal} height={6} animated />
-                <Text style={[styles.statNum, { color: colors.accentTeal }]}>{talent.craftScore.toFixed(1)}</Text>
+                <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={6} animated />
+                <Text style={[styles.statNum, { color: colors.accentGreen }]}>{talent.craftScore.toFixed(1)}</Text>
               </View>
             </View>
 
@@ -464,7 +464,7 @@ export default function TalentScreen() {
                 {recentMemory.map((entry, i) => (
                   <Text key={`${talent.id}-${entry.week}-${i}`} style={styles.memoryLine}>
                     W{entry.week}: {interactionLabel(entry.kind)}{' '}
-                    <Text style={{ color: entry.trustDelta >= 0 ? colors.accentTeal : colors.accentRed }}>
+                    <Text style={{ color: entry.trustDelta >= 0 ? colors.accentGreen : colors.accentRed }}>
                       ({entry.trustDelta >= 0 ? '+' : ''}{entry.trustDelta}T)
                     </Text>
                   </Text>
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
   subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
 
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
+  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentGreen },
   empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
   body: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
   muted: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },

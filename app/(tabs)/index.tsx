@@ -1,4 +1,4 @@
-import { LinearGradient } from 'expo-linear-gradient';
+﻿import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -7,6 +7,7 @@ import { useGameStore } from '@/src/state/game-context';
 import {
   CollapsibleCard,
   GlassCard,
+  MetricsStrip,
   MetricTile,
   PremiumButton,
   ProgressBar,
@@ -189,41 +190,43 @@ export default function HQScreen() {
   const canEnd = manager.canEndWeek && !isGameOver;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={styles.screen}>
+      <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
+      <ScrollView contentContainerStyle={styles.content}>
 
-      {/* ── Header ── */}
+      {/* â”€â”€ Header â”€â”€ */}
       <View style={styles.header}>
         <LinearGradient
-          colors={[colors.goldDeep + '18', 'transparent']}
+          colors={[colors.navyPrimary + '14', 'transparent']}
           style={styles.headerGlow}
           pointerEvents="none"
         />
         <Text style={styles.studioName}>{manager.studioName}</Text>
-        <Text style={styles.weekLine}>Week {manager.currentWeek} · {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
+        <Text style={styles.weekLine}>Week {manager.currentWeek} Â· {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
       </View>
 
-      {/* ── Getting Started — always at top when visible ── */}
+      {/* â”€â”€ Getting Started â€” always at top when visible â”€â”€ */}
       {!manager.firstSessionComplete && (
-        <GlassCard variant="teal">
+        <GlassCard variant="blue">
           <SectionLabel label="Getting Started" />
           {[
-            'Inbox decisions expire — resolve them within the listed weeks or lose the opportunity.',
-            'Projects need a Director + Lead Actor + Script Quality ≥ 6.0 to advance to Pre-Production.',
+            'Inbox decisions expire â€” resolve them within the listed weeks or lose the opportunity.',
+            'Projects need a Director + Lead Actor + Script Quality â‰¥ 6.0 to advance to Pre-Production.',
             'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
             'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
           ].map((tip, i) => (
-            <Text key={i} style={[styles.body, { color: colors.accentTeal }]}>· {tip}</Text>
+            <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>Â· {tip}</Text>
           ))}
         </GlassCard>
       )}
 
       {lastMessage ? (
-        <GlassCard variant="teal">
+        <GlassCard variant="blue">
           <Text style={styles.message}>{lastMessage}</Text>
         </GlassCard>
       ) : null}
 
-      {/* ── Game Over ── */}
+      {/* â”€â”€ Game Over â”€â”€ */}
       {isGameOver && (
         <GlassCard variant="red">
           <SectionLabel label="Game Over" />
@@ -233,7 +236,7 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* ── Weekly Status ── */}
+      {/* â”€â”€ Weekly Status â”€â”€ */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Weekly Status" />
         <View style={styles.statusRow}>
@@ -245,7 +248,7 @@ export default function HQScreen() {
               value={manager.canEndWeek ? 'Ready' : 'Blocked'}
               label="Turn"
               size="sm"
-              accent={manager.canEndWeek ? colors.accentTeal : colors.accentRed}
+              accent={manager.canEndWeek ? colors.accentGreen : colors.accentRed}
             />
           </GlassCard>
           <GlassCard variant="elevated" style={styles.statusTile}>
@@ -266,7 +269,7 @@ export default function HQScreen() {
           <MetricTile value={money(manager.cash)}           label="Cash"         size="sm" />
           <MetricTile value={money(weeklyExpenses)}         label="Weekly Burn"  size="sm" accent={colors.accentRed} />
           <MetricTile value={money(manager.lifetimeProfit)} label="Lifetime P/L" size="sm"
-            accent={manager.lifetimeProfit >= 0 ? colors.accentTeal : colors.accentRed} />
+            accent={manager.lifetimeProfit >= 0 ? colors.accentGreen : colors.accentRed} />
         </View>
 
         {!manager.canEndWeek && (
@@ -274,13 +277,13 @@ export default function HQScreen() {
         )}
         {hasLowCashWarning && (
           <Text style={styles.alert}>
-            ⚠ Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
+            âš  Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
             {hasUrgentLowCashWarning ? ' Emergency action required.' : ''}
           </Text>
         )}
       </GlassCard>
 
-      {/* ── Studio Standing ── */}
+      {/* â”€â”€ Studio Standing â”€â”€ */}
       <GlassCard variant={manager.studioHeat >= 70 ? 'gold' : 'default'}>
         <View style={styles.standingHeader}>
           <View style={{ flex: 1 }}>
@@ -303,12 +306,12 @@ export default function HQScreen() {
         <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
       </GlassCard>
 
-      {/* ── Blocking Crises (always visible - urgent) ── */}
+      {/* â”€â”€ Blocking Crises (always visible - urgent) â”€â”€ */}
       {manager.pendingCrises.length > 0 && (
         <GlassCard variant="red">
           <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
           {manager.pendingCrises.map((crisis) => (
-            <GlassCard key={crisis.id} variant="elevated" style={{ gap: spacing.sp2, borderColor: colors.borderRed }}>
+            <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
               <Text style={styles.muted}>
                 Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
               </Text>
@@ -334,13 +337,13 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* ── Decision Inbox (always visible) ── */}
+      {/* â”€â”€ Decision Inbox (always visible) â”€â”€ */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Decision Inbox" />
         {manager.decisionQueue.length === 0
           ? <Text style={styles.muted}>No active decisions right now.</Text>
           : manager.decisionQueue.map((item) => (
-            <GlassCard key={item.id} variant="elevated" style={{ gap: spacing.sp2 }}>
+            <GlassCard key={item.id} variant="elevated" accentBorder={colors.goldMid} style={{ gap: spacing.sp2 }}>
               <View style={styles.inboxHeader}>
                 <Text style={styles.muted}>
                   {item.projectId
@@ -372,15 +375,15 @@ export default function HQScreen() {
         }
       </GlassCard>
 
-      {/* ════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           COLLAPSIBLE SECTIONS
-          ════════════════════════════════════════════ */}
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
 
-      {/* ── Operations (grouped collapsible) ── */}
+      {/* â”€â”€ Operations (grouped collapsible) â”€â”€ */}
       <CollapsibleCard
         title="Operations"
         badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
-        badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentTeal}
+        badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
         defaultOpen={false}
       >
         {/* Capacity */}
@@ -397,7 +400,7 @@ export default function HQScreen() {
           </View>
           <ProgressBar
             value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
-            color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentTeal}
+            color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
             height={4}
             animated
             style={{ marginTop: spacing.sp2 }}
@@ -464,7 +467,7 @@ export default function HQScreen() {
 
           <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
           <Text style={styles.muted}>
-            Development L{manager.departmentLevels.development} · Production L{manager.departmentLevels.production} · Distribution L{manager.departmentLevels.distribution}
+            Development L{manager.departmentLevels.development} Â· Production L{manager.departmentLevels.production} Â· Distribution L{manager.departmentLevels.distribution}
           </Text>
           <View style={styles.actionsRow}>
             <PremiumButton label="Invest Dev"  onPress={() => investDepartment('development')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
@@ -525,7 +528,7 @@ export default function HQScreen() {
         </View>
       </CollapsibleCard>
 
-      {/* ── Story Arcs ── */}
+      {/* â”€â”€ Story Arcs â”€â”€ */}
       <CollapsibleCard
         title="Story Arcs"
         badge={activeArcCount > 0 ? `${activeArcCount} Active` : undefined}
@@ -535,7 +538,7 @@ export default function HQScreen() {
         {arcEntries.length === 0
           ? <Text style={styles.muted}>No major arc threads have started yet.</Text>
           : arcEntries.map(([arcId, arc]) => {
-            const arcColor = arc.status === 'resolved' ? colors.accentTeal : arc.status === 'failed' ? colors.accentRed : colors.goldMid;
+            const arcColor = arc.status === 'resolved' ? colors.accentGreen : arc.status === 'failed' ? colors.accentRed : colors.goldMid;
             return (
               <GlassCard key={arcId} variant="elevated" style={{ gap: 4 }}>
                 <View style={styles.arcRow}>
@@ -544,48 +547,48 @@ export default function HQScreen() {
                     <Text style={[styles.arcStatus, { color: arcColor }]}>{arc.status.toUpperCase()}</Text>
                   </View>
                 </View>
-                <Text style={styles.muted}>Stage {arc.stage} · Last updated W{arc.lastUpdatedWeek}</Text>
+                <Text style={styles.muted}>Stage {arc.stage} Â· Last updated W{arc.lastUpdatedWeek}</Text>
               </GlassCard>
             );
           })
         }
       </CollapsibleCard>
 
-      {/* ── Last Week Summary ── */}
+      {/* â”€â”€ Last Week Summary â”€â”€ */}
       {manager.lastWeekSummary && (
         <CollapsibleCard title="Last Week Summary" defaultOpen>
-          <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentTeal : colors.accentRed }]}>
+          <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentGreen : colors.accentRed }]}>
             Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
           </Text>
           {manager.lastWeekSummary.events.map((event) => (
-            <Text key={event} style={styles.muted}>· {event}</Text>
+            <Text key={event} style={styles.muted}>Â· {event}</Text>
           ))}
         </CollapsibleCard>
       )}
 
-      {/* ── Genre Cycles ── */}
+      {/* â”€â”€ Genre Cycles â”€â”€ */}
       <CollapsibleCard title="Genre Cycles">
-        <Text style={[styles.muted, { color: colors.accentTeal, fontFamily: typography.fontBodySemiBold }]}>↑ Heating</Text>
+        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>â†‘ Heating</Text>
         {hotGenres.map((entry) => (
           <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
-            <Text style={[styles.muted, { color: colors.accentTeal }]}>
-              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+            <Text style={[styles.muted, { color: colors.accentGreen }]}>
+              {entry.demand.toFixed(2)}Ã— ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
             </Text>
           </View>
         ))}
-        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>↓ Cooling</Text>
+        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>â†“ Cooling</Text>
         {coolGenres.map((entry) => (
           <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
             <Text style={[styles.muted, { color: colors.accentRed }]}>
-              {entry.demand.toFixed(2)}× ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+              {entry.demand.toFixed(2)}Ã— ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
             </Text>
           </View>
         ))}
       </CollapsibleCard>
 
-      {/* ── Industry Heat Leaderboard ── */}
+      {/* â”€â”€ Industry Heat Leaderboard â”€â”€ */}
       <CollapsibleCard title="Industry Leaderboard">
         {leaderboard.map((entry, index) => (
           <View key={entry.name} style={styles.leaderRow}>
@@ -599,7 +602,7 @@ export default function HQScreen() {
         ))}
       </CollapsibleCard>
 
-      {/* ── Rival Relations ── */}
+      {/* â”€â”€ Rival Relations â”€â”€ */}
       <CollapsibleCard title="Rival Relations">
         {rivalRelations.map((rival) => {
           const stance = manager.getRivalStance(rival);
@@ -607,14 +610,14 @@ export default function HQScreen() {
             <View key={rival.id} style={styles.leaderRow}>
               <Text style={styles.body}>{rival.name}</Text>
               <Text style={[styles.muted, { color: stanceColor(stance) }]}>
-                {stanceLabel(stance)} · H{rival.memory.hostility}/R{rival.memory.respect}
+                {stanceLabel(stance)} Â· H{rival.memory.hostility}/R{rival.memory.respect}
               </Text>
             </View>
           );
         })}
       </CollapsibleCard>
 
-      {/* ── Awards Pulse ── */}
+      {/* â”€â”€ Awards Pulse â”€â”€ */}
       <CollapsibleCard title="Awards Pulse">
         <Text style={styles.body}>Next awards week: <Text style={{ color: colors.goldMid }}>W{nextAwardsWeek}</Text></Text>
         {lastAwards ? (
@@ -631,7 +634,7 @@ export default function HQScreen() {
         )}
       </CollapsibleCard>
 
-      {/* ── Milestones ── */}
+      {/* â”€â”€ Milestones â”€â”€ */}
       <CollapsibleCard
         title="Milestones"
         badge={milestones.length > 0 ? `${milestones.length}` : undefined}
@@ -641,24 +644,24 @@ export default function HQScreen() {
           ? <Text style={styles.muted}>No milestones unlocked yet.</Text>
           : milestones.map((milestone) => (
             <View key={`${milestone.id}-${milestone.unlockedWeek}`} style={styles.leaderRow}>
-              <Text style={styles.bodyStrong}>🏅 {milestone.title}</Text>
+              <Text style={styles.bodyStrong}>ðŸ… {milestone.title}</Text>
               <Text style={styles.muted}>W{milestone.unlockedWeek}</Text>
             </View>
           ))
         }
       </CollapsibleCard>
 
-      {/* ── Studio Chronicle ── */}
+      {/* â”€â”€ Studio Chronicle â”€â”€ */}
       <CollapsibleCard title="Studio Chronicle">
         {chronicle.length === 0
           ? <Text style={styles.muted}>No defining moments yet.</Text>
           : chronicle.map((entry) => (
             <View key={entry.id} style={styles.chronicleEntry}>
-              <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? '·'}</Text>
+              <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? 'Â·'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[
                   styles.chronicleHeadline,
-                  entry.impact === 'positive' ? { color: colors.accentTeal } :
+                  entry.impact === 'positive' ? { color: colors.accentGreen } :
                   entry.impact === 'negative' ? { color: colors.accentRed } : null,
                 ]}>
                   {entry.headline}
@@ -670,7 +673,7 @@ export default function HQScreen() {
         }
       </CollapsibleCard>
 
-      {/* ── Industry News ── */}
+      {/* â”€â”€ Industry News â”€â”€ */}
       <CollapsibleCard title="Industry News">
         {news.length === 0
           ? <Text style={styles.muted}>No major rival movement yet.</Text>
@@ -680,7 +683,7 @@ export default function HQScreen() {
         }
       </CollapsibleCard>
 
-      {/* ── Actions ── */}
+      {/* â”€â”€ Actions â”€â”€ */}
       <PremiumButton
         label="Run Optional Action (+Hype)"
         onPress={runOptionalAction}
@@ -706,7 +709,7 @@ export default function HQScreen() {
         fullWidth
       />
 
-      {/* ── Release Reveal Modal ── */}
+      {/* â”€â”€ Release Reveal Modal â”€â”€ */}
       <ReleaseRevealModal
         reveal={reveal}
         isFinalReveal={isFinalReveal}
@@ -715,5 +718,6 @@ export default function HQScreen() {
       />
 
     </ScrollView>
+    </View>
   );
 }

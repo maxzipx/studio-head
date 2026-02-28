@@ -1,53 +1,63 @@
-import { Platform, ViewStyle } from 'react-native';
+import { ViewStyle } from 'react-native';
 
-// ─────────────────────────────────────────
-//  STUDIO HEAD — DARK LUXURY DESIGN TOKENS
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────
+//  STUDIO HEAD — MODERN HOLLYWOOD EXECUTIVE TOKENS
+// ─────────────────────────────────────────────────
 
-// ── Colors ───────────────────────────────
+// ── Colors ───────────────────────────────────────
 export const colors = {
-  // Backgrounds — three tiers of depth
-  bgDeep:         '#080A0F',   // absolute base; modal overlays
-  bgPrimary:      '#0D1119',   // main screen background
-  bgSurface:      '#141A27',   // card base layer
-  bgElevated:     '#1C2436',   // nested / elevated cards
+  // Backgrounds — light mode, three tiers
+  bgDeep:         '#1E2A38',   // MetricsStrip, modal overlays, dark anchor
+  bgPrimary:      '#F3F6FA',   // main screen background (cool studio daylight)
+  bgSurface:      '#FFFFFF',   // card surface — crisp white
+  bgElevated:     '#F8FAFC',   // nested / elevated elements
+  bgChampagne:    '#FBF6E9',   // franchise / award / blockbuster surfaces
 
-  // Gold — primary accent, three-stop gradient
-  goldLight:      '#F0C96A',   // gradient highlight end
-  goldMid:        '#D4A843',   // primary gold (CTAs, values, active states)
-  goldDeep:       '#C9963A',   // gradient start / deep gold
+  // Navy — primary brand authority
+  navyPrimary:    '#1E2A38',   // headings, values, strong text
+  navyDeep:       '#131E2B',   // deeper navy for pressed states
+
+  // Gold — prestige accent (awards, franchise, selected states)
+  goldLight:      '#E5C76B',   // gradient highlight end
+  goldMid:        '#C6A84A',   // primary gold (awards, active states, accents)
+  goldDeep:       '#B8962E',   // gradient start / deep gold
+
+  // CTA Blue — primary interactive action color
+  ctaBlue:        '#2F6FED',   // primary buttons, links, interactive
+  ctaBlueDark:    '#255AD6',   // pressed / disabled blue
 
   // Secondary accents
-  accentTeal:     '#38BDB5',   // success, positive, info
-  accentRed:      '#E8504A',   // danger, crisis, alert
-  accentGreen:    '#3EC98A',   // strong positive (blockbuster, win)
+  accentTeal:     '#0E9E8A',   // progress, positive scores, info
+  accentRed:      '#D9534F',   // warning, crisis, danger
+  accentRedDeep:  '#C0392B',   // critical / risk danger
+  accentGreen:    '#1FA971',   // success, blockbuster, strong positive
 
-  // Text — three levels of hierarchy
-  textPrimary:    '#F0F4FA',   // headlines, values
-  textSecondary:  '#8FA3BF',   // body, descriptions
-  textMuted:      '#3D5068',   // labels, tertiary info
-  textInverse:    '#080A0F',   // text on gold/light backgrounds
+  // Text — navy-based hierarchy on light backgrounds
+  textPrimary:    '#1E2A38',   // navy — headlines, values, primary content
+  textSecondary:  '#3D5068',   // body, descriptions
+  textMuted:      '#6B7F96',   // labels, tertiary info, placeholders
+  textInverse:    '#FFFFFF',   // text on dark surfaces (navy, modals)
 
-  // Borders — alpha-based for glass layering
-  borderSubtle:   'rgba(255,255,255,0.06)',  // glass card edges
-  borderDefault:  'rgba(255,255,255,0.10)',  // standard borders
-  borderStrong:   'rgba(255,255,255,0.18)',  // emphasized/focused borders
-  borderGold:     'rgba(212,168,67,0.38)',   // active / selected state
-  borderRed:      'rgba(232,80,74,0.45)',    // crisis / danger border
-  borderTeal:     'rgba(56,189,181,0.40)',   // success / info border
+  // Borders — solid for crisp light-mode cards
+  borderSubtle:   '#E8EDF3',   // card edges, dividers
+  borderDefault:  '#DCE3EC',   // standard borders
+  borderStrong:   '#BBC6D4',   // emphasized / focused borders
+  borderGold:     'rgba(198,168,74,0.40)',   // gold active / selected state
+  borderNavy:     'rgba(30,42,56,0.20)',     // navy ghost border (secondary buttons)
+  borderRed:      'rgba(217,83,79,0.35)',    // crisis / danger border
+  borderBlue:     'rgba(47,111,237,0.25)',   // info / blue border
 };
 
 // Backwards-compatible alias — screens importing `tokens.accentGold` etc. still work
 export const tokens = {
-  // Extended keys (new — used by components)
   ...colors,
-
-  // Legacy aliases (keep so existing screens don't break before they're migrated)
-  accentGold:     colors.goldMid,
-  border:         colors.borderDefault,
+  // Legacy aliases (preserved so unreached screens don't break)
+  accentGold:    colors.goldMid,
+  border:        colors.borderDefault,
+  borderTeal:    'rgba(14,158,138,0.40)',
 };
 
-// ── Typography ───────────────────────────
+// ── Typography ────────────────────────────────────
 export const typography = {
   // Font families — loaded via useFonts in _layout.tsx
   fontDisplay:        'PlayfairDisplay_700Bold',
@@ -79,7 +89,7 @@ export const typography = {
   trackingWidest:   1.2,   // uppercase labels
 };
 
-// ── Spacing scale ────────────────────────
+// ── Spacing scale ─────────────────────────────────
 export const spacing = {
   sp1:  4,
   sp2:  8,
@@ -92,63 +102,72 @@ export const spacing = {
   sp12: 48,
 };
 
-// ── Border radius scale ──────────────────
+// ── Border radius scale ───────────────────────────
 export const radius = {
-  r1:   6,
-  r2:   10,
-  r3:   14,
-  r4:   18,
-  r5:   24,
+  r1:    6,
+  r2:    10,
+  r3:    14,
+  r4:    18,
+  r5:    24,
   rFull: 9999,
 };
 
-// ── Elevation / Shadow ───────────────────
+// ── Elevation / Shadow ────────────────────────────
+// Navy-tinted, soft drop shadows for light mode cards
 export const shadows = {
   card: {
-    shadowColor:   '#000000',
+    shadowColor:   '#1E2A38',
+    shadowOffset:  { width: 0, height: 4 },
+    shadowOpacity: 0.09,
+    shadowRadius:  12,
+    elevation:     4,
+  } as ViewStyle,
+
+  elevated: {
+    shadowColor:   '#1E2A38',
     shadowOffset:  { width: 0, height: 8 },
-    shadowOpacity: 0.55,
+    shadowOpacity: 0.12,
     shadowRadius:  20,
-    elevation:     12,
+    elevation:     8,
   } as ViewStyle,
 
   glowGold: {
-    shadowColor:   colors.goldMid,
+    shadowColor:   '#C6A84A',
     shadowOffset:  { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius:  12,
+    elevation:     6,
+  } as ViewStyle,
+
+  glowBlue: {
+    shadowColor:   '#2F6FED',
+    shadowOffset:  { width: 0, height: 4 },
     shadowOpacity: 0.30,
-    shadowRadius:  16,
-    elevation:     8,
+    shadowRadius:  14,
+    elevation:     6,
   } as ViewStyle,
 
   glowRed: {
-    shadowColor:   colors.accentRed,
+    shadowColor:   '#D9534F',
     shadowOffset:  { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius:  14,
-    elevation:     8,
+    shadowOpacity: 0.25,
+    shadowRadius:  12,
+    elevation:     6,
   } as ViewStyle,
 
-  glowTeal: {
-    shadowColor:   colors.accentTeal,
+  glowGreen: {
+    shadowColor:   '#1FA971',
     shadowOffset:  { width: 0, height: 0 },
     shadowOpacity: 0.28,
     shadowRadius:  14,
     elevation:     6,
   } as ViewStyle,
-
-  glowGreen: {
-    shadowColor:   colors.accentGreen,
-    shadowOffset:  { width: 0, height: 0 },
-    shadowOpacity: 0.32,
-    shadowRadius:  16,
-    elevation:     8,
-  } as ViewStyle,
 };
 
-// ── Blur intensities ─────────────────────
+// ── Blur intensities (kept for any remaining BlurView usage) ──
 export const blur = {
-  card:    Platform.OS === 'ios' ? 28  : 0,
-  elevated: Platform.OS === 'ios' ? 40 : 0,
-  modal:   Platform.OS === 'ios' ? 65  : 0,
-  tabBar:  Platform.OS === 'ios' ? 55  : 0,
+  card:     0,
+  elevated: 0,
+  modal:    0,
+  tabBar:   0,
 };

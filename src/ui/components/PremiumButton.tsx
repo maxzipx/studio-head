@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -14,14 +13,14 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'gold
 export type ButtonSize    = 'sm' | 'md' | 'lg';
 
 interface PremiumButtonProps {
-  label:     string;
-  onPress:   () => void;
-  variant?:  ButtonVariant;
-  size?:     ButtonSize;
-  disabled?: boolean;
-  loading?:  boolean;
-  icon?:     React.ReactNode;
-  style?:    ViewStyle;
+  label:      string;
+  onPress:    () => void;
+  variant?:   ButtonVariant;
+  size?:      ButtonSize;
+  disabled?:  boolean;
+  loading?:   boolean;
+  icon?:      React.ReactNode;
+  style?:     ViewStyle;
   fullWidth?: boolean;
 }
 
@@ -42,14 +41,17 @@ export function PremiumButton({
   style,
   fullWidth = false,
 }: PremiumButtonProps) {
-  const sz  = sizeConfig[size];
-  const opacity = disabled ? 0.4 : 1;
+  const sz      = sizeConfig[size];
+  const opacity = disabled ? 0.45 : 1;
 
   const inner = (
     <View style={[styles.inner, { gap: 6 }]}>
       {icon}
       {loading
-        ? <ActivityIndicator color={variant === 'primary' ? colors.textInverse : colors.goldMid} size="small" />
+        ? <ActivityIndicator
+            color={variant === 'primary' ? colors.textInverse : colors.ctaBlue}
+            size="small"
+          />
         : <Text style={[styles.label, { fontSize: sz.fontSize }, variantLabelStyle[variant]]}>
             {label}
           </Text>
@@ -58,85 +60,68 @@ export function PremiumButton({
   );
 
   const wrapStyle: ViewStyle[] = [
-    { borderRadius: sz.borderRadius, paddingVertical: sz.paddingVertical, paddingHorizontal: sz.paddingHorizontal },
+    {
+      borderRadius:     sz.borderRadius,
+      paddingVertical:  sz.paddingVertical,
+      paddingHorizontal: sz.paddingHorizontal,
+    },
     fullWidth ? { alignSelf: 'stretch' } : {},
     { opacity },
+    variantContainerStyle[variant],
     style as ViewStyle,
   ];
-
-  if (variant === 'primary') {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled || loading}
-        activeOpacity={0.82}
-        style={[{ borderRadius: sz.borderRadius, overflow: 'hidden' }, fullWidth ? { alignSelf: 'stretch' } : {}, { opacity }, style as ViewStyle]}
-      >
-        <LinearGradient
-          colors={[colors.goldDeep, colors.goldLight]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={[
-            styles.gradientFill,
-            { paddingVertical: sz.paddingVertical, paddingHorizontal: sz.paddingHorizontal },
-            shadows.glowGold,
-          ]}
-        >
-          {inner}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.75}
-      style={[wrapStyle, variantContainerStyle[variant]]}
+      activeOpacity={0.80}
+      style={wrapStyle}
     >
       {inner}
     </TouchableOpacity>
   );
 }
 
-// ── Per-variant styles ──────────────────────────────────────────────────────
-const variantContainerStyle: Record<Exclude<ButtonVariant, 'primary'>, ViewStyle> = {
+// ── Per-variant container styles ─────────────────────────────────────────────
+const variantContainerStyle: Record<ButtonVariant, ViewStyle> = {
+  primary: {
+    backgroundColor: colors.ctaBlue,
+    ...shadows.glowBlue,
+  },
   secondary: {
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
+    backgroundColor: colors.bgSurface,
+    borderWidth:     1,
+    borderColor:     colors.borderNavy,
+    ...shadows.card,
   },
   ghost: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderWidth:     1,
+    borderColor:     colors.borderSubtle,
   },
   danger: {
-    backgroundColor: 'rgba(232,80,74,0.12)',
-    borderWidth: 1,
-    borderColor: colors.borderRed,
+    backgroundColor: 'rgba(217,83,79,0.08)',
+    borderWidth:     1,
+    borderColor:     'rgba(217,83,79,0.35)',
   },
   'gold-outline': {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.borderGold,
+    borderWidth:     1,
+    borderColor:     colors.borderGold,
   },
 };
 
+// ── Per-variant label styles ──────────────────────────────────────────────────
 const variantLabelStyle: Record<ButtonVariant, object> = {
-  primary:       { color: colors.textInverse, fontFamily: typography.fontBodyBold },
-  secondary:     { color: colors.textPrimary,   fontFamily: typography.fontBodySemiBold },
-  ghost:         { color: colors.textSecondary, fontFamily: typography.fontBodyMedium },
-  danger:        { color: colors.accentRed,     fontFamily: typography.fontBodyBold },
-  'gold-outline':{ color: colors.goldMid,       fontFamily: typography.fontBodySemiBold },
+  primary:        { color: colors.textInverse,   fontFamily: typography.fontBodyBold },
+  secondary:      { color: colors.navyPrimary,   fontFamily: typography.fontBodySemiBold },
+  ghost:          { color: colors.textMuted,      fontFamily: typography.fontBodyMedium },
+  danger:         { color: colors.accentRed,      fontFamily: typography.fontBodyBold },
+  'gold-outline': { color: colors.goldMid,        fontFamily: typography.fontBodySemiBold },
 };
 
 const styles = StyleSheet.create({
-  gradientFill: {
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
   inner: {
     flexDirection:  'row',
     alignItems:     'center',

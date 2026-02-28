@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 3,
     paddingHorizontal: spacing.sp2,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: colors.borderDefault,
   },
   phasePillText: {
     fontSize: typography.sizeXS,
@@ -54,12 +54,12 @@ export const styles = StyleSheet.create({
   },
 
   messageCard: {
-    borderColor: colors.borderTeal,
+    borderColor: colors.borderBlue,
   },
   messageText: {
     fontFamily: typography.fontBody,
     fontSize: typography.sizeSM,
-    color: colors.accentTeal,
+    color: colors.accentGreen,
   },
 
   metricsRow: {

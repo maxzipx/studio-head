@@ -36,7 +36,7 @@ export const styles = StyleSheet.create({
     borderRadius: radius.r2,
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.bgElevated,
     padding: spacing.sp2 + 2,
     gap: 3,
   },
@@ -64,13 +64,13 @@ export const styles = StyleSheet.create({
     borderRadius: radius.r2,
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.bgElevated,
     padding: spacing.sp2 + 2,
     gap: 3,
   },
   turnBtnActive: {
     borderColor: colors.borderGold,
-    backgroundColor: 'rgba(212,168,67,0.10)',
+    backgroundColor: 'rgba(198,168,74,0.10)',
   },
 
   arcRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
   chronicleHeadline: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary, lineHeight: 18 },
 
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,10,15,0.55)' },
+  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(30,42,56,0.65)' },
   modalContent: {
     width: '100%',
     maxWidth: 480,

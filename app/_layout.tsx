@@ -1,4 +1,4 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import {
   PlayfairDisplay_400Regular,
   PlayfairDisplay_400Regular_Italic,
@@ -48,10 +48,10 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   const theme = {
-    ...DarkTheme,
+    ...DefaultTheme,
     colors: {
-      ...DarkTheme.colors,
-      primary:      tokens.goldMid,
+      ...DefaultTheme.colors,
+      primary:      tokens.ctaBlue,
       background:   tokens.bgPrimary,
       card:         tokens.bgSurface,
       text:         tokens.textPrimary,
@@ -69,7 +69,7 @@ export default function RootLayout() {
           <Stack.Screen name="modal"         options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
       </GameProvider>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }

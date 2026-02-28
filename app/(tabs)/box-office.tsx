@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 120, gap: 12 },
   title: { color: tokens.textPrimary, fontSize: 30, fontWeight: '700' },
   subtitle: { color: tokens.textSecondary, marginTop: -2, fontSize: 13 },
-  message: { color: tokens.accentTeal, fontSize: 13 },
+  message: { color: tokens.accentGreen, fontSize: 13 },
   headerRow: {
     borderRadius: 10,
     borderWidth: 1,
@@ -138,6 +138,6 @@ const styles = StyleSheet.create({
   body: { color: tokens.textSecondary, fontSize: 12, flex: 1 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 12, fontWeight: '700', flex: 1 },
   meta: { color: tokens.textMuted, fontSize: 12 },
-  positive: { color: tokens.accentTeal },
+  positive: { color: tokens.accentGreen },
   negative: { color: tokens.accentRed },
 });

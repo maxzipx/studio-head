@@ -22,7 +22,7 @@ export function ProjectReleasePerformanceCard({
   if (project.phase !== 'released') return null;
 
   return (
-    <GlassCard variant="gold">
+    <GlassCard variant="champagne">
       <SectionLabel label="Release Performance" />
       {releaseReport ? (
         <View style={styles.outcomeRow}>
@@ -63,7 +63,7 @@ export function ProjectReleasePerformanceCard({
               </Text>
               <ProgressBar
                 value={50 + Math.max(-50, Math.min(50, val))}
-                color={val >= 0 ? colors.accentTeal : colors.accentRed}
+                color={val >= 0 ? colors.accentGreen : colors.accentRed}
                 height={6}
               />
             </View>

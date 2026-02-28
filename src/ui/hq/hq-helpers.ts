@@ -40,9 +40,9 @@ export function splashToneToOutcome(tone: ReleaseSplashTone): OutcomeType {
 }
 
 export function splashGradientColor(tone: ReleaseSplashTone): string {
-  if (tone === 'blockbuster' || tone === 'record') return colors.accentGreen + '30';
-  if (tone === 'flop') return colors.accentRed + '30';
-  return '#6FAEEA30';
+  if (tone === 'blockbuster' || tone === 'record') return 'rgba(31,169,113,0.18)';
+  if (tone === 'flop') return 'rgba(217,83,79,0.15)';
+  return 'rgba(47,111,237,0.15)';
 }
 
 export const TIER_LABELS: Record<string, string> = {
@@ -100,6 +100,6 @@ export function stanceLabel(value: string): string {
 export function stanceColor(value: string): string {
   if (value === 'hostile') return colors.accentRed;
   if (value === 'competitive') return colors.goldMid;
-  if (value === 'respectful') return colors.accentTeal;
+  if (value === 'respectful') return colors.accentGreen;
   return colors.textMuted;
 }
