@@ -197,7 +197,7 @@ export default function HQScreen() {
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
       <ScrollView contentContainerStyle={styles.content}>
 
-      {/* â”€â”€ Header â”€â”€ */}
+      {/* Header */}
       <View style={styles.header}>
         <LinearGradient
           colors={[colors.navyPrimary + '14', 'transparent']}
@@ -205,20 +205,20 @@ export default function HQScreen() {
           pointerEvents="none"
         />
         <Text style={styles.studioName}>{manager.studioName}</Text>
-        <Text style={styles.weekLine}>Week {manager.currentWeek} Â· {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
+        <Text style={styles.weekLine}>Week {manager.currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
       </View>
 
-      {/* â”€â”€ Getting Started â€” always at top when visible â”€â”€ */}
+      {/* Getting Started - always at top when visible */}
       {!manager.firstSessionComplete && (
         <GlassCard variant="blue">
           <SectionLabel label="Getting Started" />
           {[
-            'Inbox decisions expire â€” resolve them within the listed weeks or lose the opportunity.',
-            'Projects need a Director + Lead Actor + Script Quality â‰¥ 6.0 to advance to Pre-Production.',
+            'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
+            'Projects need a Director + Lead Actor + Script Quality >= 6.0 to advance to Pre-Production.',
             'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
             'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
           ].map((tip, i) => (
-            <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>Â· {tip}</Text>
+            <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>- {tip}</Text>
           ))}
         </GlassCard>
       )}
@@ -229,7 +229,7 @@ export default function HQScreen() {
         </GlassCard>
       ) : null}
 
-      {/* â”€â”€ Game Over â”€â”€ */}
+      {/* Game Over */}
       {isGameOver && (
         <GlassCard variant="red">
           <SectionLabel label="Game Over" />
@@ -239,7 +239,7 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* â”€â”€ Weekly Status â”€â”€ */}
+      {/* Weekly Status */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Weekly Status" />
         <View style={styles.statusRow}>
@@ -280,13 +280,13 @@ export default function HQScreen() {
         )}
         {hasLowCashWarning && (
           <Text style={styles.alert}>
-            âš  Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
+            WARNING: Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
             {hasUrgentLowCashWarning ? ' Emergency action required.' : ''}
           </Text>
         )}
       </GlassCard>
 
-      {/* â”€â”€ Studio Standing â”€â”€ */}
+      {/* Studio Standing */}
       <GlassCard variant={manager.studioHeat >= 70 ? 'gold' : 'default'}>
         <View style={styles.standingHeader}>
           <View style={{ flex: 1 }}>
@@ -309,7 +309,7 @@ export default function HQScreen() {
         <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
       </GlassCard>
 
-      {/* â”€â”€ Blocking Crises (always visible - urgent) â”€â”€ */}
+      {/* Blocking Crises (always visible - urgent) */}
       {manager.pendingCrises.length > 0 && (
         <GlassCard variant="red">
           <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
@@ -340,7 +340,7 @@ export default function HQScreen() {
         </GlassCard>
       )}
 
-      {/* â”€â”€ Decision Inbox (always visible) â”€â”€ */}
+      {/* Decision Inbox (always visible) */}
       <GlassCard style={{ gap: spacing.sp2 }}>
         <SectionLabel label="Decision Inbox" />
         {manager.decisionQueue.length === 0
@@ -378,11 +378,9 @@ export default function HQScreen() {
         }
       </GlassCard>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          COLLAPSIBLE SECTIONS
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* COLLAPSIBLE SECTIONS */}
 
-      {/* â”€â”€ Operations (grouped collapsible) â”€â”€ */}
+      {/* Operations (grouped collapsible) */}
       <CollapsibleCard
         title="Operations"
         badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
@@ -470,7 +468,7 @@ export default function HQScreen() {
 
           <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
           <Text style={styles.muted}>
-            Development L{manager.departmentLevels.development} Â· Production L{manager.departmentLevels.production} Â· Distribution L{manager.departmentLevels.distribution}
+            Development L{manager.departmentLevels.development} | Production L{manager.departmentLevels.production} | Distribution L{manager.departmentLevels.distribution}
           </Text>
           <View style={styles.actionsRow}>
             <PremiumButton label="Invest Dev"  onPress={() => investDepartment('development')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
@@ -531,7 +529,7 @@ export default function HQScreen() {
         </View>
       </CollapsibleCard>
 
-      {/* â”€â”€ Story Arcs â”€â”€ */}
+      {/* Story Arcs */}
       <CollapsibleCard
         title="Story Arcs"
         badge={activeArcCount > 0 ? `${activeArcCount} Active` : undefined}
@@ -550,48 +548,48 @@ export default function HQScreen() {
                     <Text style={[styles.arcStatus, { color: arcColor }]}>{arc.status.toUpperCase()}</Text>
                   </View>
                 </View>
-                <Text style={styles.muted}>Stage {arc.stage} Â· Last updated W{arc.lastUpdatedWeek}</Text>
+                <Text style={styles.muted}>Stage {arc.stage} | Last updated W{arc.lastUpdatedWeek}</Text>
               </GlassCard>
             );
           })
         }
       </CollapsibleCard>
 
-      {/* â”€â”€ Last Week Summary â”€â”€ */}
+      {/* Last Week Summary */}
       {manager.lastWeekSummary && (
         <CollapsibleCard title="Last Week Summary" defaultOpen>
           <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentGreen : colors.accentRed }]}>
             Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
           </Text>
           {manager.lastWeekSummary.events.map((event) => (
-            <Text key={event} style={styles.muted}>Â· {event}</Text>
+            <Text key={event} style={styles.muted}>- {event}</Text>
           ))}
         </CollapsibleCard>
       )}
 
-      {/* â”€â”€ Genre Cycles â”€â”€ */}
+      {/* Genre Cycles */}
       <CollapsibleCard title="Genre Cycles">
-        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>â†‘ Heating</Text>
+        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>Up Heating</Text>
         {hotGenres.map((entry) => (
           <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
             <Text style={[styles.muted, { color: colors.accentGreen }]}>
-              {entry.demand.toFixed(2)}Ã— ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+              {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
             </Text>
           </View>
         ))}
-        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>â†“ Cooling</Text>
+        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>Down Cooling</Text>
         {coolGenres.map((entry) => (
           <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
             <Text style={[styles.muted, { color: colors.accentRed }]}>
-              {entry.demand.toFixed(2)}Ã— ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+              {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
             </Text>
           </View>
         ))}
       </CollapsibleCard>
 
-      {/* â”€â”€ Industry Heat Leaderboard â”€â”€ */}
+      {/* Industry Heat Leaderboard */}
       <CollapsibleCard title="Industry Leaderboard">
         {leaderboard.map((entry, index) => (
           <View key={entry.name} style={styles.leaderRow}>
@@ -605,7 +603,7 @@ export default function HQScreen() {
         ))}
       </CollapsibleCard>
 
-      {/* â”€â”€ Rival Relations â”€â”€ */}
+      {/* Rival Relations */}
       <CollapsibleCard title="Rival Relations">
         {rivalRelations.map((rival) => {
           const stance = manager.getRivalStance(rival);
@@ -613,14 +611,14 @@ export default function HQScreen() {
             <View key={rival.id} style={styles.leaderRow}>
               <Text style={styles.body}>{rival.name}</Text>
               <Text style={[styles.muted, { color: stanceColor(stance) }]}>
-                {stanceLabel(stance)} Â· H{rival.memory.hostility}/R{rival.memory.respect}
+                {stanceLabel(stance)} | H{rival.memory.hostility}/R{rival.memory.respect}
               </Text>
             </View>
           );
         })}
       </CollapsibleCard>
 
-      {/* â”€â”€ Awards Pulse â”€â”€ */}
+      {/* Awards Pulse */}
       <CollapsibleCard title="Awards Pulse">
         <Text style={styles.body}>Next awards week: <Text style={{ color: colors.goldMid }}>W{nextAwardsWeek}</Text></Text>
         {lastAwards ? (
@@ -637,7 +635,7 @@ export default function HQScreen() {
         )}
       </CollapsibleCard>
 
-      {/* â”€â”€ Milestones â”€â”€ */}
+      {/* Milestones */}
       <CollapsibleCard
         title="Milestones"
         badge={milestones.length > 0 ? `${milestones.length}` : undefined}
@@ -647,20 +645,20 @@ export default function HQScreen() {
           ? <Text style={styles.muted}>No milestones unlocked yet.</Text>
           : milestones.map((milestone) => (
             <View key={`${milestone.id}-${milestone.unlockedWeek}`} style={styles.leaderRow}>
-              <Text style={styles.bodyStrong}>ðŸ… {milestone.title}</Text>
+              <Text style={styles.bodyStrong}>[Milestone] {milestone.title}</Text>
               <Text style={styles.muted}>W{milestone.unlockedWeek}</Text>
             </View>
           ))
         }
       </CollapsibleCard>
 
-      {/* â”€â”€ Studio Chronicle â”€â”€ */}
+      {/* Studio Chronicle */}
       <CollapsibleCard title="Studio Chronicle">
         {chronicle.length === 0
           ? <Text style={styles.muted}>No defining moments yet.</Text>
           : chronicle.map((entry) => (
             <View key={entry.id} style={styles.chronicleEntry}>
-              <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? 'Â·'}</Text>
+              <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? '.'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[
                   styles.chronicleHeadline,
@@ -676,7 +674,7 @@ export default function HQScreen() {
         }
       </CollapsibleCard>
 
-      {/* â”€â”€ Industry News â”€â”€ */}
+      {/* Industry News */}
       <CollapsibleCard title="Industry News">
         {news.length === 0
           ? <Text style={styles.muted}>No major rival movement yet.</Text>
@@ -686,7 +684,7 @@ export default function HQScreen() {
         }
       </CollapsibleCard>
 
-      {/* â”€â”€ Actions â”€â”€ */}
+      {/* Actions */}
       {confirmNewRun ? (
         <GlassCard variant="red">
           <SectionLabel label="Confirm New Run" />
@@ -746,7 +744,7 @@ export default function HQScreen() {
         fullWidth
       />
 
-      {/* â”€â”€ Release Reveal Modal â”€â”€ */}
+      {/* Release Reveal Modal */}
       <ReleaseRevealModal
         reveal={reveal}
         isFinalReveal={isFinalReveal}
