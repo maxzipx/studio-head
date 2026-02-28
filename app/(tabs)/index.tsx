@@ -49,6 +49,7 @@ export default function HQScreen() {
     investDepartment,
     signExclusivePartner,
     poachExecutiveTeam,
+    startNewRun,
     lastMessage,
   } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
@@ -68,6 +69,7 @@ export default function HQScreen() {
       investDepartment: state.investDepartment,
       signExclusivePartner: state.signExclusivePartner,
       poachExecutiveTeam: state.poachExecutiveTeam,
+      startNewRun: state.startNewRun,
       lastMessage: state.lastMessage,
       statusSignature:
         `${mgr.currentWeek}:${mgr.turnLengthWeeks}:${mgr.canEndWeek ? 1 : 0}:${mgr.cash}:${mgr.studioHeat}:` +
@@ -182,6 +184,7 @@ export default function HQScreen() {
     .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
     .slice(0, 4);
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
+  const [confirmNewRun, setConfirmNewRun] = useState(false);
 
   useEffect(() => {
     setStudioNameDraft(manager.studioName);
@@ -684,6 +687,40 @@ export default function HQScreen() {
       </CollapsibleCard>
 
       {/* â”€â”€ Actions â”€â”€ */}
+      {confirmNewRun ? (
+        <GlassCard variant="red">
+          <SectionLabel label="Confirm New Run" />
+          <Text style={styles.body}>This resets your current studio and starts a fresh game.</Text>
+          <View style={styles.actionsRow}>
+            <PremiumButton
+              label="Confirm New Run"
+              onPress={() => {
+                setConfirmNewRun(false);
+                startNewRun();
+              }}
+              variant="danger"
+              size="sm"
+              style={styles.flexBtn}
+            />
+            <PremiumButton
+              label="Cancel"
+              onPress={() => setConfirmNewRun(false)}
+              variant="secondary"
+              size="sm"
+              style={styles.flexBtn}
+            />
+          </View>
+        </GlassCard>
+      ) : (
+        <PremiumButton
+          label="Start New Run"
+          onPress={() => setConfirmNewRun(true)}
+          variant="ghost"
+          size="sm"
+          fullWidth
+        />
+      )}
+
       <PremiumButton
         label="Run Optional Action (+Hype)"
         onPress={runOptionalAction}

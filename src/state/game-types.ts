@@ -47,6 +47,7 @@ export interface GameContextValue {
   investDepartment: (track: DepartmentTrack) => void;
   signExclusivePartner: (partner: string) => void;
   poachExecutiveTeam: () => void;
+  startNewRun: () => void;
 }
 
 export type GameActionKeys = Exclude<keyof GameContextValue, 'manager' | 'tick' | 'lastMessage'>;

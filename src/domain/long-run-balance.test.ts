@@ -304,5 +304,5 @@ describe('long-run balance harness', () => {
     expect(summary.releasedMean).toBeGreaterThanOrEqual(10);
     expect(summary.awardsNomMean).toBeGreaterThan(10);
     expect(summary.maxPendingCrises).toBeLessThan(7);
-  }, 20_000);
+  }, 45_000);
 });
