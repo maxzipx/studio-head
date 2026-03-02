@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -37,7 +37,7 @@ function phaseLabel(phase: string): string {
 }
 
 function roleLabel(value: string): string {
-  if (value === 'leadActor') return 'Lead Actor';
+  if (value === 'leadActor') return 'Actor';
   if (value === 'supportingActor') return 'Supporting Actor';
   return value;
 }
@@ -205,13 +205,13 @@ export default function TalentScreen() {
           variant="ghost"
           size="sm"
         />
-        <View style={styles.topControls}>
-          <PremiumButton
-            label={showOpsPanels ? 'Hide Ops Panels' : 'Show Ops Panels'}
-            onPress={() => setShowOpsPanels((v) => !v)}
-            variant="secondary"
-            size="sm"
-            style={styles.controlBtn}
+        <View style={styles.displayRow}>
+          <Text style={styles.displayLabel}>Show advanced ops panels</Text>
+          <Switch
+            value={showOpsPanels}
+            onValueChange={setShowOpsPanels}
+            trackColor={{ false: colors.borderDefault, true: colors.ctaBlue + '70' }}
+            thumbColor={showOpsPanels ? colors.ctaBlue : colors.bgSurface}
           />
         </View>
         {showHelp && (
@@ -231,14 +231,14 @@ export default function TalentScreen() {
 
         {/* ── Market Snapshot ── */}
         <GlassCard>
-          <SectionLabel label="Market Snapshot" />
+          <SectionLabel label="Talent Market Snapshot" />
           <View style={styles.snapshotRow}>
             {[
               { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
               { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
-              { label: 'Negotiations', value: manager.playerNegotiations.length, accent: colors.goldMid },
-              { label: 'Rival Lock', value: rivalLockedCount, accent: colors.accentRed },
-              { label: 'Cooling Off', value: coolingOffCount, accent: colors.textMuted },
+              { label: 'Deals', value: manager.playerNegotiations.length, accent: colors.goldMid },
+              { label: 'Rivals', value: rivalLockedCount, accent: colors.accentRed },
+              { label: 'Cooldown', value: coolingOffCount, accent: colors.textMuted },
             ].map(({ label, value, accent }) => (
               <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
                 <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
@@ -650,13 +650,29 @@ const styles = StyleSheet.create({
 
   helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
   helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
-  topControls: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap' },
-  controlBtn: { flexBasis: '48%', flexGrow: 0 },
+  displayRow: {
+    marginTop: spacing.sp1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: radius.r2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: spacing.sp3,
+    paddingVertical: spacing.sp2,
+  },
+  displayLabel: {
+    fontFamily: typography.fontBodySemiBold,
+    fontSize: typography.sizeXS,
+    color: colors.textSecondary,
+    letterSpacing: typography.trackingNormal,
+  },
 
   snapshotRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
-  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
+  snapshotTile: { flexBasis: '31%', minWidth: 92, alignItems: 'center', paddingVertical: spacing.sp2, paddingHorizontal: spacing.sp1 },
   snapshotValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeLG, letterSpacing: typography.trackingTight },
-  snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
+  snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: typography.trackingWide, textAlign: 'center' },
 
   targetRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
 
