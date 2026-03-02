@@ -9,21 +9,23 @@ function money(amount: number): string {
 }
 
 export default function InboxScreen() {
-  const { manager, resolveCrisis, resolveDecision } = useGameStore(useShallow((state) => {
+  const { manager, resolveCrisis, resolveDecision, dismissInboxNotification } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
       resolveCrisis: state.resolveCrisis,
       resolveDecision: state.resolveDecision,
+      dismissInboxNotification: state.dismissInboxNotification,
       crisesSignature: mgr.pendingCrises.map(c => c.id).join('|'),
       decisionsSignature: mgr.decisionQueue.map(d => d.id).join('|'),
+      inboxSignature: mgr.inboxNotifications.map((item) => item.id).join('|'),
       projectsSignature: mgr.activeProjects.map(p => p.id).join('|'),
     };
   }));
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Decision Inbox</Text>
+      <Text style={styles.title}>Inbox</Text>
       <Text style={styles.subtitle}>Crises block week advancement until resolved</Text>
 
       {manager.pendingCrises.map((crisis) => (
@@ -65,10 +67,23 @@ export default function InboxScreen() {
         </View>
       ))}
 
-      {manager.pendingCrises.length === 0 && manager.decisionQueue.length === 0 ? (
+      {manager.inboxNotifications.map((item) => (
+        <View key={item.id} style={styles.card}>
+          <Text style={styles.scope}>
+            Scope: {item.projectId ? manager.activeProjects.find((project) => project.id === item.projectId)?.title ?? 'Unknown project' : 'Studio-wide'}
+          </Text>
+          <Text style={styles.decisionTitle}>{item.title}</Text>
+          <Text style={styles.body}>{item.body}</Text>
+          <Pressable style={styles.button} onPress={() => dismissInboxNotification(item.id)}>
+            <Text style={styles.buttonTitle}>Dismiss</Text>
+          </Pressable>
+        </View>
+      ))}
+
+      {manager.pendingCrises.length === 0 && manager.decisionQueue.length === 0 && manager.inboxNotifications.length === 0 ? (
         <View style={styles.card}>
           <Text style={styles.decisionTitle}>Inbox clear</Text>
-          <Text style={styles.body}>No blocking crises and no active decisions this week.</Text>
+          <Text style={styles.body}>No blocking crises, updates, or active decisions this week.</Text>
         </View>
       ) : null}
     </ScrollView>

@@ -36,6 +36,7 @@ export default function HQScreen() {
   const {
     manager,
     dismissReleaseReveal,
+    dismissInboxNotification,
     endWeek,
     advanceToNextDecision,
     setTurnLength,
@@ -56,6 +57,7 @@ export default function HQScreen() {
     return {
       manager: mgr,
       dismissReleaseReveal: state.dismissReleaseReveal,
+      dismissInboxNotification: state.dismissInboxNotification,
       endWeek: state.endWeek,
       advanceToNextDecision: state.advanceToNextDecision,
       setTurnLength: state.setTurnLength,
@@ -133,6 +135,7 @@ export default function HQScreen() {
         .map((r) => `${r.projectId}:${r.weekResolved}:${r.roi}:${r.outcome}`)
         .join('|')}`,
       availabilitySignature: `${mgr.firstSessionComplete ? 1 : 0}:${mgr.getActiveExclusivePartner() ?? 'none'}:${mgr.exclusivePartnerUntilWeek ?? -1}`,
+      inboxSignature: mgr.inboxNotifications.map((entry) => `${entry.id}:${entry.week}:${entry.kind}`).join('|'),
     };
   }));
 
@@ -330,9 +333,9 @@ export default function HQScreen() {
           <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
         </GlassCard>
 
-        {/* Decision Inbox (always visible, crises first) */}
+        {/* Inbox (always visible, crises first) */}
         <GlassCard style={{ gap: spacing.sp2 }}>
-          <SectionLabel label="Decision Inbox" />
+          <SectionLabel label="Inbox" />
           {manager.pendingCrises.length > 0 && (
             <Text style={[styles.muted, { color: colors.accentRed }]}>
               {manager.pendingCrises.length} blocking crisis{manager.pendingCrises.length === 1 ? '' : 'es'} must be resolved before End Turn.
@@ -365,6 +368,29 @@ export default function HQScreen() {
                   </Pressable>
                 ))}
               </View>
+              </GlassCard>
+            ))}
+          {manager.inboxNotifications.map((item) => (
+            <GlassCard key={item.id} variant="elevated" accentBorder={colors.ctaBlue} style={{ gap: spacing.sp2 }}>
+              <View style={styles.inboxHeader}>
+                <Text style={styles.muted}>
+                  {item.projectId
+                    ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown Project'
+                    : 'Studio-wide'}
+                </Text>
+                <View style={[styles.expiryPill, { borderColor: colors.borderBlue }]}>
+                  <Text style={[styles.expiryText, { color: colors.ctaBlue }]}>UPDATE</Text>
+                </View>
+              </View>
+              <Text style={styles.bodyStrong}>{item.title}</Text>
+              <Text style={styles.body}>{item.body}</Text>
+              <PremiumButton
+                label="Dismiss"
+                onPress={() => dismissInboxNotification(item.id)}
+                variant="secondary"
+                size="sm"
+                style={styles.choiceBtn}
+              />
             </GlassCard>
           ))}
           {manager.decisionQueue.map((item) => (
@@ -397,8 +423,8 @@ export default function HQScreen() {
                 </View>
               </GlassCard>
             ))}
-          {manager.pendingCrises.length === 0 && manager.decisionQueue.length === 0
-            ? <Text style={styles.muted}>Inbox clear. No active crises or decisions.</Text>
+          {manager.pendingCrises.length === 0 && manager.inboxNotifications.length === 0 && manager.decisionQueue.length === 0
+            ? <Text style={styles.muted}>Inbox clear. No active crises, updates, or decisions.</Text>
             : null}
         </GlassCard>
 
