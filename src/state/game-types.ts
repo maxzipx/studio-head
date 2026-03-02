@@ -1,5 +1,5 @@
-import type { DepartmentTrack, FranchiseStrategy, NegotiationAction, StudioSpecialization } from '@/src/domain/types';
-import { StudioManager } from '@/src/domain/studio-manager';
+import type { DepartmentTrack, FranchiseStrategy, NegotiationAction, StudioSpecialization } from '../domain/types';
+import { StudioManager } from '../domain/studio-manager';
 
 type SelectableFranchiseStrategy = Exclude<FranchiseStrategy, 'none'>;
 

@@ -21,6 +21,18 @@ describe('persistence restore', () => {
     expect(Object.hasOwn(serialized, 'rivalRng')).toBe(false);
   });
 
+  it('serializes only explicit schema keys and drops unknown dynamic fields', () => {
+    const manager = new StudioManager();
+    (manager as unknown as Record<string, unknown>).unknownExperimentalField = { enabled: true };
+
+    const serialized = serializeStudioManager(manager);
+
+    expect(Object.hasOwn(serialized, 'unknownExperimentalField')).toBe(false);
+    expect(Object.hasOwn(serialized, 'marketInitialized')).toBe(true);
+    expect(Object.hasOwn(serialized, 'marketDirectorIdx')).toBe(true);
+    expect(Object.hasOwn(serialized, 'marketActorIdx')).toBe(true);
+  });
+
   it('stores lastEventWeek map as serializable entries', () => {
     const manager = new StudioManager();
     const lastEventWeek = (manager as unknown as { lastEventWeek: Map<string, number> }).lastEventWeek;
@@ -213,5 +225,21 @@ describe('persistence restore', () => {
 
     expect(restored.scriptMarket.length).toBeLessThanOrEqual(4);
     expect(visibleTalent.length).toBeGreaterThan(0);
+  });
+
+  it('round-trips market cursor fields through restore', () => {
+    const manager = new StudioManager();
+    manager.marketInitialized = true;
+    manager.lastMarketBurstWeek = 14;
+    manager.marketDirectorIdx = 7;
+    manager.marketActorIdx = 11;
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.marketInitialized).toBe(true);
+    expect(restored.lastMarketBurstWeek).toBe(14);
+    expect(restored.marketDirectorIdx).toBe(7);
+    expect(restored.marketActorIdx).toBe(11);
   });
 });

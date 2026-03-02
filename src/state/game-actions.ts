@@ -1,4 +1,4 @@
-import { StudioManager } from '@/src/domain/studio-manager';
+import { StudioManager } from '../domain/studio-manager';
 
 import type { GameActions } from './game-types';
 

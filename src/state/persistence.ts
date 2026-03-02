@@ -10,6 +10,7 @@ const SAVE_VERSION = 1;
 
 interface StoredManager extends Record<string, unknown> {
   lastEventWeek?: [string, number][];
+  studioHeat?: number;
 }
 
 interface SaveEnvelope {
@@ -78,6 +79,13 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Number.isFinite(manager.exclusivePartnerUntilWeek)) manager.exclusivePartnerUntilWeek = null;
   if (!Number.isFinite(manager.executiveNetworkLevel)) manager.executiveNetworkLevel = 0;
   manager.executiveNetworkLevel = Math.max(0, Math.min(3, Math.round(manager.executiveNetworkLevel)));
+  if (typeof manager.marketInitialized !== 'boolean') manager.marketInitialized = false;
+  if (!Number.isFinite(manager.lastMarketBurstWeek)) manager.lastMarketBurstWeek = 0;
+  manager.lastMarketBurstWeek = Math.max(0, Math.round(manager.lastMarketBurstWeek));
+  if (!Number.isFinite(manager.marketDirectorIdx)) manager.marketDirectorIdx = 0;
+  manager.marketDirectorIdx = Math.max(0, Math.round(manager.marketDirectorIdx));
+  if (!Number.isFinite(manager.marketActorIdx)) manager.marketActorIdx = 0;
+  manager.marketActorIdx = Math.max(0, Math.round(manager.marketActorIdx));
 
   if (!isRecord(manager.reputation)) {
     manager.reputation = {
@@ -548,23 +556,63 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
 }
 
-const SERIALIZE_BLOCKED_KEYS = new Set([
-  'crisisRng',
-  'eventRng',
-  'negotiationRng',
-  'rivalRng',
-  'eventDeck',
-  'lastEventWeek',
-  'studioHeat',
-  'studioTier',
-  'legacyScore',
-]);
+const SERIALIZE_MANAGER_KEYS = [
+  'studioName',
+  'cash',
+  'reputation',
+  'isBankrupt',
+  'bankruptcyReason',
+  'consecutiveLowCashWeeks',
+  'firstSessionComplete',
+  'currentWeek',
+  'turnLengthWeeks',
+  'pendingCrises',
+  'distributionOffers',
+  'pendingReleaseReveals',
+  'decisionQueue',
+  'inboxNotifications',
+  'activeProjects',
+  'franchises',
+  'talentSeed',
+  'talentPool',
+  'scriptMarket',
+  'rivals',
+  'industryNewsLog',
+  'playerNegotiations',
+  'storyFlags',
+  'storyArcs',
+  'recentDecisionCategories',
+  'lastWeekSummary',
+  'awardsHistory',
+  'awardsSeasonsProcessed',
+  'genreCycles',
+  'studioChronicle',
+  'releaseReports',
+  'pendingFinalReleaseReveals',
+  'milestones',
+  'lifetimeRevenue',
+  'lifetimeProfit',
+  'lifetimeExpenses',
+  'marketingTeamLevel',
+  'ownedIps',
+  'studioCapacityUpgrades',
+  'studioSpecialization',
+  'specializationCommittedWeek',
+  'departmentLevels',
+  'exclusiveDistributionPartner',
+  'exclusivePartnerUntilWeek',
+  'executiveNetworkLevel',
+  'marketInitialized',
+  'lastMarketBurstWeek',
+  'marketDirectorIdx',
+  'marketActorIdx',
+] as const;
 
 export function serializeStudioManager(manager: StudioManager): StoredManager {
   const serialized: StoredManager = {};
-  for (const [key, value] of Object.entries(manager as unknown as Record<string, unknown>)) {
-    if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
-    serialized[key] = value;
+  const source = manager as unknown as Record<string, unknown>;
+  for (const key of SERIALIZE_MANAGER_KEYS) {
+    serialized[key] = source[key];
   }
 
   const sourceLastEventWeek = (manager as unknown as { lastEventWeek?: unknown }).lastEventWeek;
@@ -579,9 +627,11 @@ export function serializeStudioManager(manager: StudioManager): StoredManager {
 
 export function restoreStudioManager(input: StoredManager): StudioManager {
   const manager = new StudioManager();
-  for (const [key, value] of Object.entries(input)) {
-    if (SERIALIZE_BLOCKED_KEYS.has(key)) continue;
-    (manager as unknown as Record<string, unknown>)[key] = value;
+  const target = manager as unknown as Record<string, unknown>;
+  for (const key of SERIALIZE_MANAGER_KEYS) {
+    if (Object.hasOwn(input, key)) {
+      target[key] = input[key];
+    }
   }
 
   // Migrate old saves that had studioHeat but no reputation
@@ -627,6 +677,10 @@ export async function loadManagerFromStorage(): Promise<StudioManager | null> {
 
 export async function saveManagerToStorage(manager: StudioManager): Promise<void> {
   const serializedManager = serializeStudioManager(manager);
+  await saveSerializedManagerToStorage(serializedManager);
+}
+
+export async function saveSerializedManagerToStorage(serializedManager: StoredManager): Promise<void> {
   const envelope: SaveEnvelope = {
     version: SAVE_VERSION,
     savedAt: new Date().toISOString(),

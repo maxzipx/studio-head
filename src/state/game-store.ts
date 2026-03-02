@@ -1,8 +1,12 @@
 import { createStore } from 'zustand';
-import { StudioManager } from '@/src/domain/studio-manager';
-import { loadManagerFromStorage, saveManagerToStorage } from '@/src/state/persistence';
-import { buildGameActions } from '@/src/state/game-actions';
-import type { GameActions } from '@/src/state/game-types';
+import { StudioManager } from '../domain/studio-manager';
+import {
+    loadManagerFromStorage,
+    saveSerializedManagerToStorage,
+    serializeStudioManager
+} from './persistence';
+import { buildGameActions } from './game-actions';
+import type { GameActions } from './game-types';
 
 export interface GameState extends GameActions {
     manager: StudioManager;
@@ -23,6 +27,37 @@ export const createGameStore = () => {
     return createStore<GameState>()((set, get) => {
         const freshTalentSeed = Math.floor(Math.random() * 2_147_483_647);
         const manager = new StudioManager({ talentSeed: freshTalentSeed });
+        let queuedSnapshot: ReturnType<typeof serializeStudioManager> | null = null;
+        let queuedSaveId = 0;
+        let saveWorkerRunning = false;
+
+        const drainSaveQueue = () => {
+            if (saveWorkerRunning) return;
+            saveWorkerRunning = true;
+
+            void (async () => {
+                while (queuedSnapshot) {
+                    const snapshot = queuedSnapshot;
+                    const snapshotId = queuedSaveId;
+                    queuedSnapshot = null;
+                    try {
+                        await saveSerializedManagerToStorage(snapshot);
+                        if (snapshotId === queuedSaveId) {
+                            set({ hasSaveFailure: false });
+                        }
+                    } catch {
+                        if (snapshotId === queuedSaveId) {
+                            set({ hasSaveFailure: true, lastMessage: AUTOSAVE_WARNING });
+                        }
+                    }
+                }
+                saveWorkerRunning = false;
+                // If a new snapshot arrived between loop exit and flag reset, restart worker.
+                if (queuedSnapshot) {
+                    drainSaveQueue();
+                }
+            })();
+        };
 
         const _saveAndTick = (message?: string) => {
             const state = get();
@@ -43,13 +78,9 @@ export const createGameStore = () => {
 
             set({ tick: state.tick + 1, lastMessage: nextMessage });
 
-            void saveManagerToStorage(currentManager)
-                .then(() => {
-                    set({ hasSaveFailure: false });
-                })
-                .catch(() => {
-                    set({ hasSaveFailure: true, lastMessage: AUTOSAVE_WARNING });
-                });
+            queuedSnapshot = serializeStudioManager(currentManager);
+            queuedSaveId += 1;
+            drainSaveQueue();
         };
 
         const _runWhenHydrated = (action: () => void, options?: { allowWhenBankrupt?: boolean }) => {
