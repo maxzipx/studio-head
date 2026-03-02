@@ -254,7 +254,7 @@ export default function TalentScreen() {
           </GlassCard>
         ) : null}
 
-        {/* ── Help ── */}
+        {/* â”€â”€ Help â”€â”€ */}
         <PremiumButton
           label={showHelp ? 'Hide Help' : 'Show Help'}
           onPress={() => setShowHelp((v) => !v)}
@@ -276,7 +276,7 @@ export default function TalentScreen() {
           </GlassCard>
         )}
 
-        {/* ── Market Snapshot ── */}
+        {/* â”€â”€ Market Snapshot â”€â”€ */}
         <GlassCard>
           <SectionLabel label="Talent Market Snapshot" />
           <View style={styles.snapshotRow}>
@@ -295,7 +295,7 @@ export default function TalentScreen() {
           </View>
         </GlassCard>
 
-        {/* ── Development Targets ── */}
+        {/* â”€â”€ Development Targets â”€â”€ */}
         <GlassCard>
           <SectionLabel label="Development Targets" />
           {developmentProjects.length === 0
@@ -314,12 +314,12 @@ export default function TalentScreen() {
           }
         </GlassCard>
 
-        {/* ── Active Target ── */}
+        {/* â”€â”€ Active Target â”€â”€ */}
         {activeProject && (
           <GlassCard variant="gold">
             <SectionLabel label="Active Target" />
             <Text style={styles.activeTitle}>{activeProject.title}</Text>
-            <Text style={styles.body}>{capitalized(activeProject.genre)} · {phaseLabel(activeProject.phase)}</Text>
+            <Text style={styles.body}>{capitalized(activeProject.genre)} Â· {phaseLabel(activeProject.phase)}</Text>
             <Text style={styles.muted}>
               Director:{' '}
               {activeProject.directorId
@@ -350,7 +350,7 @@ export default function TalentScreen() {
 
         {showOpsPanels && (
           <>
-            {/* ── Project Ledger ── */}
+            {/* â”€â”€ Project Ledger â”€â”€ */}
             <GlassCard>
               <SectionLabel label="Project Ledger" />
               {projectLedger.length === 0
@@ -365,7 +365,7 @@ export default function TalentScreen() {
                   return (
                     <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
                       <Text style={styles.subTitle}>{project.title}</Text>
-                      <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
+                      <Text style={styles.muted}>{capitalized(project.genre)} Â· {phaseLabel(project.phase)}</Text>
                       <Text style={styles.muted}>Director: {director}</Text>
                       {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
                     </GlassCard>
@@ -377,7 +377,7 @@ export default function TalentScreen() {
           </>
         )}
 
-        {/* ── Open Negotiations ── */}
+        {/* â”€â”€ Open Negotiations â”€â”€ */}
         <GlassCard>
           <SectionLabel label="Open Negotiations" />
           <Text style={styles.muted}>Each submission spends one round. You can change only one lever per round.</Text>
@@ -395,29 +395,29 @@ export default function TalentScreen() {
                     {chance !== null && (
                       <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
                         <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
-                          {pct(chance)} · {chanceLabel(chance)}
+                          {pct(chance)} Â· {chanceLabel(chance)}
                         </Text>
                       </View>
                     )}
                   </View>
                   <Text style={styles.muted}>
-                    {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
+                    {project?.title} Â· opened W{entry.openedWeek} Â· resolves on End Turn
                   </Text>
 
                   {snapshot && (
                     <>
                       <Text style={styles.muted}>
-                        Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
+                        Rounds {snapshot.rounds}/4 Â· Pressure: {capitalized(snapshot.pressurePoint)}
                       </Text>
                       <View style={styles.offerRow}>
                         <GlassCard variant="default" style={styles.offerCol}>
                           <Text style={styles.offerLabel}>YOUR OFFER</Text>
-                          <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
+                          <Text style={styles.offerVal}>Salary {money((talent?.salary.base ?? 0) * snapshot.salaryMultiplier)}</Text>
                           <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
                         </GlassCard>
                         <GlassCard variant="default" style={styles.offerCol}>
                           <Text style={styles.offerLabel}>THEIR ASK</Text>
-                          <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
+                          <Text style={styles.offerVal}>Salary {money((talent?.salary.base ?? 0) * snapshot.demandSalaryMultiplier)}</Text>
                           <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
                         </GlassCard>
                       </View>
@@ -427,9 +427,9 @@ export default function TalentScreen() {
                       </Text>
                       <View style={styles.actions}>
                         {[
-                          { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
-                          { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
-                          { label: '+Perks', action: 'sweetenPerks', pressure: 'perks' },
+                          { label: 'Salary+', action: 'sweetenSalary', pressure: 'salary' },
+                          { label: 'Backend+', action: 'sweetenBackend', pressure: 'backend' },
+                          { label: 'Perks+', action: 'sweetenPerks', pressure: 'perks' },
                           { label: 'Hold', action: 'holdFirm', pressure: null },
                         ].map(({ label, action, pressure }) => (
                           <PremiumButton
@@ -450,7 +450,7 @@ export default function TalentScreen() {
           }
         </GlassCard>
 
-        {/* ── Directors In Market ── */}
+        {/* â”€â”€ Directors In Market â”€â”€ */}
         <View style={styles.roleHeaderDirector}>
           <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
           <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
@@ -458,7 +458,7 @@ export default function TalentScreen() {
         {marketTalent.length === 0
           ? (
             <GlassCard variant="elevated">
-              <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
+              <Text style={styles.empty}>Market is initializing â€” advance a turn to populate talent windows.</Text>
             </GlassCard>
           )
           : marketDirectors.map((talent) => (
@@ -473,7 +473,7 @@ export default function TalentScreen() {
             />
           ))}
 
-        {/* ── Actors In Market ── */}
+        {/* â”€â”€ Actors In Market â”€â”€ */}
         <View style={styles.roleHeaderActor}>
           <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
           <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
@@ -490,7 +490,7 @@ export default function TalentScreen() {
           />
         ))}
 
-        {/* ── Your Roster ── */}
+        {/* â”€â”€ Your Roster â”€â”€ */}
         {rosterTalent.length > 0 && (
           <>
             <View style={styles.roleHeaderRoster}>
@@ -530,9 +530,9 @@ export default function TalentScreen() {
 
             <View style={styles.actions}>
               {[
-                { label: '+Salary', action: 'sweetenSalary' },
-                { label: '+Backend', action: 'sweetenBackend' },
-                { label: '+Perks', action: 'sweetenPerks' },
+                { label: 'Salary+', action: 'sweetenSalary' },
+                { label: 'Backend+', action: 'sweetenBackend' },
+                { label: 'Perks+', action: 'sweetenPerks' },
                 { label: 'Hold', action: 'holdFirm' },
               ].map((item) => (
                 <PremiumButton
@@ -549,13 +549,13 @@ export default function TalentScreen() {
             {negotiationPreview?.success && negotiationPreview.preview ? (
               <GlassCard variant="default" style={{ gap: spacing.sp1 }}>
                 <Text style={styles.muted}>
-                  Offer: {negotiationPreview.preview.salaryMultiplier.toFixed(2)}× salary · {negotiationPreview.preview.backendPoints.toFixed(1)}pt backend · {money(negotiationPreview.preview.perksBudget)} perks
+                  Offer: {money((negotiationModalTalent?.salary.base ?? 0) * negotiationPreview.preview.salaryMultiplier)} salary · {negotiationPreview.preview.backendPoints.toFixed(1)}pt backend · {money(negotiationPreview.preview.perksBudget)} perks
                 </Text>
                 <Text style={[styles.bodyStrong, { color: chanceColor(negotiationPreview.preview.chance) }]}>
-                  Close chance: {pct(negotiationPreview.preview.chance)} · {chanceLabel(negotiationPreview.preview.chance)}
+                  Close chance: {pct(negotiationPreview.preview.chance)} Â· {chanceLabel(negotiationPreview.preview.chance)}
                 </Text>
                 <Text style={styles.muted}>
-                  Their ask: {negotiationPreview.preview.demandSalaryMultiplier.toFixed(2)}× salary · {negotiationPreview.preview.demandBackendPoints.toFixed(1)}pt backend · {money(negotiationPreview.preview.demandPerksBudget)} perks
+                  Their ask: {money((negotiationModalTalent?.salary.base ?? 0) * negotiationPreview.preview.demandSalaryMultiplier)} salary · {negotiationPreview.preview.demandBackendPoints.toFixed(1)}pt backend · {money(negotiationPreview.preview.demandPerksBudget)} perks
                 </Text>
                 <Text style={[styles.signal, { color: colors.goldMid }]}>{negotiationPreview.preview.signal}</Text>
               </GlassCard>
@@ -630,7 +630,7 @@ function TalentCard({ talent, manager, activeProject, openNegotiationModal, atta
       <View style={styles.talentHeader}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.talentName}>{talent.name}</Text>
-          <Text style={styles.talentRole}>{roleLabel(talent.role)} · {agencyLabel(talent.agentTier)}</Text>
+          <Text style={styles.talentRole}>{roleLabel(talent.role)} Â· {agencyLabel(talent.agentTier)}</Text>
         </View>
         <View style={styles.badgeGroup}>
           {weeksLeft !== null && (
@@ -688,7 +688,7 @@ function TalentCard({ talent, manager, activeProject, openNegotiationModal, atta
         <View style={styles.trustRow}>
           <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
             <Text style={[styles.trustText, { color: trustColor }]}>
-              {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
+              {trustLevelLabel(trustLevel)} Â· T{trust.toFixed(0)} L{loyalty.toFixed(0)}
             </Text>
           </View>
           <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
@@ -710,7 +710,7 @@ function TalentCard({ talent, manager, activeProject, openNegotiationModal, atta
         <Text style={styles.muted}>
           Fit to <Text style={{ color: colors.textPrimary }}>{activeProject.title}</Text>:{' '}
           {pct(talent.genreFit[activeProject.genre] ?? 0.5)}
-          {targetChance !== null && ` · Close ${pct(targetChance)}`}
+          {targetChance !== null && ` Â· Close ${pct(targetChance)}`}
         </Text>
       )}
 
@@ -735,14 +735,14 @@ function TalentCard({ talent, manager, activeProject, openNegotiationModal, atta
 
       {/* Rival / cooling status line */}
       {!isAvailable && rival && (
-        <Text style={styles.muted}>{rival.name} · returns W{talent.unavailableUntilWeek ?? '-'}</Text>
+        <Text style={styles.muted}>{rival.name} Â· returns W{talent.unavailableUntilWeek ?? '-'}</Text>
       )}
 
       {/* Actions */}
       {activeProject && isAvailable && (
         <View style={styles.actions}>
           <PremiumButton
-            label={`Negotiate · ${pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}`}
+            label={`Negotiate Â· ${pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}`}
             onPress={() => openNegotiationModal(talent.id)}
             disabled={outlook.blocked}
             variant="gold-outline"
@@ -750,7 +750,7 @@ function TalentCard({ talent, manager, activeProject, openNegotiationModal, atta
             style={styles.flexBtn}
           />
           <PremiumButton
-            label={`Quick Close · ${pct(manager.getQuickCloseChance(talent.id) ?? 0)}`}
+            label={`Quick Close Â· ${pct(manager.getQuickCloseChance(talent.id) ?? 0)}`}
             onPress={() => attachTalent(activeProject.id, talent.id)}
             disabled={outlook.blocked}
             variant="primary"
@@ -912,3 +912,5 @@ const styles = StyleSheet.create({
   modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
   modalCard: { width: '92%', maxWidth: 520, gap: spacing.sp2, marginHorizontal: spacing.sp3 },
 });
+
+
