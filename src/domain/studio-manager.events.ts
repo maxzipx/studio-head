@@ -26,7 +26,10 @@ function pickScriptByDemandForManager(manager: StudioManager, pool: ScriptPitch[
 
   // Keep some randomness, but strongly bias toward hot genres so cycles affect the script market.
   if (manager.eventRng() < 0.45) {
-    return weighted[0]?.item ?? null;
+    const maxWeight = weighted[0]?.weight ?? 0;
+    const topTier = weighted.filter((entry) => entry.weight >= maxWeight - 0.01);
+    const topIdx = Math.floor(manager.eventRng() * topTier.length);
+    return topTier[topIdx]?.item ?? null;
   }
 
   const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
@@ -76,7 +79,10 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
   if (manager.scriptMarket.length >= targetOffers) return;
 
   const catalog = createSeedScriptMarket();
-  const existingTitles = new Set(manager.scriptMarket.map((item) => item.title));
+  const existingTitles = new Set([
+    ...manager.scriptMarket.map((item) => item.title),
+    ...manager.activeProjects.map((item) => item.title),
+  ]);
   let added = 0;
   let weightedDemandAccumulator = 0;
 
@@ -327,173 +333,173 @@ export function buildOperationalCrisisForManager(manager: StudioManager, project
   }[] =
     project.phase === 'preProduction'
       ? [
+        {
+          title: 'Location Permit Reversal',
+          body: 'Primary location permits were rescinded. Prep schedule is at risk.',
+          severity: 'orange',
+          options: [
+            {
+              id: createId('c-opt'),
+              label: 'Pay Fast-Track Permit Counsel',
+              preview: '-$260K now, keep prep moving.',
+              cashDelta: -260_000,
+              scheduleDelta: 0,
+              hypeDelta: 0,
+            },
+            {
+              id: createId('c-opt'),
+              label: 'Re-scout Alternate Locations',
+              preview: 'Lower spend, but schedule slips one week.',
+              cashDelta: -80_000,
+              scheduleDelta: 1,
+              hypeDelta: -1,
+            },
+          ],
+        },
+        {
+          title: 'Department Head Walkout Threat',
+          body: 'A key department requests contract revisions before lock.',
+          severity: 'orange',
+          options: [
+            {
+              id: createId('c-opt'),
+              label: 'Approve Contract Bump',
+              preview: '-$220K now, no delay.',
+              cashDelta: -220_000,
+              scheduleDelta: 0,
+              hypeDelta: 0,
+            },
+            {
+              id: createId('c-opt'),
+              label: 'Re-negotiate Through Delay',
+              preview: 'Save cash but lose one prep week and confidence.',
+              cashDelta: -40_000,
+              scheduleDelta: 1,
+              hypeDelta: -2,
+            },
+          ],
+        },
+      ]
+      : project.phase === 'postProduction'
+        ? [
           {
-            title: 'Location Permit Reversal',
-            body: 'Primary location permits were rescinded. Prep schedule is at risk.',
+            title: 'VFX Vendor Capacity Crunch',
+            body: 'Your primary vendor lost capacity to a tentpole competitor.',
             severity: 'orange',
             options: [
               {
                 id: createId('c-opt'),
-                label: 'Pay Fast-Track Permit Counsel',
-                preview: '-$260K now, keep prep moving.',
-                cashDelta: -260_000,
+                label: 'Pay For Priority Lane',
+                preview: '-$300K now, lock delivery date.',
+                cashDelta: -300_000,
                 scheduleDelta: 0,
                 hypeDelta: 0,
               },
               {
                 id: createId('c-opt'),
-                label: 'Re-scout Alternate Locations',
-                preview: 'Lower spend, but schedule slips one week.',
-                cashDelta: -80_000,
-                scheduleDelta: 1,
-                hypeDelta: -1,
-              },
-            ],
-          },
-          {
-            title: 'Department Head Walkout Threat',
-            body: 'A key department requests contract revisions before lock.',
-            severity: 'orange',
-            options: [
-              {
-                id: createId('c-opt'),
-                label: 'Approve Contract Bump',
-                preview: '-$220K now, no delay.',
-                cashDelta: -220_000,
-                scheduleDelta: 0,
-                hypeDelta: 0,
-              },
-              {
-                id: createId('c-opt'),
-                label: 'Re-negotiate Through Delay',
-                preview: 'Save cash but lose one prep week and confidence.',
-                cashDelta: -40_000,
+                label: 'Delay Final Deliverables',
+                preview: 'Smaller immediate cost, but post slips by one week.',
+                cashDelta: -70_000,
                 scheduleDelta: 1,
                 hypeDelta: -2,
               },
             ],
           },
+          {
+            title: 'Score Recording Overrun',
+            body: 'Orchestral sessions are exceeding booked stage time.',
+            severity: 'yellow',
+            options: [
+              {
+                id: createId('c-opt'),
+                label: 'Extend Sessions',
+                preview: '-$180K now, preserve score quality.',
+                cashDelta: -180_000,
+                scheduleDelta: 0,
+                hypeDelta: 1,
+              },
+              {
+                id: createId('c-opt'),
+                label: 'Scale Back Arrangement',
+                preview: 'Save cash, but lose some polish and buzz.',
+                cashDelta: -40_000,
+                scheduleDelta: 0,
+                hypeDelta: -2,
+              },
+            ],
+          },
         ]
-      : project.phase === 'postProduction'
-        ? [
-            {
-              title: 'VFX Vendor Capacity Crunch',
-              body: 'Your primary vendor lost capacity to a tentpole competitor.',
-              severity: 'orange',
-              options: [
-                {
-                  id: createId('c-opt'),
-                  label: 'Pay For Priority Lane',
-                  preview: '-$300K now, lock delivery date.',
-                  cashDelta: -300_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 0,
-                },
-                {
-                  id: createId('c-opt'),
-                  label: 'Delay Final Deliverables',
-                  preview: 'Smaller immediate cost, but post slips by one week.',
-                  cashDelta: -70_000,
-                  scheduleDelta: 1,
-                  hypeDelta: -2,
-                },
-              ],
-            },
-            {
-              title: 'Score Recording Overrun',
-              body: 'Orchestral sessions are exceeding booked stage time.',
-              severity: 'yellow',
-              options: [
-                {
-                  id: createId('c-opt'),
-                  label: 'Extend Sessions',
-                  preview: '-$180K now, preserve score quality.',
-                  cashDelta: -180_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 1,
-                },
-                {
-                  id: createId('c-opt'),
-                  label: 'Scale Back Arrangement',
-                  preview: 'Save cash, but lose some polish and buzz.',
-                  cashDelta: -40_000,
-                  scheduleDelta: 0,
-                  hypeDelta: -2,
-                },
-              ],
-            },
-          ]
         : [
-            {
-              title: 'Actor Scheduling Conflict',
-              body: 'A hard conflict puts next week shooting at risk.',
-              severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
-              options: [
-                {
-                  id: createId('c-opt'),
-                  label: 'Pay Overtime to Keep Schedule',
-                  preview: '-$450K now, no schedule slip.',
-                  cashDelta: -450_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 0,
-                },
-                {
-                  id: createId('c-opt'),
-                  label: 'Delay One Week',
-                  preview: 'Save cash, but schedule slips and press chatter starts.',
-                  cashDelta: -50_000,
-                  scheduleDelta: 1,
-                  hypeDelta: -3,
-                },
-              ],
-            },
-            {
-              title: 'Set Build Failure',
-              body: 'A key practical set failed safety checks before principal photography.',
-              severity: 'orange',
-              options: [
-                {
-                  id: createId('c-opt'),
-                  label: 'Rebuild Immediately',
-                  preview: '-$380K now, schedule protected.',
-                  cashDelta: -380_000,
-                  scheduleDelta: 0,
-                  hypeDelta: 0,
-                },
-                {
-                  id: createId('c-opt'),
-                  label: 'Rewrite Around Set',
-                  preview: 'Save cash, but lose one week and some excitement.',
-                  cashDelta: -90_000,
-                  scheduleDelta: 1,
-                  hypeDelta: -2,
-                },
-              ],
-            },
-            {
-              title: 'Second Unit Incident',
-              body: 'A second unit incident pauses action coverage for safety review.',
-              severity: 'red',
-              options: [
-                {
-                  id: createId('c-opt'),
-                  label: 'Bring In Replacement Unit',
-                  preview: '-$520K now to hold momentum.',
-                  cashDelta: -520_000,
-                  scheduleDelta: 0,
-                  hypeDelta: -1,
-                },
-                {
-                  id: createId('c-opt'),
-                  label: 'Hold For Safety Reset',
-                  preview: 'Lower immediate spend, but lose two shooting weeks.',
-                  cashDelta: -120_000,
-                  scheduleDelta: 2,
-                  hypeDelta: -3,
-                },
-              ],
-            },
-          ];
+          {
+            title: 'Actor Scheduling Conflict',
+            body: 'A hard conflict puts next week shooting at risk.',
+            severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
+            options: [
+              {
+                id: createId('c-opt'),
+                label: 'Pay Overtime to Keep Schedule',
+                preview: '-$450K now, no schedule slip.',
+                cashDelta: -450_000,
+                scheduleDelta: 0,
+                hypeDelta: 0,
+              },
+              {
+                id: createId('c-opt'),
+                label: 'Delay One Week',
+                preview: 'Save cash, but schedule slips and press chatter starts.',
+                cashDelta: -50_000,
+                scheduleDelta: 1,
+                hypeDelta: -3,
+              },
+            ],
+          },
+          {
+            title: 'Set Build Failure',
+            body: 'A key practical set failed safety checks before principal photography.',
+            severity: 'orange',
+            options: [
+              {
+                id: createId('c-opt'),
+                label: 'Rebuild Immediately',
+                preview: '-$380K now, schedule protected.',
+                cashDelta: -380_000,
+                scheduleDelta: 0,
+                hypeDelta: 0,
+              },
+              {
+                id: createId('c-opt'),
+                label: 'Rewrite Around Set',
+                preview: 'Save cash, but lose one week and some excitement.',
+                cashDelta: -90_000,
+                scheduleDelta: 1,
+                hypeDelta: -2,
+              },
+            ],
+          },
+          {
+            title: 'Second Unit Incident',
+            body: 'A second unit incident pauses action coverage for safety review.',
+            severity: 'red',
+            options: [
+              {
+                id: createId('c-opt'),
+                label: 'Bring In Replacement Unit',
+                preview: '-$520K now to hold momentum.',
+                cashDelta: -520_000,
+                scheduleDelta: 0,
+                hypeDelta: -1,
+              },
+              {
+                id: createId('c-opt'),
+                label: 'Hold For Safety Reset',
+                preview: 'Lower immediate spend, but lose two shooting weeks.',
+                cashDelta: -120_000,
+                scheduleDelta: 2,
+                hypeDelta: -3,
+              },
+            ],
+          },
+        ];
 
   const selected = phaseTemplates[Math.floor(manager.crisisRng() * phaseTemplates.length)] ?? phaseTemplates[0];
   return {
