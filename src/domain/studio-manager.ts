@@ -657,7 +657,8 @@ export class StudioManager {
       };
     }
 
-    const decisionStart = this.decisionQueue.length;
+    const decisionStartIds = new Set(this.decisionQueue.map((item) => item.id));
+    const inboxStartIds = new Set(this.inboxNotifications.map((item) => item.id));
     const releaseStart = this.pendingReleaseReveals.length + this.pendingFinalReleaseReveals.length;
     const weekStart = this.currentWeek;
     const hardLimit = Math.max(1, Math.min(52, Math.round(maxWeeks)));
@@ -665,14 +666,15 @@ export class StudioManager {
     for (let i = 0; i < hardLimit; i += 1) {
       if (!this.canEndWeek || this.isBankrupt) break;
       this.endWeek();
-      const decisionAdded = this.decisionQueue.length > decisionStart;
+      const decisionAdded = this.decisionQueue.some((item) => !decisionStartIds.has(item.id));
+      const inboxUpdateAdded = this.inboxNotifications.some((item) => !inboxStartIds.has(item.id));
       const releaseAdded = this.pendingReleaseReveals.length + this.pendingFinalReleaseReveals.length > releaseStart;
-      if (decisionAdded) {
+      if (decisionAdded || inboxUpdateAdded) {
         return {
           success: true,
           advancedWeeks: this.currentWeek - weekStart,
           reason: 'decision',
-          message: `Auto-advanced ${this.currentWeek - weekStart} week(s) until a new decision arrived.`,
+          message: `Auto-advanced ${this.currentWeek - weekStart} week(s) until a new inbox item arrived.`,
         };
       }
       if (!this.canEndWeek) {

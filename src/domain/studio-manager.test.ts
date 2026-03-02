@@ -52,6 +52,66 @@ describe('StudioManager', () => {
     expect(manager.turnLengthWeeks).toBe(2);
   });
 
+  it('stops auto-advance when a new decision replaces an expired one at the same queue size', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1 });
+    (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
+      {
+        id: 'auto-advance-replacement',
+        category: 'operations',
+        scope: 'studio',
+        title: 'Replacement Event',
+        decisionTitle: 'Replacement Decision',
+        body: 'replacement',
+        cooldownWeeks: 1,
+        baseWeight: 10,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Replacement Decision',
+          body: 'replacement',
+          weeksUntilExpiry: 2,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+    ];
+    manager.decisionQueue = [
+      {
+        id: 'expiring-decision',
+        projectId: null,
+        title: 'Expiring Decision',
+        body: 'expiring',
+        weeksUntilExpiry: 0,
+        options: [
+          {
+            id: 'expiring-opt',
+            label: 'Ok',
+            preview: 'ok',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+          },
+        ],
+      },
+    ];
+
+    const result = manager.advanceUntilDecision(1);
+
+    expect(result.success).toBe(true);
+    expect(result.reason).toBe('decision');
+    expect(result.advancedWeeks).toBe(1);
+    expect(manager.decisionQueue.some((item) => item.title === 'Replacement Decision')).toBe(true);
+  });
+
   it('blocks endWeek when unresolved crises exist', () => {
     const manager = new StudioManager({ crisisRng: () => 0.0 });
     manager.endWeek();
