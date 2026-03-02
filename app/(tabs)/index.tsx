@@ -42,6 +42,7 @@ export default function HQScreen() {
     setTurnLength,
     resolveCrisis,
     resolveDecision,
+    dismissDecision,
     runOptionalAction,
     renameStudio,
     upgradeMarketingTeam,
@@ -63,6 +64,7 @@ export default function HQScreen() {
       setTurnLength: state.setTurnLength,
       resolveCrisis: state.resolveCrisis,
       resolveDecision: state.resolveDecision,
+      dismissDecision: state.dismissDecision,
       runOptionalAction: state.runOptionalAction,
       renameStudio: state.renameStudio,
       upgradeMarketingTeam: state.upgradeMarketingTeam,
@@ -354,8 +356,13 @@ export default function HQScreen() {
               <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
               <Text style={styles.body}>{crisis.body}</Text>
               <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
+              {Array.isArray(crisis.options) && crisis.options.length > 0 ? null : (
+                <Text style={[styles.muted, { color: colors.accentRed }]}>
+                  Crisis data is malformed. Restarting the app will repair saved inbox data.
+                </Text>
+              )}
               <View style={styles.optionGroup}>
-                {crisis.options.map((option) => (
+                {(Array.isArray(crisis.options) ? crisis.options : []).map((option) => (
                   <Pressable
                     key={option.id}
                     style={[styles.optionBtn, { borderColor: colors.borderRed }]}
@@ -368,8 +375,8 @@ export default function HQScreen() {
                   </Pressable>
                 ))}
               </View>
-              </GlassCard>
-            ))}
+            </GlassCard>
+          ))}
           {manager.inboxNotifications.map((item) => (
             <GlassCard key={item.id} variant="elevated" accentBorder={colors.ctaBlue} style={{ gap: spacing.sp2 }}>
               <View style={styles.inboxHeader}>
@@ -410,7 +417,7 @@ export default function HQScreen() {
                 <Text style={styles.bodyStrong}>{item.title}</Text>
                 <Text style={styles.body}>{item.body}</Text>
                 <View style={styles.optionGroup}>
-                  {item.options.map((option) => (
+                  {(Array.isArray(item.options) ? item.options : []).map((option) => (
                     <Pressable
                       key={option.id}
                       style={styles.optionBtn}
@@ -420,6 +427,15 @@ export default function HQScreen() {
                       <Text style={styles.optionBody}>{option.preview} ({signedMoney(option.cashDelta)})</Text>
                     </Pressable>
                   ))}
+                  {(Array.isArray(item.options) ? item.options : []).length === 0 ? (
+                    <PremiumButton
+                      label="Dismiss Broken Item"
+                      onPress={() => dismissDecision(item.id)}
+                      variant="secondary"
+                      size="sm"
+                      style={styles.choiceBtn}
+                    />
+                  ) : null}
                 </View>
               </GlassCard>
             ))}

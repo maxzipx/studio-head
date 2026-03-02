@@ -9,12 +9,13 @@ function money(amount: number): string {
 }
 
 export default function InboxScreen() {
-  const { manager, resolveCrisis, resolveDecision, dismissInboxNotification } = useGameStore(useShallow((state) => {
+  const { manager, resolveCrisis, resolveDecision, dismissDecision, dismissInboxNotification } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
       resolveCrisis: state.resolveCrisis,
       resolveDecision: state.resolveDecision,
+      dismissDecision: state.dismissDecision,
       dismissInboxNotification: state.dismissInboxNotification,
       crisesSignature: mgr.pendingCrises.map(c => c.id).join('|'),
       decisionsSignature: mgr.decisionQueue.map(d => d.id).join('|'),
@@ -36,7 +37,7 @@ export default function InboxScreen() {
           <Text style={styles.crisisTitle}>{crisis.title}</Text>
           <Text style={styles.body}>{crisis.body}</Text>
           <Text style={styles.severity}>Severity: {crisis.severity.toUpperCase()}</Text>
-          {crisis.options.map((option) => (
+          {(Array.isArray(crisis.options) ? crisis.options : []).map((option) => (
             <Pressable key={option.id} style={styles.button} onPress={() => resolveCrisis(crisis.id, option.id)}>
               <Text style={styles.buttonTitle}>{option.label}</Text>
               <Text style={styles.buttonBody}>
@@ -45,6 +46,9 @@ export default function InboxScreen() {
               </Text>
             </Pressable>
           ))}
+          {(!Array.isArray(crisis.options) || crisis.options.length === 0) ? (
+            <Text style={styles.buttonBody}>Crisis data is malformed. Restart app to repair saved inbox state.</Text>
+          ) : null}
         </View>
       ))}
 
@@ -56,7 +60,7 @@ export default function InboxScreen() {
           <Text style={styles.decisionTitle}>{item.title}</Text>
           <Text style={styles.body}>{item.body}</Text>
           <Text style={styles.expiry}>Expires in: {Math.max(0, item.weeksUntilExpiry)} week(s)</Text>
-          {item.options.map((option) => (
+          {(Array.isArray(item.options) ? item.options : []).map((option) => (
             <Pressable key={option.id} style={styles.button} onPress={() => resolveDecision(item.id, option.id)}>
               <Text style={styles.buttonTitle}>{option.label}</Text>
               <Text style={styles.buttonBody}>
@@ -64,6 +68,12 @@ export default function InboxScreen() {
               </Text>
             </Pressable>
           ))}
+          {(Array.isArray(item.options) ? item.options : []).length === 0 ? (
+            <Pressable style={styles.button} onPress={() => dismissDecision(item.id)}>
+              <Text style={styles.buttonTitle}>Dismiss Broken Item</Text>
+              <Text style={styles.buttonBody}>This decision entry is malformed and cannot be resolved normally.</Text>
+            </Pressable>
+          ) : null}
         </View>
       ))}
 

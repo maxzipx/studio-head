@@ -47,6 +47,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick('Decision committed.');
       });
     },
+    dismissDecision: (decisionId: string) => {
+      runWhenHydrated(() => {
+        manager.dismissDecision(decisionId);
+        saveAndTick('Decision dismissed.');
+      });
+    },
     runOptionalAction: () => {
       runWhenHydrated(() => {
         const result = manager.runOptionalAction();

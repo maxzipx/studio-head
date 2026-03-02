@@ -1419,6 +1419,10 @@ export class StudioManager {
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
   }
 
+  dismissDecision(decisionId: string): void {
+    this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
+  }
+
   endWeek(): WeekSummary {
     if (!this.canEndWeek) {
       throw new Error('Resolve all crises before ending the week.');

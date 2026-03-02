@@ -12,6 +12,7 @@ export interface GameContextValue {
   setTurnLength: (weeks: 1 | 2) => void;
   resolveCrisis: (crisisId: string, optionId: string) => void;
   resolveDecision: (decisionId: string, optionId: string) => void;
+  dismissDecision: (decisionId: string) => void;
   runOptionalAction: () => void;
   acquireScript: (scriptId: string) => void;
   passScript: (scriptId: string) => void;

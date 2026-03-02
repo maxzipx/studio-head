@@ -110,6 +110,57 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Array.isArray(manager.pendingReleaseReveals)) manager.pendingReleaseReveals = [];
   if (!Array.isArray(manager.pendingFinalReleaseReveals)) manager.pendingFinalReleaseReveals = [];
   if (!Array.isArray(manager.decisionQueue)) manager.decisionQueue = defaults.decisionQueue;
+  manager.decisionQueue = manager.decisionQueue
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
+    .map((entry) => {
+      const rawOptions = Array.isArray(entry.options) ? entry.options : [];
+      const options = rawOptions
+        .filter((opt) => isRecord(opt) && typeof opt.id === 'string' && typeof opt.label === 'string')
+        .map((opt) => ({
+          id: String(opt.id),
+          label: String(opt.label),
+          preview: typeof opt.preview === 'string' ? opt.preview : '',
+          cashDelta: Number.isFinite(opt.cashDelta) ? Number(opt.cashDelta) : 0,
+          scriptQualityDelta: Number.isFinite(opt.scriptQualityDelta) ? Number(opt.scriptQualityDelta) : 0,
+          hypeDelta: Number.isFinite(opt.hypeDelta) ? Number(opt.hypeDelta) : 0,
+          ...(Number.isFinite(opt.studioHeatDelta) ? { studioHeatDelta: Number(opt.studioHeatDelta) } : {}),
+          ...(Number.isFinite(opt.criticsDelta) ? { criticsDelta: Number(opt.criticsDelta) } : {}),
+          ...(Number.isFinite(opt.talentRepDelta) ? { talentRepDelta: Number(opt.talentRepDelta) } : {}),
+          ...(Number.isFinite(opt.distributorRepDelta) ? { distributorRepDelta: Number(opt.distributorRepDelta) } : {}),
+          ...(Number.isFinite(opt.audienceDelta) ? { audienceDelta: Number(opt.audienceDelta) } : {}),
+          ...(Number.isFinite(opt.scheduleDelta) ? { scheduleDelta: Math.round(Number(opt.scheduleDelta)) } : {}),
+          ...(Number.isFinite(opt.releaseWeekShift) ? { releaseWeekShift: Math.round(Number(opt.releaseWeekShift)) } : {}),
+          ...(Number.isFinite(opt.marketingDelta) ? { marketingDelta: Number(opt.marketingDelta) } : {}),
+          ...(Number.isFinite(opt.overrunRiskDelta) ? { overrunRiskDelta: Number(opt.overrunRiskDelta) } : {}),
+          ...(typeof opt.setFlag === 'string' ? { setFlag: opt.setFlag } : {}),
+          ...(typeof opt.clearFlag === 'string' ? { clearFlag: opt.clearFlag } : {}),
+          ...(Number.isFinite(opt.setArcStage) ? { setArcStage: Math.round(Number(opt.setArcStage)) } : {}),
+          ...(Number.isFinite(opt.advanceArcBy) ? { advanceArcBy: Math.round(Number(opt.advanceArcBy)) } : {}),
+          ...(typeof opt.resolveArc === 'boolean' ? { resolveArc: opt.resolveArc } : {}),
+          ...(typeof opt.failArc === 'boolean' ? { failArc: opt.failArc } : {}),
+        }));
+      return {
+        id: String(entry.id),
+        projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,
+        title: String(entry.title).slice(0, 140),
+        body: typeof entry.body === 'string' ? entry.body : '',
+        weeksUntilExpiry: Number.isFinite(entry.weeksUntilExpiry) ? Math.round(Number(entry.weeksUntilExpiry)) : 1,
+        ...(typeof entry.onExpireClearFlag === 'string' ? { onExpireClearFlag: entry.onExpireClearFlag } : {}),
+        ...(entry.category === 'creative' ||
+        entry.category === 'marketing' ||
+        entry.category === 'operations' ||
+        entry.category === 'finance' ||
+        entry.category === 'talent'
+          ? { category: entry.category }
+          : {}),
+        ...(typeof entry.sourceEventId === 'string' ? { sourceEventId: entry.sourceEventId } : {}),
+        ...(typeof entry.arcId === 'string' ? { arcId: entry.arcId } : {}),
+        ...(Number.isFinite(entry.arcStage) ? { arcStage: Math.round(Number(entry.arcStage)) } : {}),
+        options,
+      };
+    })
+    .filter((entry) => entry.options.length > 0)
+    .slice(0, 24);
   if (!Array.isArray(manager.inboxNotifications)) manager.inboxNotifications = [];
   manager.inboxNotifications = manager.inboxNotifications
     .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
