@@ -575,7 +575,6 @@ describe('StudioManager', () => {
     expect(opened.success).toBe(true);
     manager.cash = 0;
 
-    manager.endWeek();
     const summary = manager.endWeek();
     expect(summary.events.some((entry) => entry.includes('accepted in principle'))).toBe(true);
     expect(summary.events.some((entry) => entry.includes('accepted terms with'))).toBe(false);
@@ -628,7 +627,6 @@ describe('StudioManager', () => {
     manager.adjustTalentNegotiation(project!.id, lead!.id, 'holdFirm');
     manager.adjustTalentNegotiation(project!.id, lead!.id, 'holdFirm');
 
-    manager.endWeek();
     const summary = manager.endWeek();
     expect(summary.events.some((entry) => entry.includes('hardline rounds'))).toBe(true);
     expect(lead!.availability).toBe('unavailable');
@@ -677,7 +675,6 @@ describe('StudioManager', () => {
     expect(opened.success).toBe(true);
     project!.phase = 'preProduction';
 
-    manager.endWeek();
     const summary = manager.endWeek();
     expect(summary.events.some((entry) => entry.includes('moved out of development'))).toBe(true);
     expect(lead!.availability).toBe('available');

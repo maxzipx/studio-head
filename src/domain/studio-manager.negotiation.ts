@@ -232,7 +232,17 @@ export function adjustTalentNegotiationForManager(
   if (!project) return { success: false, message: 'Project not found.' };
   const negotiation = manager.findNegotiation(talentId, projectId);
   if (!negotiation) return { success: false, message: 'No open negotiation for this project and talent.' };
-  if (talent.availability !== 'inNegotiation') return { success: false, message: `${talent.name} is not currently in negotiation.` };
+  if (talent.availability !== 'inNegotiation') {
+    const canRepair =
+      talent.attachedProjectId === null &&
+      (talent.availability === 'available' || talent.availability === 'inTalks');
+    if (canRepair) {
+      // Recover stale saves where negotiation exists but availability drifted.
+      talent.availability = 'inNegotiation';
+    } else {
+      return { success: false, message: `${talent.name} is not currently in negotiation.` };
+    }
+  }
   if (project.phase !== 'development') return { success: false, message: 'Negotiation can only be adjusted during development.' };
 
   const normalized = manager.normalizeNegotiation(negotiation, talent);
@@ -447,7 +457,8 @@ export function negotiateAndAttachTalentForManager(
 export function processPlayerNegotiationsForManager(manager: any, events: string[]): void {
   const resolved: string[] = [];
   for (const negotiation of manager.playerNegotiations) {
-    if (manager.currentWeek - negotiation.openedWeek < 1) continue;
+    // Resolve on the next End Turn after opening (same-week pre-increment check).
+    if (manager.currentWeek < negotiation.openedWeek) continue;
     const talent = manager.talentPool.find((item: any) => item.id === negotiation.talentId);
     const project = manager.activeProjects.find((item: any) => item.id === negotiation.projectId);
     if (!talent || !project) {

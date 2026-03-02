@@ -345,6 +345,7 @@ export default function TalentScreen() {
               const project = manager.activeProjects.find((p) => p.id === entry.projectId);
               const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
               const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
+              const outOfRounds = (snapshot?.rounds ?? entry.rounds ?? 0) >= 4;
               return (
                 <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
                   <View style={styles.negHeader}>
@@ -389,6 +390,11 @@ export default function TalentScreen() {
                       Negotiation details failed to load. You can still submit a counter or dismiss this stuck entry.
                     </Text>
                   )}
+                  {outOfRounds && (
+                    <Text style={[styles.alert, { color: colors.goldMid }]}>
+                      Rounds exhausted. End Turn to resolve this negotiation.
+                    </Text>
+                  )}
                   <View style={styles.actions}>
                     {[
                       { label: 'Salary+', action: 'sweetenSalary', pressure: 'salary' },
@@ -402,6 +408,7 @@ export default function TalentScreen() {
                         onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as NegotiationAction)}
                         variant={pressure !== null && pressure === snapshot?.pressurePoint ? 'primary' : 'secondary'}
                         size="sm"
+                        disabled={outOfRounds}
                         style={styles.negBtn}
                       />
                     ))}
