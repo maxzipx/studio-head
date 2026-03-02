@@ -67,6 +67,7 @@ export default function TabLayout() {
       <Tabs.Screen name="distribution"  options={{ href: null }} />
       <Tabs.Screen name="box-office"    options={{ href: null }} />
       <Tabs.Screen name="inbox"         options={{ href: null }} />
+      <Tabs.Screen name="explore"       options={{ href: null }} />
       <Tabs.Screen
         name="talent"
         options={{
