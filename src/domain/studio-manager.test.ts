@@ -797,6 +797,65 @@ describe('StudioManager', () => {
     expect(manager.playerNegotiations.some((entry) => entry.projectId === 'missing-project' && entry.talentId === lead!.id)).toBe(false);
   });
 
+  it('does not drop an active countered negotiation when a duplicate key entry resolves', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+    manager.playerNegotiations.push({
+      talentId: lead!.id,
+      projectId: project!.id,
+      openedWeek: manager.currentWeek,
+      rounds: 4,
+      holdLineCount: 2,
+      offerSalaryMultiplier: 1,
+      offerBackendPoints: lead!.salary.backendPoints,
+      offerPerksBudget: lead!.salary.perksCost,
+    });
+
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('negotiation remains open'))).toBe(true);
+    expect(manager.playerNegotiations.some((entry) => entry.projectId === project!.id && entry.talentId === lead!.id)).toBe(true);
+  });
+
+  it('retains negotiations whenever weekly summary reports a counter', () => {
+    for (let seed = 1; seed <= 120; seed += 1) {
+      const manager = new StudioManager({
+        crisisRng: () => 0.95,
+        eventRng: () => 0.95,
+        rivalRng: () => 0.95,
+        negotiationRng: () => 0.99,
+        talentSeed: seed,
+        startWithSeedProjects: false,
+        includeOpeningDecisions: false,
+      });
+
+      const script = manager.scriptMarket[0];
+      if (!script) continue;
+      const acquired = manager.acquireScript(script.id);
+      if (!acquired.success || !acquired.projectId) continue;
+      const project = manager.activeProjects.find((item) => item.id === acquired.projectId);
+      if (!project || project.phase !== 'development') continue;
+
+      const director = manager.talentPool.find((item) => item.role === 'director' && item.availability === 'available');
+      if (!director) continue;
+      const opened = manager.startTalentNegotiationRound(project.id, director.id, 'sweetenSalary');
+      if (!opened.success) continue;
+
+      const summary = manager.endWeek();
+      const counterEvent = summary.events.find((entry) => entry.includes('countered on') && entry.includes(project.title));
+      if (!counterEvent) continue;
+
+      expect(
+        manager.playerNegotiations.some((entry) => entry.projectId === project.id && entry.talentId === director.id)
+      ).toBe(true);
+    }
+  });
+
   it('applies quick-close attempt cost and cooldown on decline', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

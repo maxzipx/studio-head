@@ -269,11 +269,14 @@ export function buildTalentNegotiationSignature(negotiations: PlayerNegotiation[
       joinParts([
         negotiation.talentId,
         negotiation.projectId,
+        negotiation.openedWeek,
         negotiation.rounds ?? 0,
         negotiation.holdLineCount ?? 0,
         negotiation.offerSalaryMultiplier ?? '',
         negotiation.offerBackendPoints ?? '',
         negotiation.offerPerksBudget ?? '',
+        negotiation.lastComputedChance ?? '',
+        negotiation.lastResponse ?? '',
       ])
     )
     .join('|');

@@ -455,9 +455,8 @@ export function negotiateAndAttachTalentForManager(
 }
 
 export function processPlayerNegotiationsForManager(manager: any, events: string[]): void {
-  const resolved = new Set<string>();
+  const resolved = new Set<PlayerNegotiation>();
   for (const negotiation of manager.playerNegotiations) {
-    const negotiationKey = `${negotiation.projectId}::${negotiation.talentId}`;
     // Resolve on the next End Turn after opening (same-week pre-increment check).
     if (manager.currentWeek < negotiation.openedWeek) continue;
     const talent = manager.talentPool.find((item: any) => item.id === negotiation.talentId);
@@ -466,7 +465,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       if (talent?.availability === 'inNegotiation') {
         talent.availability = 'available';
       }
-      resolved.add(negotiationKey);
+      resolved.add(negotiation);
       continue;
     }
     if (talent.availability !== 'inNegotiation') {
@@ -476,7 +475,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       if (canRepair) {
         talent.availability = 'inNegotiation';
       } else {
-        resolved.add(negotiationKey);
+        resolved.add(negotiation);
         continue;
       }
     }
@@ -490,7 +489,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         note: `Negotiation closed when ${project.title} moved out of development.`,
         projectId: project.id,
       });
-      resolved.add(negotiationKey);
+      resolved.add(negotiation);
       continue;
     }
 
@@ -536,11 +535,9 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         continue;
       }
     }
-    resolved.add(negotiationKey);
+    resolved.add(negotiation);
   }
   if (resolved.size > 0) {
-    manager.playerNegotiations = manager.playerNegotiations.filter(
-      (item: any) => !resolved.has(`${item.projectId}::${item.talentId}`)
-    );
+    manager.playerNegotiations = manager.playerNegotiations.filter((item: PlayerNegotiation) => !resolved.has(item));
   }
 }

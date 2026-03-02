@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
+import { buildTalentNegotiationSignature } from '@/src/state/view-signatures';
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
@@ -72,12 +73,8 @@ export default function ScriptRoomScreen() {
         )
         .join('|'),
       negotiationSignature: mgr.playerNegotiations
-        .map(
-          (n) =>
-            `${n.talentId}:${n.projectId}:${n.rounds ?? 0}:${n.holdLineCount ?? 0}:${n.offerSalaryMultiplier ?? -1}:` +
-            `${n.offerBackendPoints ?? -1}:${n.offerPerksBudget ?? -1}`
-        )
-        .join('|'),
+        ? buildTalentNegotiationSignature(mgr.playerNegotiations)
+        : '',
     };
   }));
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
