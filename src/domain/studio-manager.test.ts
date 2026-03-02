@@ -1355,11 +1355,14 @@ describe('StudioManager', () => {
     );
     const visibleDirectors = visibleTalent.filter((talent) => talent.role === 'director').length;
     const visibleActors = visibleTalent.filter((talent) => talent.role === 'leadActor').length;
+    const visibleActresses = visibleTalent.filter((talent) => talent.role === 'leadActress').length;
+    const visibleLeadTotal = visibleActors + visibleActresses;
 
     expect(visibleDirectors).toBeGreaterThan(0);
     expect(visibleActors).toBeGreaterThan(0);
+    expect(visibleActresses).toBeGreaterThan(0);
     expect(visibleDirectors).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS);
-    expect(visibleActors).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
+    expect(visibleLeadTotal).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
   });
 
   it('biases script market refill toward currently hot genres', () => {

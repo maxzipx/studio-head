@@ -94,6 +94,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   manager.marketDirectorIdx = Math.max(0, Math.round(manager.marketDirectorIdx));
   if (!Number.isFinite(manager.marketActorIdx)) manager.marketActorIdx = 0;
   manager.marketActorIdx = Math.max(0, Math.round(manager.marketActorIdx));
+  if (!Number.isFinite(manager.marketLeadActorIdx)) manager.marketLeadActorIdx = 0;
+  manager.marketLeadActorIdx = Math.max(0, Math.round(manager.marketLeadActorIdx));
+  if (!Number.isFinite(manager.marketLeadActressIdx)) manager.marketLeadActressIdx = 0;
+  manager.marketLeadActressIdx = Math.max(0, Math.round(manager.marketLeadActressIdx));
 
   if (!isRecord(manager.reputation)) {
     manager.reputation = {
@@ -655,6 +659,8 @@ const SERIALIZE_MANAGER_KEYS = [
   'lastMarketBurstWeek',
   'marketDirectorIdx',
   'marketActorIdx',
+  'marketLeadActorIdx',
+  'marketLeadActressIdx',
 ] as const;
 
 export function serializeStudioManager(manager: StudioManager): StoredManager {

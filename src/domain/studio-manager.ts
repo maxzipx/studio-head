@@ -238,6 +238,8 @@ export class StudioManager {
   lastMarketBurstWeek = 0;
   marketDirectorIdx = 0;
   marketActorIdx = 0;
+  marketLeadActorIdx = 0;
+  marketLeadActressIdx = 0;
   private readonly lifecycleService = new ProjectLifecycleService(this);
   private readonly franchiseService = new FranchiseService(this);
   private readonly rivalAiService = new RivalAiService(this);
@@ -2625,6 +2627,33 @@ export class StudioManager {
     talent.marketWindowExpiresWeek = this.currentWeek + this.marketWindowDuration(talent.starPower);
   }
 
+  private addNextEligibleFromPool(
+    pool: Talent[],
+    role: 'director' | 'leadActor' | 'leadActress'
+  ): boolean {
+    if (pool.length === 0) return false;
+    let attempts = 0;
+    while (attempts < pool.length) {
+      let candidate: Talent | undefined;
+      if (role === 'director') {
+        candidate = pool[this.marketDirectorIdx % pool.length];
+        this.marketDirectorIdx += 1;
+      } else if (role === 'leadActor') {
+        candidate = pool[this.marketLeadActorIdx % pool.length];
+        this.marketLeadActorIdx += 1;
+      } else {
+        candidate = pool[this.marketLeadActressIdx % pool.length];
+        this.marketLeadActressIdx += 1;
+      }
+      attempts += 1;
+      if (candidate && this.isTalentMarketEligible(candidate)) {
+        this.addTalentToMarket(candidate);
+        return true;
+      }
+    }
+    return false;
+  }
+
   private ageOutExpiredMarketWindows(): void {
     for (const talent of this.talentPool) {
       if (
@@ -2682,24 +2711,57 @@ export class StudioManager {
   private populateInitialMarket(): void {
     const directors = this.talentPool.filter((t) => t.role === 'director');
     let dirCount = 0;
-    for (const d of directors) {
-      if (dirCount >= TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS) break;
-      if (this.isTalentMarketEligible(d)) {
-        this.addTalentToMarket(d);
-        this.marketDirectorIdx++;
-        dirCount++;
-      }
+    while (dirCount < TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS) {
+      const added = this.addNextEligibleFromPool(directors, 'director');
+      if (!added) break;
+      dirCount += 1;
     }
 
-    const actors = this.talentPool.filter((t) => t.role === 'leadActor' || t.role === 'leadActress');
-    let actCount = 0;
-    for (const a of actors) {
-      if (actCount >= TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS) break;
-      if (this.isTalentMarketEligible(a)) {
-        this.addTalentToMarket(a);
-        this.marketActorIdx++;
-        actCount++;
+    const leadActors = this.talentPool.filter((t) => t.role === 'leadActor');
+    const leadActresses = this.talentPool.filter((t) => t.role === 'leadActress');
+    const totalLeadSlots = TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS;
+    const baselinePerRole = Math.floor(totalLeadSlots / 2);
+    let leadActorCount = 0;
+    let leadActressCount = 0;
+
+    while (leadActorCount < baselinePerRole) {
+      const added = this.addNextEligibleFromPool(leadActors, 'leadActor');
+      if (!added) break;
+      leadActorCount += 1;
+      this.marketActorIdx += 1;
+    }
+
+    while (leadActressCount < baselinePerRole) {
+      const added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
+      if (!added) break;
+      leadActressCount += 1;
+      this.marketActorIdx += 1;
+    }
+
+    while (leadActorCount + leadActressCount < totalLeadSlots) {
+      const preferActor =
+        leadActorCount < leadActressCount ||
+        (leadActorCount === leadActressCount && this.marketActorIdx % 2 === 0);
+      let added = false;
+      if (preferActor) {
+        added = this.addNextEligibleFromPool(leadActors, 'leadActor');
+        if (added) {
+          leadActorCount += 1;
+        } else {
+          added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
+          if (added) leadActressCount += 1;
+        }
+      } else {
+        added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
+        if (added) {
+          leadActressCount += 1;
+        } else {
+          added = this.addNextEligibleFromPool(leadActors, 'leadActor');
+          if (added) leadActorCount += 1;
+        }
       }
+      if (!added) break;
+      this.marketActorIdx += 1;
     }
   }
 
