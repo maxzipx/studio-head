@@ -71,6 +71,21 @@ function refusalRiskColor(value: string): string {
   return colors.accentGreen;
 }
 
+function craftGrade(score: number): string {
+  if (score >= 9) return 'A+';
+  if (score >= 8) return 'A';
+  if (score >= 7) return 'B+';
+  if (score >= 6) return 'B';
+  if (score >= 5) return 'C+';
+  return 'C';
+}
+
+function craftGradeColor(score: number): string {
+  if (score >= 8) return colors.accentGreen;
+  if (score >= 6) return colors.goldMid;
+  return colors.accentRed;
+}
+
 function interactionLabel(kind: string): string {
   const map: Record<string, string> = {
     negotiationOpened: 'Opened negotiation',
@@ -554,8 +569,13 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
         </View>
         <View style={styles.statBlockSmall}>
           <Text style={styles.statLabel}>CRAFT</Text>
-          <View style={styles.miniBarContainer}>
-            <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={4} animated />
+          <View style={styles.craftRow}>
+            <View style={[styles.craftGradeChip, { borderColor: craftGradeColor(talent.craftScore) + '60', backgroundColor: craftGradeColor(talent.craftScore) + '14' }]}>
+              <Text style={[styles.craftGradeText, { color: craftGradeColor(talent.craftScore) }]}>{craftGrade(talent.craftScore)}</Text>
+            </View>
+            <View style={styles.miniBarContainer}>
+              <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={4} animated />
+            </View>
           </View>
         </View>
         <View style={styles.statBlock}>
@@ -760,7 +780,10 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: spacing.sp3, alignItems: 'flex-start' },
   statBlock: { flex: 1, gap: 3 },
   statBlockSmall: { flex: 0.5, gap: 3 },
-  miniBarContainer: { width: 36, marginTop: 4 },
+  craftRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp1, marginTop: 2 },
+  craftGradeChip: { borderRadius: radius.rFull, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2 },
+  craftGradeText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.3 },
+  miniBarContainer: { width: 40 },
   statLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest },
   statNum: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeXS },
 
