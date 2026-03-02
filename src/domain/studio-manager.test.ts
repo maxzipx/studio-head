@@ -645,6 +645,22 @@ describe('StudioManager', () => {
     expect(snapshot?.signal.includes('accepted')).toBe(false);
   });
 
+  it('keeps negotiation open after first failed weekly check when rounds remain', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('negotiation remains open'))).toBe(true);
+    expect(manager.playerNegotiations.some((entry) => entry.projectId === project!.id && entry.talentId === lead!.id)).toBe(true);
+    expect(lead!.availability).toBe('inNegotiation');
+  });
+
   it('applies quick-close attempt cost and cooldown on decline', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

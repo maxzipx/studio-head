@@ -506,15 +506,26 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);
       }
     } else {
-      manager.setNegotiationCooldown(talent, 1);
-      manager.recordTalentInteraction(talent, {
-        kind: 'negotiationDeclined',
-        trustDelta: -3,
-        loyaltyDelta: -2,
-        note: `Declined final terms for ${project.title}.`,
-        projectId: project.id,
-      });
-      events.push(manager.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
+      const rounds = normalized.rounds ?? 0;
+      const holdLine = normalized.holdLineCount ?? 0;
+      const exhausted = rounds >= 4 || holdLine >= 2;
+      if (exhausted) {
+        manager.setNegotiationCooldown(talent, 1);
+        manager.recordTalentInteraction(talent, {
+          kind: 'negotiationDeclined',
+          trustDelta: -3,
+          loyaltyDelta: -2,
+          note: `Declined final terms for ${project.title}.`,
+          projectId: project.id,
+        });
+        events.push(manager.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
+      } else {
+        normalized.lastComputedChance = evaluation.chance;
+        normalized.lastResponse = `${talent.name}'s reps countered. Talks remain open; adjust one lever and try again next turn.`;
+        Object.assign(negotiation, normalized);
+        events.push(`${talent.name} countered on ${project.title}; negotiation remains open.`);
+        continue;
+      }
     }
     resolved.push(negotiation.talentId);
   }
