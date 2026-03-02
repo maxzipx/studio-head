@@ -940,7 +940,12 @@ export class StudioManager {
   }
 
   getAvailableTalentForRole(role: TalentRole): Talent[] {
-    return this.talentPool.filter((talent) => talent.role === role && talent.availability === 'available');
+    return this.talentPool.filter(
+      (talent) =>
+        talent.role === role &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
   }
 
   getNegotiationChance(talentId: string, projectId?: string): number | null {

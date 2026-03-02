@@ -196,4 +196,22 @@ describe('persistence restore', () => {
     expect(restored.distributionOffers.length).toBe(0);
     expect(restored.activeProjects[0].releaseWindow).toBeNull();
   });
+
+  it('trims oversized legacy script markets and restores visible talent windows', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const scripts = snapshot.scriptMarket as Record<string, unknown>[];
+    snapshot.scriptMarket = [...scripts, ...scripts, ...scripts] as ReturnType<typeof serializeStudioManager>['scriptMarket'];
+    for (const talent of snapshot.talentPool as Record<string, unknown>[]) {
+      talent.marketWindowExpiresWeek = null;
+    }
+
+    const restored = restoreStudioManager(snapshot);
+    const visibleTalent = restored.talentPool.filter(
+      (talent) => talent.availability === 'available' && talent.marketWindowExpiresWeek !== null
+    );
+
+    expect(restored.scriptMarket.length).toBeLessThanOrEqual(4);
+    expect(visibleTalent.length).toBeGreaterThan(0);
+  });
 });

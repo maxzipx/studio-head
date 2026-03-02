@@ -24,6 +24,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function sanitizeRestoredManager(manager: StudioManager): void {
   const defaults = new StudioManager();
+  const scriptMarketTargetOffers = 4;
 
   if (typeof manager.studioName !== 'string' || manager.studioName.trim().length < 1) {
     manager.studioName = defaults.studioName;
@@ -256,8 +257,30 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       1,
       Math.max(0, (talent.relationshipMemory.trust * 0.62 + talent.relationshipMemory.loyalty * 0.38) / 100)
     );
+    if (!Number.isFinite(talent.marketWindowExpiresWeek)) {
+      talent.marketWindowExpiresWeek = null;
+    }
+    if (talent.marketWindowExpiresWeek !== null) {
+      talent.marketWindowExpiresWeek = Math.max(manager.currentWeek, Math.round(talent.marketWindowExpiresWeek));
+    }
   }
   if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
+  if (manager.scriptMarket.length > scriptMarketTargetOffers) {
+    manager.scriptMarket = manager.scriptMarket.slice(0, scriptMarketTargetOffers);
+  }
+  if (manager.scriptMarket.length === 0) {
+    const managerWithRefill = manager as unknown as { refillScriptMarket?: (events: string[]) => void };
+    if (typeof managerWithRefill.refillScriptMarket === 'function') {
+      managerWithRefill.refillScriptMarket([]);
+    }
+  }
+  const managerWithMarketRefresh = manager as unknown as { refreshTalentMarket?: () => void };
+  const visibleTalent = manager.talentPool.filter(
+    (talent) => talent.availability === 'available' && talent.marketWindowExpiresWeek !== null
+  ).length;
+  if (visibleTalent === 0 && typeof managerWithMarketRefresh.refreshTalentMarket === 'function') {
+    managerWithMarketRefresh.refreshTalentMarket();
+  }
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
   for (const rival of manager.rivals) {
     const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0];
