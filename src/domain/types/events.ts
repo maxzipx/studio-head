@@ -64,7 +64,7 @@ export interface DecisionItem {
   options: DecisionOption[];
 }
 
-export type InboxNotificationKind = 'negotiationSuccess';
+export type InboxNotificationKind = 'negotiationSuccess' | 'scriptAcquired';
 
 export interface InboxNotification {
   id: string;

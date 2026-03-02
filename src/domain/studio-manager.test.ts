@@ -256,10 +256,14 @@ describe('StudioManager', () => {
     const result = manager.acquireScript(targetScript.id);
 
     expect(result.success).toBe(true);
+    expect(result.message).toContain('Script acquired');
     expect(manager.activeProjects.length).toBe(beforeProjects + 1);
     expect(manager.scriptMarket.length).toBe(beforeScripts - 1);
     const created = manager.activeProjects.find((project) => project.id === result.projectId);
     expect(created).toBeTruthy();
+    expect(manager.newlyAcquiredProjectId).toBe(created!.id);
+    expect(manager.inboxNotifications[0]?.kind).toBe('scriptAcquired');
+    expect(manager.inboxNotifications[0]?.projectId).toBe(created!.id);
     expect(created!.budgetPlan.directorPlanned).toBeGreaterThan(0);
     expect(created!.budgetPlan.castPlannedTotal).toBeGreaterThan(0);
     expect(created!.budgetPlan.castPlannedActor).toBeGreaterThan(0);

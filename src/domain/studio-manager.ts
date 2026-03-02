@@ -197,6 +197,7 @@ export class StudioManager {
   pendingReleaseReveals: string[] = [];
   decisionQueue: DecisionItem[] = createOpeningDecisions();
   inboxNotifications: InboxNotification[] = [];
+  newlyAcquiredProjectId: string | null = null;
   activeProjects: MovieProject[] = createSeedProjects();
   franchises: FranchiseTrack[] = [];
   talentSeed = 0;
@@ -1338,8 +1339,17 @@ export class StudioManager {
       adaptedFromIpId: null,
     };
     this.activeProjects.push(project);
+    this.newlyAcquiredProjectId = project.id;
+    this.inboxNotifications.unshift({
+      id: createId('note'),
+      week: this.currentWeek,
+      kind: 'scriptAcquired',
+      title: `Script acquired: ${pitch.title}`,
+      body: 'The script has been removed from market offers and added to your active slate.',
+      projectId: project.id,
+    });
     if (this.currentWeek % 7 === 0) this.refreshIpMarketplace();
-    return { success: true, message: `Acquired "${pitch.title}".`, projectId: project.id };
+    return { success: true, message: `Script acquired: "${pitch.title}" added to your slate.`, projectId: project.id };
   }
 
   passScript(scriptId: string): void {
@@ -1471,6 +1481,7 @@ export class StudioManager {
     if (!this.canEndWeek) {
       throw new Error('Resolve all crises before ending the week.');
     }
+    this.newlyAcquiredProjectId = null;
 
     const cashBefore = this.cash;
     const tierBefore = this.studioTier;

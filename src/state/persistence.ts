@@ -175,7 +175,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .map((entry) => ({
       id: String(entry.id),
       week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
-      kind: 'negotiationSuccess' as const,
+      kind:
+        entry.kind === 'negotiationSuccess' || entry.kind === 'scriptAcquired'
+          ? entry.kind
+          : 'negotiationSuccess',
       title: String(entry.title).slice(0, 120),
       body: typeof entry.body === 'string' ? entry.body.slice(0, 240) : '',
       projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,

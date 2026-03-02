@@ -284,7 +284,11 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     startNewRun: () => {
       runWhenHydrated(() => {
         const freshTalentSeed = Math.floor(Math.random() * 2_147_483_647);
-        const freshManager = new StudioManager({ talentSeed: freshTalentSeed });
+        const freshManager = new StudioManager({
+          talentSeed: freshTalentSeed,
+          startWithSeedProjects: false,
+          includeOpeningDecisions: false,
+        });
         Object.assign(manager, freshManager);
         saveAndTick('Started a new run.');
       }, { allowWhenBankrupt: true });

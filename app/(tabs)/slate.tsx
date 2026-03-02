@@ -235,8 +235,15 @@ export default function SlateScreen() {
                 <GlassCard key={project.id} style={{ gap: spacing.sp2 }}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>{project.title}</Text>
-                    <View style={[styles.pill, { borderColor: phaseCol + '60', backgroundColor: phaseCol + '14' }]}>
-                      <Text style={[styles.pillText, { color: phaseCol }]}>{project.phase}</Text>
+                    <View style={styles.rowMeta}>
+                      {manager.newlyAcquiredProjectId === project.id ? (
+                        <View style={[styles.pill, { borderColor: colors.accentGreen + '70', backgroundColor: colors.accentGreen + '1A' }]}>
+                          <Text style={[styles.pillText, { color: colors.accentGreen }]}>NEW</Text>
+                        </View>
+                      ) : null}
+                      <View style={[styles.pill, { borderColor: phaseCol + '60', backgroundColor: phaseCol + '14' }]}>
+                        <Text style={[styles.pillText, { color: phaseCol }]}>{project.phase}</Text>
+                      </View>
                     </View>
                   </View>
 
