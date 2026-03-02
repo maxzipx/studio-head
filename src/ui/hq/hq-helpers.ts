@@ -1,5 +1,4 @@
 import type { OutcomeType } from '@/src/ui/components';
-import { colors } from '@/src/ui/tokens';
 import type { ReleaseReport } from '@/src/domain/types';
 
 /** Capitalizes the first letter of every word, e.g. "sci-fi horror" → "Sci-Fi Horror" */

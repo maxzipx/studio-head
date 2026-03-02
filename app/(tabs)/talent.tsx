@@ -143,7 +143,6 @@ export default function TalentScreen() {
   }));
 
   const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
-  const developmentProjectIds = developmentProjects.map((p) => p.id).join('|');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
   const [compactView, setCompactView] = useState(true);
@@ -188,7 +187,7 @@ export default function TalentScreen() {
     if (fallback !== selectedProjectId) {
       setSelectedProjectId(fallback);
     }
-  }, [developmentProjectIds, selectedProjectId]);
+  }, [developmentProjects, selectedProjectId]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
