@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { TALENT_MARKET_RULES } from './balance-constants';
 import { StudioManager } from './studio-manager';
 
 describe('StudioManager', () => {
@@ -1042,6 +1043,27 @@ describe('StudioManager', () => {
     expect(manager.scriptMarket.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('starts with a limited script market instead of loading the entire catalog', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    expect(manager.scriptMarket.length).toBeLessThanOrEqual(4);
+  });
+
+  it('starts with a constrained visible talent market window', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const visibleTalent = manager.talentPool.filter(
+      (talent) => talent.availability === 'available' && talent.marketWindowExpiresWeek !== null
+    );
+    const visibleDirectors = visibleTalent.filter((talent) => talent.role === 'director').length;
+    const visibleActors = visibleTalent.filter((talent) => talent.role === 'leadActor').length;
+
+    expect(visibleDirectors).toBeGreaterThan(0);
+    expect(visibleActors).toBeGreaterThan(0);
+    expect(visibleDirectors).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS);
+    expect(visibleActors).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
+  });
+
   it('biases script market refill toward currently hot genres', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
     manager.scriptMarket = [];
@@ -1357,6 +1379,28 @@ describe('StudioManager', () => {
     manager.endWeek();
     const poach = manager.pendingCrises.find((item) => item.kind === 'talentPoached');
     expect(poach).toBeTruthy();
+  });
+
+  it('allows rivals to poach available talent even when talent is outside player market windows', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    const target = manager.talentPool.find((talent) => talent.role === 'director');
+    expect(target).toBeTruthy();
+
+    for (const talent of manager.talentPool) {
+      talent.availability = 'unavailable';
+      talent.unavailableUntilWeek = manager.currentWeek + 20;
+      talent.attachedProjectId = null;
+      talent.marketWindowExpiresWeek = null;
+    }
+    target!.availability = 'available';
+    target!.unavailableUntilWeek = null;
+    target!.marketWindowExpiresWeek = null;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalTalentAcquisitions: (events: string[]) => void }).processRivalTalentAcquisitions(events);
+
+    expect(target!.availability).toBe('unavailable');
+    expect(manager.rivals.some((rival) => rival.lockedTalentIds.includes(target!.id))).toBe(true);
   });
 
   it('creates release conflict interrupt when rival moves into player week', () => {

@@ -94,11 +94,11 @@ export const TALENT_NEGOTIATION_RULES = {
 
 export const TALENT_MARKET_RULES = {
   // Maximum talents visible in the market at once
-  MAX_VISIBLE_DIRECTORS: 6,
-  MAX_VISIBLE_ACTORS: 16,
+  MAX_VISIBLE_DIRECTORS: 3,
+  MAX_VISIBLE_ACTORS: 8,
   // Talents added per weekly trickle
   WEEKLY_DIRECTOR_TRICKLE: 1,
-  WEEKLY_ACTOR_TRICKLE: 2,
+  WEEKLY_ACTOR_TRICKLE: 1,
   // Market window duration (weeks) by starPower tier
   WINDOW_LOW_WEEKS: 6,   // starPower < 7.0  (≤ 3.5 display stars)
   WINDOW_MID_WEEKS: 5,   // starPower 7.0–8.49 (3.5–4.25 stars)

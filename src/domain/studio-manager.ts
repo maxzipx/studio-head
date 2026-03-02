@@ -115,7 +115,6 @@ import {
   createOpeningDecisions,
   createSeedProjects,
   createSeedRivals,
-  createSeedScriptMarket,
   createSeedTalentPool,
 } from './seeds';
 import { adjustCashForManager, evaluateBankruptcyForManager } from './finance.service';
@@ -232,7 +231,7 @@ export class StudioManager {
   franchises: FranchiseTrack[] = [];
   talentSeed = 0;
   talentPool: Talent[] = createSeedTalentPool(this.talentSeed);
-  scriptMarket: ScriptPitch[] = createSeedScriptMarket();
+  scriptMarket: ScriptPitch[] = [];
   rivals: RivalStudio[] = createSeedRivals();
   industryNewsLog: IndustryNewsItem[] = [];
   playerNegotiations: PlayerNegotiation[] = [];
@@ -519,6 +518,8 @@ export class StudioManager {
     }
     this.bindOpeningDecisionToLeadProject();
     this.refreshIpMarketplace();
+    this.refillScriptMarket([]);
+    this.refreshTalentMarket();
   }
 
   get canEndWeek(): boolean {
