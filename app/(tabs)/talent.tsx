@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -146,6 +146,8 @@ export default function TalentScreen() {
   const developmentProjectIds = developmentProjects.map((p) => p.id).join('|');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
+  const [compactView, setCompactView] = useState(true);
+  const [showOpsPanels, setShowOpsPanels] = useState(false);
 
   const activeProject = selectedProjectId
     ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
@@ -172,6 +174,10 @@ export default function TalentScreen() {
 
   const marketDirectorCount = marketTalent.filter((t) => t.role === 'director').length;
   const marketActorCount = marketTalent.filter((t) => t.role === 'leadActor').length;
+  const marketDirectors = marketTalent.filter((t) => t.role === 'director');
+  const marketActors = marketTalent.filter((t) => t.role === 'leadActor');
+  const rosterDirectors = rosterTalent.filter((t) => t.role === 'director');
+  const rosterActors = rosterTalent.filter((t) => t.role === 'leadActor');
   const rivalLockedCount = manager.talentPool.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
   const coolingOffCount = manager.talentPool.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
 
@@ -211,25 +217,36 @@ export default function TalentScreen() {
         variant="ghost"
         size="sm"
       />
+      <View style={styles.topControls}>
+        <PremiumButton
+          label={compactView ? 'Compact View' : 'Expanded View'}
+          onPress={() => setCompactView((v) => !v)}
+          variant={compactView ? 'primary' : 'secondary'}
+          size="sm"
+          style={styles.controlBtn}
+        />
+        <PremiumButton
+          label={showOpsPanels ? 'Hide Ops Panels' : 'Show Ops Panels'}
+          onPress={() => setShowOpsPanels((v) => !v)}
+          variant="secondary"
+          size="sm"
+          style={styles.controlBtn}
+        />
+      </View>
       {showHelp && (
         <GlassCard variant="elevated">
           <Text style={styles.helpTitle}>How the Market Works</Text>
           <Text style={styles.helpBody}>A rotating pool of talent appears each week. Lower-tier talent stays 6 weeks; elite talent stays only 3 weeks. New faces trickle in every turn to replace expired windows.</Text>
           <Text style={styles.helpBody}>Higher-star talent only appears once your studio heat or talent reputation reaches their threshold. Build your rep to unlock elite talent.</Text>
           <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest. Trust and loyalty influence future negotiations.</Text>
+          <Text style={styles.helpBody}>
+            <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
+            {' = audience draw and launch heat. '}
+            <Text style={{ color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
+            {' = execution quality and critic stability.'}
+          </Text>
         </GlassCard>
       )}
-
-      {/* ── Star vs Craft ── */}
-      <GlassCard>
-        <SectionLabel label="Star vs Craft" />
-        <Text style={styles.body}>
-          <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
-          {' = audience draw and launch heat. '}
-          <Text style={{ color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
-          {' = execution quality and critic stability. Big stars open films; high craft sustains reviews.'}
-        </Text>
-      </GlassCard>
 
       {/* ── Market Snapshot ── */}
       <GlassCard>
@@ -293,111 +310,118 @@ export default function TalentScreen() {
         </GlassCard>
       )}
 
-      {/* ── Project Ledger ── */}
-      <GlassCard>
-        <SectionLabel label="Project Ledger" />
-        {projectLedger.length === 0
-          ? <Text style={styles.empty}>No active projects.</Text>
-          : projectLedger.map((project) => {
-            const director = project.directorId
-              ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
-              : 'Unattached';
-            const cast = project.castIds
-              .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
-              .filter((v): v is string => !!v);
-            return (
-              <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
-                <Text style={styles.subTitle}>{project.title}</Text>
-                <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
-                <Text style={styles.muted}>Director: {director}</Text>
-                {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
-              </GlassCard>
-            );
-          })
-        }
-      </GlassCard>
+      {showOpsPanels && (
+        <>
+          {/* ── Project Ledger ── */}
+          <GlassCard>
+            <SectionLabel label="Project Ledger" />
+            {projectLedger.length === 0
+              ? <Text style={styles.empty}>No active projects.</Text>
+              : projectLedger.map((project) => {
+                const director = project.directorId
+                  ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
+                  : 'Unattached';
+                const cast = project.castIds
+                  .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
+                  .filter((v): v is string => !!v);
+                return (
+                  <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
+                    <Text style={styles.subTitle}>{project.title}</Text>
+                    <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
+                    <Text style={styles.muted}>Director: {director}</Text>
+                    {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
+                  </GlassCard>
+                );
+              })
+            }
+          </GlassCard>
 
-      {/* ── Open Negotiations ── */}
-      <GlassCard>
-        <SectionLabel label="Open Negotiations" />
-        {manager.playerNegotiations.length === 0
-          ? <Text style={styles.empty}>No open negotiations.</Text>
-          : manager.playerNegotiations.map((entry) => {
-            const talent = manager.talentPool.find((t) => t.id === entry.talentId);
-            const project = manager.activeProjects.find((p) => p.id === entry.projectId);
-            const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
-            const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
-            return (
-              <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
-                <View style={styles.negHeader}>
-                  <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
-                  {chance !== null && (
-                    <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
-                      <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
-                        {pct(chance)} · {chanceLabel(chance)}
-                      </Text>
+          {/* ── Open Negotiations ── */}
+          <GlassCard>
+            <SectionLabel label="Open Negotiations" />
+            {manager.playerNegotiations.length === 0
+              ? <Text style={styles.empty}>No open negotiations.</Text>
+              : manager.playerNegotiations.map((entry) => {
+                const talent = manager.talentPool.find((t) => t.id === entry.talentId);
+                const project = manager.activeProjects.find((p) => p.id === entry.projectId);
+                const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
+                const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
+                return (
+                  <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
+                    <View style={styles.negHeader}>
+                      <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
+                      {chance !== null && (
+                        <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
+                          <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
+                            {pct(chance)} · {chanceLabel(chance)}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
-                <Text style={styles.muted}>
-                  {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
-                </Text>
-
-                {snapshot && (
-                  <>
                     <Text style={styles.muted}>
-                      Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
+                      {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
                     </Text>
-                    <View style={styles.offerRow}>
-                      <GlassCard variant="default" style={styles.offerCol}>
-                        <Text style={styles.offerLabel}>YOUR OFFER</Text>
-                        <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
-                        <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
-                      </GlassCard>
-                      <GlassCard variant="default" style={styles.offerCol}>
-                        <Text style={styles.offerLabel}>THEIR ASK</Text>
-                        <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
-                        <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
-                      </GlassCard>
-                    </View>
-                    <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
-                    <Text style={styles.muted}>
-                      Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
-                    </Text>
-                    <View style={styles.actions}>
-                      {[
-                        { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
-                        { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
-                        { label: '+Perks', action: 'sweetenPerks', pressure: 'perks' },
-                        { label: 'Hold', action: 'holdFirm', pressure: null },
-                      ].map(({ label, action, pressure }) => (
-                        <PremiumButton
-                          key={action}
-                          label={label}
-                          onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as any)}
-                          variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
-                          size="sm"
-                          style={styles.negBtn}
-                        />
-                      ))}
-                    </View>
-                  </>
-                )}
-              </GlassCard>
-            );
-          })
-        }
-      </GlassCard>
 
-      {/* ── In Market ── */}
-      <SectionLabel label="In Market" style={{ marginTop: spacing.sp2 }} />
+                    {snapshot && (
+                      <>
+                        <Text style={styles.muted}>
+                          Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
+                        </Text>
+                        <View style={styles.offerRow}>
+                          <GlassCard variant="default" style={styles.offerCol}>
+                            <Text style={styles.offerLabel}>YOUR OFFER</Text>
+                            <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
+                            <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
+                          </GlassCard>
+                          <GlassCard variant="default" style={styles.offerCol}>
+                            <Text style={styles.offerLabel}>THEIR ASK</Text>
+                            <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
+                            <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
+                          </GlassCard>
+                        </View>
+                        <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
+                        <Text style={styles.muted}>
+                          Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
+                        </Text>
+                        <View style={styles.actions}>
+                          {[
+                            { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
+                            { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
+                            { label: '+Perks', action: 'sweetenPerks', pressure: 'perks' },
+                            { label: 'Hold', action: 'holdFirm', pressure: null },
+                          ].map(({ label, action, pressure }) => (
+                            <PremiumButton
+                              key={action}
+                              label={label}
+                              onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as any)}
+                              variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
+                              size="sm"
+                              style={styles.negBtn}
+                            />
+                          ))}
+                        </View>
+                      </>
+                    )}
+                  </GlassCard>
+                );
+              })
+            }
+          </GlassCard>
+        </>
+      )}
+
+      {/* ── Directors In Market ── */}
+      <View style={styles.roleHeaderDirector}>
+        <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
+        <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
+      </View>
       {marketTalent.length === 0
         ? (
           <GlassCard variant="elevated">
             <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
           </GlassCard>
         )
-        : marketTalent.map((talent) => <TalentCard
+        : marketDirectors.map((talent) => <TalentCard
           key={talent.id}
           talent={talent}
           manager={manager}
@@ -405,14 +429,34 @@ export default function TalentScreen() {
           startNegotiation={startNegotiation}
           attachTalent={attachTalent}
           showCountdown
+          compact={compactView}
         />)
       }
+
+      {/* ── Actors In Market ── */}
+      <View style={styles.roleHeaderActor}>
+        <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
+        <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
+      </View>
+      {marketActors.map((talent) => <TalentCard
+        key={talent.id}
+        talent={talent}
+        manager={manager}
+        activeProject={activeProject}
+        startNegotiation={startNegotiation}
+        attachTalent={attachTalent}
+        showCountdown
+        compact={compactView}
+      />)}
 
       {/* ── Your Roster ── */}
       {rosterTalent.length > 0 && (
         <>
-          <SectionLabel label="Your Roster" style={{ marginTop: spacing.sp2 }} />
-          {rosterTalent.map((talent) => <TalentCard
+          <View style={styles.roleHeaderRoster}>
+            <Text style={styles.roleHeaderText}>YOUR ROSTER</Text>
+            <Text style={styles.roleHeaderCount}>{rosterTalent.length}</Text>
+          </View>
+          {rosterDirectors.map((talent) => <TalentCard
             key={talent.id}
             talent={talent}
             manager={manager}
@@ -420,6 +464,17 @@ export default function TalentScreen() {
             startNegotiation={startNegotiation}
             attachTalent={attachTalent}
             showCountdown={false}
+            compact={compactView}
+          />)}
+          {rosterActors.map((talent) => <TalentCard
+            key={talent.id}
+            talent={talent}
+            manager={manager}
+            activeProject={activeProject}
+            startNegotiation={startNegotiation}
+            attachTalent={attachTalent}
+            showCountdown={false}
+            compact={compactView}
           />)}
         </>
       )}
@@ -434,10 +489,12 @@ interface TalentCardProps {
   startNegotiation: (projectId: string, talentId: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
   showCountdown: boolean;
+  compact: boolean;
 }
 
-function TalentCard({ talent, manager, activeProject, startNegotiation, attachTalent, showCountdown }: TalentCardProps) {
+function TalentCard({ talent, manager, activeProject, startNegotiation, attachTalent, showCountdown, compact }: TalentCardProps) {
   const isAvailable = talent.availability === 'available';
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const rival = manager.rivals.find((r) => r.lockedTalentIds.includes(talent.id));
   const attachedProject =
     talent.attachedProjectId && manager.activeProjects.find((p) => p.id === talent.attachedProjectId);
@@ -456,11 +513,12 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
 
   const windowUrgent = weeksLeft !== null && weeksLeft <= 1;
   const windowWarning = weeksLeft !== null && weeksLeft === 2;
+  const showDetails = !compact || detailsOpen;
 
   return (
     <GlassCard
       variant={!isAvailable ? 'elevated' : 'default'}
-      style={{ gap: spacing.sp2, opacity: !isAvailable ? 0.82 : 1 }}
+      style={{ gap: compact ? spacing.sp1 : spacing.sp2, opacity: !isAvailable ? 0.82 : 1 }}
     >
       {/* Row 1: Name + window countdown */}
       <View style={styles.talentHeader}>
@@ -488,11 +546,16 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
               </Text>
             </View>
           )}
+          {compact && (
+            <Pressable style={styles.detailsToggle} onPress={() => setDetailsOpen((v) => !v)}>
+              <Text style={styles.detailsToggleText}>{detailsOpen ? 'Less' : 'Details'}</Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
       {/* Row 2: Star rating + craft bar */}
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, compact ? { gap: spacing.sp2 } : null]}>
         <View style={styles.statBlock}>
           <Text style={styles.statLabel}>STAR POWER</Text>
           <StarRating value={talent.starPower} size="md" />
@@ -506,23 +569,25 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
       </View>
 
       {/* Row 3: Trust / loyalty */}
-      <View style={styles.trustRow}>
-        <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
-          <Text style={[styles.trustText, { color: trustColor }]}>
-            {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
-          </Text>
+      {showDetails && (
+        <View style={styles.trustRow}>
+          <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
+            <Text style={[styles.trustText, { color: trustColor }]}>
+              {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
+            </Text>
+          </View>
+          <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
+            <Text style={[styles.riskText, { color: refusalRiskColor(outlook.refusalRisk) }]}>
+              {outlook.refusalRisk === 'critical' ? 'High Risk' : outlook.refusalRisk === 'elevated' ? 'Med Risk' : 'Low Risk'}
+            </Text>
+          </View>
+          {outlook.blocked && outlook.lockoutUntilWeek && (
+            <Text style={styles.muted}>Cooling off until W{outlook.lockoutUntilWeek}</Text>
+          )}
         </View>
-        <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
-          <Text style={[styles.riskText, { color: refusalRiskColor(outlook.refusalRisk) }]}>
-            {outlook.refusalRisk === 'critical' ? 'High Risk' : outlook.refusalRisk === 'elevated' ? 'Med Risk' : 'Low Risk'}
-          </Text>
-        </View>
-        {outlook.blocked && outlook.lockoutUntilWeek && (
-          <Text style={styles.muted}>Cooling off until W{outlook.lockoutUntilWeek}</Text>
-        )}
-      </View>
+      )}
 
-      {outlook.reason && (
+      {showDetails && outlook.reason && (
         <Text style={[styles.alert, { color: '#F5D089' }]}>{outlook.reason}</Text>
       )}
 
@@ -539,7 +604,7 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
       )}
 
       {/* Recent memory */}
-      {recentMemory.length > 0 && (
+      {showDetails && recentMemory.length > 0 && (
         <View style={{ gap: 3 }}>
           <SectionLabel label="Recent Memory" />
           {recentMemory.map((entry, i) => (
@@ -601,6 +666,8 @@ const styles = StyleSheet.create({
 
   helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
   helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
+  topControls: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap' },
+  controlBtn: { flexBasis: '48%', flexGrow: 0 },
 
   snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
   snapshotTile: { minWidth: 56, alignItems: 'center', paddingVertical: spacing.sp2 },
@@ -620,6 +687,53 @@ const styles = StyleSheet.create({
   offerCol: { flex: 1, gap: 3, padding: spacing.sp2 },
   offerLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
   offerVal: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS, color: colors.textSecondary },
+  roleHeaderDirector: {
+    marginTop: spacing.sp2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.ctaBlue + '14',
+    borderRadius: radius.r2,
+    borderWidth: 1,
+    borderColor: colors.ctaBlue + '40',
+    paddingHorizontal: spacing.sp3,
+    paddingVertical: spacing.sp2,
+  },
+  roleHeaderActor: {
+    marginTop: spacing.sp2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.accentGreen + '14',
+    borderRadius: radius.r2,
+    borderWidth: 1,
+    borderColor: colors.accentGreen + '40',
+    paddingHorizontal: spacing.sp3,
+    paddingVertical: spacing.sp2,
+  },
+  roleHeaderRoster: {
+    marginTop: spacing.sp2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.goldMid + '14',
+    borderRadius: radius.r2,
+    borderWidth: 1,
+    borderColor: colors.goldMid + '40',
+    paddingHorizontal: spacing.sp3,
+    paddingVertical: spacing.sp2,
+  },
+  roleHeaderText: {
+    fontFamily: typography.fontBodyBold,
+    fontSize: typography.sizeXS,
+    letterSpacing: typography.trackingWidest,
+    color: colors.textPrimary,
+  },
+  roleHeaderCount: {
+    fontFamily: typography.fontBodyBold,
+    fontSize: typography.sizeSM,
+    color: colors.textPrimary,
+  },
 
   // Talent card
   talentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sp2 },
@@ -641,6 +755,15 @@ const styles = StyleSheet.create({
   trustText: { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
   riskBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8, backgroundColor: 'transparent' },
   riskText: { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
+  detailsToggle: {
+    borderRadius: radius.rFull,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  detailsToggleText: { fontFamily: typography.fontBodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 0.3 },
 
   memoryLine: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
 
