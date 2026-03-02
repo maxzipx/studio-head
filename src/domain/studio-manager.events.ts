@@ -9,12 +9,13 @@ import type {
   ScriptPitch,
   StoryArcState,
 } from './types';
+import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function pickScriptByDemandForManager(manager: any, pool: ScriptPitch[]): ScriptPitch | null {
+function pickScriptByDemandForManager(manager: StudioManager, pool: ScriptPitch[]): ScriptPitch | null {
   if (pool.length === 0) return null;
   const weighted = pool.map((item) => {
     const demand = typeof manager.getGenreDemandMultiplier === 'function' ? manager.getGenreDemandMultiplier(item.genre) : 1;
@@ -37,11 +38,11 @@ function pickScriptByDemandForManager(manager: any, pool: ScriptPitch[]): Script
   return weighted[weighted.length - 1]?.item ?? null;
 }
 
-export function tickDecisionExpiryForManager(manager: any, events: string[]): void {
+export function tickDecisionExpiryForManager(manager: StudioManager, events: string[]): void {
   for (const item of manager.decisionQueue) {
     item.weeksUntilExpiry -= 1;
   }
-  const expired = manager.decisionQueue.filter((item: any) => item.weeksUntilExpiry < 0);
+  const expired = manager.decisionQueue.filter((item) => item.weeksUntilExpiry < 0);
   if (expired.length > 0) {
     for (const item of expired) {
       const flag = item.onExpireClearFlag;
@@ -53,29 +54,29 @@ export function tickDecisionExpiryForManager(manager: any, events: string[]): vo
         manager.storyFlags[flag] = current - 1;
       }
     }
-    manager.decisionQueue = manager.decisionQueue.filter((item: any) => item.weeksUntilExpiry >= 0);
+    manager.decisionQueue = manager.decisionQueue.filter((item) => item.weeksUntilExpiry >= 0);
     events.push(`${expired.length} decision item(s) expired.`);
     manager.adjustReputation(-expired.length, 'all');
   }
 }
 
-export function tickScriptMarketExpiryForManager(manager: any, events: string[]): void {
+export function tickScriptMarketExpiryForManager(manager: StudioManager, events: string[]): void {
   for (const item of manager.scriptMarket) {
     item.expiresInWeeks -= 1;
   }
-  const expired = manager.scriptMarket.filter((item: any) => item.expiresInWeeks < 0);
+  const expired = manager.scriptMarket.filter((item) => item.expiresInWeeks < 0);
   if (expired.length > 0) {
-    manager.scriptMarket = manager.scriptMarket.filter((item: any) => item.expiresInWeeks >= 0);
+    manager.scriptMarket = manager.scriptMarket.filter((item) => item.expiresInWeeks >= 0);
     events.push(`${expired.length} script offer(s) expired from market.`);
   }
 }
 
-export function refillScriptMarketForManager(manager: any, events: string[]): void {
+export function refillScriptMarketForManager(manager: StudioManager, events: string[]): void {
   const targetOffers = 4;
   if (manager.scriptMarket.length >= targetOffers) return;
 
   const catalog = createSeedScriptMarket();
-  const existingTitles = new Set(manager.scriptMarket.map((item: any) => item.title));
+  const existingTitles = new Set(manager.scriptMarket.map((item) => item.title));
   let added = 0;
   let weightedDemandAccumulator = 0;
 
@@ -116,7 +117,7 @@ export function refillScriptMarketForManager(manager: any, events: string[]): vo
   }
 }
 
-export function rollForCrisesForManager(manager: any, events: string[]): void {
+export function rollForCrisesForManager(manager: StudioManager, events: string[]): void {
   const generated: CrisisEvent[] = [];
   for (const project of manager.activeProjects) {
     if (!['preProduction', 'production', 'postProduction'].includes(project.phase)) continue;
@@ -136,7 +137,7 @@ export function rollForCrisesForManager(manager: any, events: string[]): void {
   }
 }
 
-export function generateEventDecisionsForManager(manager: any, events: string[]): void {
+export function generateEventDecisionsForManager(manager: StudioManager, events: string[]): void {
   if (manager.decisionQueue.length >= 4) return;
 
   const nextEvent = pickWeightedEventForManager(manager);
@@ -159,8 +160,8 @@ export function generateEventDecisionsForManager(manager: any, events: string[])
   events.push(`New event: ${nextEvent.title}.`);
 }
 
-export function pickWeightedEventForManager(manager: any): EventTemplate | null {
-  const queuedTitles = new Set(manager.decisionQueue.map((item: any) => item.title));
+export function pickWeightedEventForManager(manager: StudioManager): EventTemplate | null {
+  const queuedTitles = new Set(manager.decisionQueue.map((item) => item.title));
   const weighted = manager.eventDeck
     .filter((event: EventTemplate) => {
       if (manager.currentWeek < event.minWeek) return false;
@@ -174,11 +175,11 @@ export function pickWeightedEventForManager(manager: any): EventTemplate | null 
       return true;
     })
     .map((event: EventTemplate) => ({ event, weight: eventWeightForManager(manager, event) }))
-    .filter((entry: any) => entry.weight > 0);
+    .filter((entry) => entry.weight > 0);
 
   if (weighted.length === 0) return null;
 
-  const total = weighted.reduce((sum: number, item: any) => sum + item.weight, 0);
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0);
   let roll = manager.eventRng() * total;
   for (const entry of weighted) {
     roll -= entry.weight;
@@ -187,7 +188,7 @@ export function pickWeightedEventForManager(manager: any): EventTemplate | null 
   return weighted[weighted.length - 1].event;
 }
 
-export function eventWeightForManager(manager: any, event: EventTemplate): number {
+export function eventWeightForManager(manager: StudioManager, event: EventTemplate): number {
   let weight = event.baseWeight;
   const modifiers = manager.getArcOutcomeModifiers();
   const candidates = getEventProjectCandidatesForManager(manager, event);
@@ -223,11 +224,11 @@ export function eventWeightForManager(manager: any, event: EventTemplate): numbe
   return weight;
 }
 
-export function getEventArcIdForManager(_manager: any, event: EventTemplate): string | null {
+export function getEventArcIdForManager(_manager: StudioManager, event: EventTemplate): string | null {
   return event.requiresArc?.id ?? event.blocksArc?.id ?? null;
 }
 
-export function getArcPressureFromRivalsForManager(manager: any, arcId: string): number {
+export function getArcPressureFromRivalsForManager(manager: StudioManager, arcId: string): number {
   let pressure = 0;
   for (const rival of manager.rivals) {
     const profile = manager.getRivalBehaviorProfile(rival);
@@ -236,7 +237,7 @@ export function getArcPressureFromRivalsForManager(manager: any, arcId: string):
   return clamp(pressure / Math.max(1, manager.rivals.length), 0, 0.7);
 }
 
-export function getEventProjectCandidatesForManager(manager: any, event: EventTemplate): MovieProject[] {
+export function getEventProjectCandidatesForManager(manager: StudioManager, event: EventTemplate): MovieProject[] {
   if (event.scope !== 'project') return [];
   if (!event.targetPhases || event.targetPhases.length === 0) {
     return manager.activeProjects.filter((project: MovieProject) => project.phase !== 'released');
@@ -244,7 +245,7 @@ export function getEventProjectCandidatesForManager(manager: any, event: EventTe
   return manager.activeProjects.filter((project: MovieProject) => event.targetPhases?.includes(project.phase));
 }
 
-export function chooseProjectForEventForManager(manager: any, event: EventTemplate): MovieProject | null {
+export function chooseProjectForEventForManager(manager: StudioManager, event: EventTemplate): MovieProject | null {
   const candidates = getEventProjectCandidatesForManager(manager, event);
   if (candidates.length === 0) return null;
   const ranked = [...candidates].sort((a, b) => b.hypeScore - a.hypeScore);
@@ -253,12 +254,12 @@ export function chooseProjectForEventForManager(manager: any, event: EventTempla
   return selectionPool[index] ?? selectionPool[0] ?? null;
 }
 
-export function hasStoryFlagForManager(manager: any, flag: string): boolean {
+export function hasStoryFlagForManager(manager: StudioManager, flag: string): boolean {
   return (manager.storyFlags[flag] ?? 0) > 0;
 }
 
 export function matchesArcRequirementForManager(
-  manager: any,
+  manager: StudioManager,
   input: { id: string; minStage?: number; maxStage?: number; status?: 'active' | 'resolved' | 'failed' }
 ): boolean {
   const arc = manager.storyArcs[input.id];
@@ -269,7 +270,7 @@ export function matchesArcRequirementForManager(
   return true;
 }
 
-export function ensureArcStateForManager(manager: any, arcId: string): StoryArcState {
+export function ensureArcStateForManager(manager: StudioManager, arcId: string): StoryArcState {
   if (!manager.storyArcs[arcId]) {
     manager.storyArcs[arcId] = {
       stage: 0,
@@ -280,7 +281,7 @@ export function ensureArcStateForManager(manager: any, arcId: string): StoryArcS
   return manager.storyArcs[arcId];
 }
 
-export function applyArcMutationForManager(manager: any, arcId: string, option: DecisionItem['options'][number]): void {
+export function applyArcMutationForManager(manager: StudioManager, arcId: string, option: DecisionItem['options'][number]): void {
   const arc = ensureArcStateForManager(manager, arcId);
   if (typeof option.setArcStage === 'number') {
     arc.stage = Math.max(0, option.setArcStage);
@@ -298,7 +299,7 @@ export function applyArcMutationForManager(manager: any, arcId: string, option: 
   arc.lastUpdatedWeek = manager.currentWeek;
 }
 
-export function applyStoryFlagMutationsForManager(manager: any, setFlag?: string, clearFlag?: string): void {
+export function applyStoryFlagMutationsForManager(manager: StudioManager, setFlag?: string, clearFlag?: string): void {
   if (setFlag) {
     manager.storyFlags[setFlag] = (manager.storyFlags[setFlag] ?? 0) + 1;
   }
@@ -307,7 +308,7 @@ export function applyStoryFlagMutationsForManager(manager: any, setFlag?: string
   }
 }
 
-export function getDecisionTargetProjectForManager(manager: any, decision: DecisionItem): MovieProject | null {
+export function getDecisionTargetProjectForManager(manager: StudioManager, decision: DecisionItem): MovieProject | null {
   if (decision.projectId) {
     return manager.activeProjects.find((item: MovieProject) => item.id === decision.projectId) ?? null;
   }
@@ -317,7 +318,7 @@ export function getDecisionTargetProjectForManager(manager: any, decision: Decis
   return ranked[0] ?? manager.activeProjects[0] ?? null;
 }
 
-export function buildOperationalCrisisForManager(manager: any, project: MovieProject): CrisisEvent {
+export function buildOperationalCrisisForManager(manager: StudioManager, project: MovieProject): CrisisEvent {
   const phaseTemplates: {
     title: string;
     body: string;

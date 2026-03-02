@@ -9,6 +9,7 @@ import type {
   SequelCandidate,
   SequelEligibility,
 } from './types';
+import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -207,12 +208,12 @@ function episodePressure(episode: number): number {
   return clamp(depth * 0.42 + Math.max(0, depth - 1) * 0.5, 0, 2.6);
 }
 
-function getProjectFranchiseTrack(manager: any, project: MovieProject): FranchiseTrack | null {
+function getProjectFranchiseTrack(manager: StudioManager, project: MovieProject): FranchiseTrack | null {
   if (!project.franchiseId) return null;
   return manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId) ?? null;
 }
 
-function ensureFranchiseForBase(manager: any, baseProject: MovieProject): FranchiseTrack {
+function ensureFranchiseForBase(manager: StudioManager, baseProject: MovieProject): FranchiseTrack {
   if (baseProject.franchiseId) {
     const existing = manager.franchises.find((item: FranchiseTrack) => item.id === baseProject.franchiseId);
     if (existing) {
@@ -251,7 +252,7 @@ function ensureFranchiseForBase(manager: any, baseProject: MovieProject): Franch
   return franchise;
 }
 
-function maxEpisodeInFranchise(manager: any, franchise: FranchiseTrack): number {
+function maxEpisodeInFranchise(manager: StudioManager, franchise: FranchiseTrack): number {
   let maxEpisode = 1;
   for (const projectId of franchise.projectIds) {
     const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId);
@@ -261,7 +262,7 @@ function maxEpisodeInFranchise(manager: any, franchise: FranchiseTrack): number 
   return maxEpisode;
 }
 
-export function getSequelEligibilityForManager(manager: any, projectId: string): SequelEligibility | null {
+export function getSequelEligibilityForManager(manager: StudioManager, projectId: string): SequelEligibility | null {
   const baseProject = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
   if (!baseProject) return null;
 
@@ -339,7 +340,7 @@ export function getSequelEligibilityForManager(manager: any, projectId: string):
   };
 }
 
-export function getSequelCandidatesForManager(manager: any): SequelCandidate[] {
+export function getSequelCandidatesForManager(manager: StudioManager): SequelCandidate[] {
   return manager.activeProjects
     .filter((project: MovieProject) => project.phase === 'released')
     .map((project: MovieProject) => {
@@ -359,7 +360,7 @@ export function getSequelCandidatesForManager(manager: any): SequelCandidate[] {
 }
 
 export function startSequelForManager(
-  manager: any,
+  manager: StudioManager,
   baseProjectId: string
 ): { success: boolean; message: string; projectId?: string } {
   const baseProject = manager.activeProjects.find((item: MovieProject) => item.id === baseProjectId) as MovieProject | undefined;
@@ -485,7 +486,7 @@ function strategyAudienceBonus(strategy: FranchiseStrategy): number {
 }
 
 export function getFranchiseProjectionModifiersForManager(
-  manager: any,
+  manager: StudioManager,
   project: MovieProject,
   projectedReleaseWeek?: number
 ): FranchiseProjectionModifiers {
@@ -583,7 +584,7 @@ export function getFranchiseProjectionModifiersForManager(
 }
 
 export function setFranchiseStrategyForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string,
   strategy: Exclude<FranchiseStrategy, 'none'>
 ): { success: boolean; message: string } {
@@ -640,7 +641,7 @@ export function setFranchiseStrategyForManager(
 }
 
 export function runFranchiseBrandResetForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string
 ): { success: boolean; message: string } {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
@@ -681,7 +682,7 @@ export function runFranchiseBrandResetForManager(
 }
 
 export function runFranchiseLegacyCastingCampaignForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string
 ): { success: boolean; message: string } {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
@@ -723,7 +724,7 @@ export function runFranchiseLegacyCastingCampaignForManager(
 }
 
 export function runFranchiseHiatusPlanningForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string
 ): { success: boolean; message: string } {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
@@ -763,7 +764,7 @@ export function runFranchiseHiatusPlanningForManager(
   };
 }
 
-export function getFranchiseStatusForManager(manager: any, projectId: string): FranchiseStatusSnapshot | null {
+export function getFranchiseStatusForManager(manager: StudioManager, projectId: string): FranchiseStatusSnapshot | null {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
   if (!project?.franchiseId) return null;
   const franchise = getProjectFranchiseTrack(manager, project);
@@ -796,7 +797,7 @@ export function getFranchiseStatusForManager(manager: any, projectId: string): F
   };
 }
 
-export function markFranchiseReleaseForManager(manager: any, projectId: string): void {
+export function markFranchiseReleaseForManager(manager: StudioManager, projectId: string): void {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
   if (!project?.franchiseId) return;
   const franchise = manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId);
@@ -832,7 +833,7 @@ export function markFranchiseReleaseForManager(manager: any, projectId: string):
   franchise.cadenceBufferWeeks = clamp(Math.round((franchise.cadenceBufferWeeks ?? 0) * 0.45), 0, 40);
 }
 
-export function removeProjectFromFranchiseForManager(manager: any, projectId: string): void {
+export function removeProjectFromFranchiseForManager(manager: StudioManager, projectId: string): void {
   const project = manager.activeProjects.find((item: MovieProject) => item.id === projectId) as MovieProject | undefined;
   if (!project?.franchiseId) return;
   const franchise = manager.franchises.find((item: FranchiseTrack) => item.id === project.franchiseId);
@@ -851,3 +852,4 @@ export function removeProjectFromFranchiseForManager(manager: any, projectId: st
     manager.franchises = manager.franchises.filter((item: FranchiseTrack) => item.id !== franchise.id);
   }
 }
+

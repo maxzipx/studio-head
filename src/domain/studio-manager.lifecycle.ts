@@ -1,16 +1,17 @@
 import type { DistributionOffer, MovieProject } from './types';
 import { createId } from './id';
+import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
 export function setProjectReleaseWeekForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string,
   releaseWeek: number
 ): { success: boolean; message: string } {
-  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+  const project = manager.activeProjects.find((item) => item.id === projectId);
   if (!project || project.phase !== 'distribution') {
     return { success: false, message: 'Project is not in distribution.' };
   }
@@ -18,8 +19,8 @@ export function setProjectReleaseWeekForManager(
   return { success: true, message: `${project.title} release moved to week ${project.releaseWeek}.` };
 }
 
-export function advanceProjectPhaseForManager(manager: any, projectId: string): { success: boolean; message: string } {
-  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+export function advanceProjectPhaseForManager(manager: StudioManager, projectId: string): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item) => item.id === projectId);
   if (!project) return { success: false, message: 'Project not found.' };
 
   if (project.phase === 'development') {
@@ -46,7 +47,7 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
     if (project.scheduledWeeksRemaining > 0) {
       return { success: false, message: 'Production schedule still has remaining weeks.' };
     }
-    if (manager.pendingCrises.some((item: any) => item.projectId === project.id)) {
+    if (manager.pendingCrises.some((item) => item.projectId === project.id)) {
       return { success: false, message: 'Resolve project crises before moving to post.' };
     }
     project.phase = 'postProduction';
@@ -104,15 +105,15 @@ export function advanceProjectPhaseForManager(manager: any, projectId: string): 
 }
 
 export function acceptDistributionOfferForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string,
   offerId: string
 ): { success: boolean; message: string } {
-  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+  const project = manager.activeProjects.find((item) => item.id === projectId);
   if (!project || project.phase !== 'distribution') {
     return { success: false, message: 'Project is not in distribution phase.' };
   }
-  const offer = manager.distributionOffers.find((item: any) => item.id === offerId && item.projectId === projectId);
+  const offer = manager.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
   if (!offer) return { success: false, message: 'Offer not found.' };
   if (offer.releaseWindow !== 'wideTheatrical' && offer.releaseWindow !== 'limitedTheatrical') {
     return { success: false, message: 'Player studio can only accept theatrical distribution windows.' };
@@ -127,16 +128,16 @@ export function acceptDistributionOfferForManager(
   project.marketingBudget += offer.pAndACommitment;
   project.hypeScore = clamp(project.hypeScore + 6, 0, 100);
   manager.adjustCash(offer.minimumGuarantee);
-  manager.distributionOffers = manager.distributionOffers.filter((item: any) => item.projectId !== projectId);
+  manager.distributionOffers = manager.distributionOffers.filter((item) => item.projectId !== projectId);
   return { success: true, message: `Accepted ${offer.partner} offer.` };
 }
 
 export function counterDistributionOfferForManager(
-  manager: any,
+  manager: StudioManager,
   projectId: string,
   offerId: string
 ): { success: boolean; message: string } {
-  const offer = manager.distributionOffers.find((item: any) => item.id === offerId && item.projectId === projectId);
+  const offer = manager.distributionOffers.find((item) => item.id === offerId && item.projectId === projectId);
   if (!offer) return { success: false, message: 'Offer not found.' };
   const attempts = offer.counterAttempts ?? 0;
   if (attempts >= 1) {
@@ -154,13 +155,13 @@ export function counterDistributionOfferForManager(
   return { success: true, message: `${offer.partner} improved terms after counter.` };
 }
 
-export function walkAwayDistributionForManager(manager: any, projectId: string): { success: boolean; message: string } {
-  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+export function walkAwayDistributionForManager(manager: StudioManager, projectId: string): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item) => item.id === projectId);
   if (!project || project.phase !== 'distribution') {
     return { success: false, message: 'Project is not in distribution phase.' };
   }
-  const removed = manager.distributionOffers.filter((item: any) => item.projectId === projectId).length;
-  manager.distributionOffers = manager.distributionOffers.filter((item: any) => item.projectId !== projectId);
+  const removed = manager.distributionOffers.filter((item) => item.projectId === projectId).length;
+  manager.distributionOffers = manager.distributionOffers.filter((item) => item.projectId !== projectId);
   manager.adjustReputation(-2, 'distributor');
   return {
     success: true,
@@ -168,7 +169,7 @@ export function walkAwayDistributionForManager(manager: any, projectId: string):
   };
 }
 
-export function estimateReleaseRunWeeksForManager(_manager: any, project: MovieProject): number {
+export function estimateReleaseRunWeeksForManager(_manager: StudioManager, project: MovieProject): number {
   const quality = ((project.criticalScore ?? 50) + (project.audienceScore ?? 50)) / 2;
   if (quality >= 85) return 8;
   if (quality >= 70) return 6;
@@ -176,7 +177,7 @@ export function estimateReleaseRunWeeksForManager(_manager: any, project: MovieP
   return 4;
 }
 
-export function tickDistributionWindowsForManager(manager: any, events: string[]): void {
+export function tickDistributionWindowsForManager(manager: StudioManager, events: string[]): void {
   for (const project of manager.activeProjects) {
     if (project.phase !== 'distribution') continue;
     if (project.releaseWindow) continue;
@@ -187,10 +188,10 @@ export function tickDistributionWindowsForManager(manager: any, events: string[]
   }
 }
 
-export function generateDistributionOffersForManager(manager: any, projectId: string): void {
-  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+export function generateDistributionOffersForManager(manager: StudioManager, projectId: string): void {
+  const project = manager.activeProjects.find((item) => item.id === projectId);
   if (!project) return;
-  manager.distributionOffers = manager.distributionOffers.filter((item: any) => item.projectId !== projectId);
+  manager.distributionOffers = manager.distributionOffers.filter((item) => item.projectId !== projectId);
 
   const modifiers = manager.getArcOutcomeModifiers();
   const base = project.budget.ceiling * 0.2;

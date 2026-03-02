@@ -1,5 +1,6 @@
-import type { IndustryNewsItem, MovieGenre, RivalFilm, RivalStudio, Talent } from './types';
+import type { IndustryNewsItem, MovieGenre, MovieProject, RivalFilm, RivalStudio, Talent } from './types';
 import { createId } from './id';
+import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -65,7 +66,7 @@ function pickRivalTitle(rivalName: string, genre: string, salt: number): string 
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getGenreDemandForManager(manager: any, genre: MovieGenre): number {
+function getGenreDemandForManager(manager: StudioManager, genre: MovieGenre): number {
   if (typeof manager.getGenreDemandMultiplier === 'function') {
     return manager.getGenreDemandMultiplier(genre);
   }
@@ -73,7 +74,7 @@ function getGenreDemandForManager(manager: any, genre: MovieGenre): number {
 }
 
 function weightedGenrePickForManager(
-  manager: any,
+  manager: StudioManager,
   entries: { genre: MovieGenre; weight: number }[]
 ): MovieGenre {
   const filtered = entries.filter((entry) => entry.weight > 0);
@@ -97,7 +98,7 @@ function dominantRivalGenre(rival: RivalStudio): MovieGenre | null {
   return ranked[0][0] as MovieGenre;
 }
 
-function pickGenreForRivalRelease(manager: any, rival: RivalStudio): MovieGenre {
+function pickGenreForRivalRelease(manager: StudioManager, rival: RivalStudio): MovieGenre {
   const entries = MOVIE_GENRES.map((genre) => ({
     genre,
     weight: Math.max(0.2, getGenreDemandForManager(manager, genre)),
@@ -154,7 +155,7 @@ function pickGenreForRivalRelease(manager: any, rival: RivalStudio): MovieGenre 
   return 'drama';
 }
 
-export function tickRivalHeatForManager(manager: any, events: string[]): void {
+export function tickRivalHeatForManager(manager: StudioManager, events: string[]): void {
   for (const rival of manager.rivals) {
     const baseVolatility = manager.rivalRng() * 10 - 5;
     const personalityBias = rivalHeatBiasForManager(manager, rival.personality);
@@ -175,7 +176,7 @@ export function tickRivalHeatForManager(manager: any, events: string[]): void {
   manager.industryNewsLog = manager.industryNewsLog.slice(0, 60);
 }
 
-export function processRivalTalentAcquisitionsForManager(manager: any, events: string[]): void {
+export function processRivalTalentAcquisitionsForManager(manager: StudioManager, events: string[]): void {
   for (const rival of manager.rivals) {
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.talentPoachChance) continue;
@@ -198,10 +199,10 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
       rival.lockedTalentIds.push(picked.id);
     }
 
-    if (manager.playerNegotiations.some((item: any) => item.talentId === picked.id)) {
-      const negotiation = manager.playerNegotiations.find((item: any) => item.talentId === picked.id);
+    if (manager.playerNegotiations.some((item) => item.talentId === picked.id)) {
+      const negotiation = manager.playerNegotiations.find((item) => item.talentId === picked.id);
       if (negotiation) {
-        const project = manager.activeProjects.find((item: any) => item.id === negotiation.projectId);
+        const project = manager.activeProjects.find((item) => item.id === negotiation.projectId);
         const projectTitle = project?.title ?? 'your project';
         manager.recordTalentInteraction(picked, {
           kind: 'poachedByRival',
@@ -272,9 +273,9 @@ export function processRivalTalentAcquisitionsForManager(manager: any, events: s
   }
 }
 
-export function processRivalCalendarMovesForManager(manager: any, events: string[]): void {
+export function processRivalCalendarMovesForManager(manager: StudioManager, events: string[]): void {
   const playerDistribution = manager.activeProjects.filter(
-    (project: any) => project.phase === 'distribution' && project.releaseWeek !== null
+    (project) => project.phase === 'distribution' && project.releaseWeek !== null
   );
   for (const rival of manager.rivals) {
     const profile = getRivalBehaviorProfileForManager(manager, rival);
@@ -360,13 +361,13 @@ export function processRivalCalendarMovesForManager(manager: any, events: string
   }
 }
 
-export function processRivalSignatureMovesForManager(manager: any, events: string[]): void {
+export function processRivalSignatureMovesForManager(manager: StudioManager, events: string[]): void {
   for (const rival of manager.rivals) {
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.signatureMoveChance) continue;
 
     if (rival.personality === 'blockbusterFactory') {
-      const target = manager.activeProjects.find((project: any) => project.phase === 'distribution' && project.releaseWeek !== null);
+      const target = manager.activeProjects.find((project) => project.phase === 'distribution' && project.releaseWeek !== null);
       if (target?.releaseWeek) {
         const tentpoleGenre = pickGenreForRivalRelease(manager, rival);
         rival.upcomingReleases.unshift({
@@ -437,8 +438,8 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
 
     if (rival.personality === 'streamingFirst') {
       const project = manager.activeProjects
-        .filter((item: any) => item.phase === 'distribution')
-        .sort((a: any, b: any) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
+        .filter((item) => item.phase === 'distribution')
+        .sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
       if (project) {
         project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
         const hadFlag = manager.hasStoryFlag('platform_ad_blitz');
@@ -460,7 +461,7 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
 
     if (rival.personality === 'scrappyUpstart') {
       const targetProject = manager.activeProjects.find(
-        (project: any) => project.phase === 'distribution' || project.phase === 'released'
+        (project) => project.phase === 'distribution' || project.phase === 'released'
       );
       if (targetProject) {
         targetProject.hypeScore = clamp(targetProject.hypeScore - 2, 0, 100);
@@ -482,13 +483,13 @@ export function processRivalSignatureMovesForManager(manager: any, events: strin
   }
 }
 
-export function checkRivalReleaseResponsesForManager(manager: any, releasedProject: any, events: string[]): void {
+export function checkRivalReleaseResponsesForManager(manager: StudioManager, releasedProject: MovieProject, events: string[]): void {
   const nextDistributionProject = manager.activeProjects
-    .filter((project: any) => project.id !== releasedProject.id && project.phase === 'distribution' && project.releaseWeek !== null)
-    .sort((a: any, b: any) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
+    .filter((project) => project.id !== releasedProject.id && project.phase === 'distribution' && project.releaseWeek !== null)
+    .sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
   const nextPipelineProject = manager.activeProjects
-    .filter((project: any) => project.id !== releasedProject.id && project.phase !== 'released')
-    .sort((a: any, b: any) => {
+    .filter((project) => project.id !== releasedProject.id && project.phase !== 'released')
+    .sort((a, b) => {
       const rank = (phase: string): number => {
         if (phase === 'development') return 0;
         if (phase === 'preProduction') return 1;
@@ -556,7 +557,7 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
     if (rival.personality === 'streamingFirst') {
       if (!nextPipelineProject) continue;
       const title = `Counterplay: ${rival.name} Platform Pressure (${nextPipelineProject.title})`;
-      if (manager.decisionQueue.length < 5 && !manager.decisionQueue.some((item: any) => item.title === title)) {
+      if (manager.decisionQueue.length < 5 && !manager.decisionQueue.some((item) => item.title === title)) {
         manager.decisionQueue.push({
           id: createId('decision'),
           projectId: nextPipelineProject.id,
@@ -595,8 +596,8 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
       const targetProject =
         nextPipelineProject ??
         manager.activeProjects
-          .filter((project: any) => project.id !== releasedProject.id)
-          .sort((a: any, b: any) => b.hypeScore - a.hypeScore)[0];
+          .filter((project) => project.id !== releasedProject.id)
+          .sort((a, b) => b.hypeScore - a.hypeScore)[0];
       if (!targetProject) continue;
       targetProject.hypeScore = clamp(targetProject.hypeScore - 3, 0, 100);
       manager.adjustReputation(-1, 'audience');
@@ -613,17 +614,17 @@ export function checkRivalReleaseResponsesForManager(manager: any, releasedProje
 }
 
 export function queueRivalCounterplayDecisionForManager(
-  manager: any,
+  manager: StudioManager,
   flag: string,
   rivalName: string,
   projectId?: string
 ): void {
   if (manager.decisionQueue.length >= 5) return;
-  const targetProject = projectId ? manager.activeProjects.find((item: any) => item.id === projectId) : null;
+  const targetProject = projectId ? manager.activeProjects.find((item) => item.id === projectId) : null;
 
   if (flag === 'rival_tentpole_threat') {
     const title = `Counterplay: ${rivalName} Tentpole Threat`;
-    if (manager.decisionQueue.some((item: any) => item.title === title)) return;
+    if (manager.decisionQueue.some((item) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: targetProject?.id ?? null,
@@ -660,7 +661,7 @@ export function queueRivalCounterplayDecisionForManager(
 
   if (flag === 'awards_headwind') {
     const title = `Counterplay: ${rivalName} Awards Surge`;
-    if (manager.decisionQueue.some((item: any) => item.title === title)) return;
+    if (manager.decisionQueue.some((item) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: null,
@@ -697,7 +698,7 @@ export function queueRivalCounterplayDecisionForManager(
 
   if (flag === 'rival_talent_lock') {
     const title = `Counterplay: ${rivalName} Talent Lock`;
-    if (manager.decisionQueue.some((item: any) => item.title === title)) return;
+    if (manager.decisionQueue.some((item) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: null,
@@ -733,7 +734,7 @@ export function queueRivalCounterplayDecisionForManager(
 
   if (flag === 'platform_ad_blitz' || flag === 'streaming_pressure') {
     const title = `Counterplay: ${rivalName} Platform Ad Blitz`;
-    if (manager.decisionQueue.some((item: any) => item.title === title)) return;
+    if (manager.decisionQueue.some((item) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: targetProject?.id ?? null,
@@ -770,7 +771,7 @@ export function queueRivalCounterplayDecisionForManager(
 
   if (flag === 'guerrilla_pressure') {
     const title = `Counterplay: ${rivalName} Guerrilla Blitz`;
-    if (manager.decisionQueue.some((item: any) => item.title === title)) return;
+    if (manager.decisionQueue.some((item) => item.title === title)) return;
     manager.decisionQueue.push({
       id: createId('decision'),
       projectId: targetProject?.id ?? null,
@@ -803,7 +804,7 @@ export function queueRivalCounterplayDecisionForManager(
   }
 }
 
-export function rivalHeatBiasForManager(_manager: any, personality: RivalStudio['personality']): number {
+export function rivalHeatBiasForManager(_manager: StudioManager, personality: RivalStudio['personality']): number {
   switch (personality) {
     case 'blockbusterFactory':
       return 0.8;
@@ -820,7 +821,7 @@ export function rivalHeatBiasForManager(_manager: any, personality: RivalStudio[
   }
 }
 
-export function getRivalBehaviorProfileForManager(manager: any, rival: RivalStudio): {
+export function getRivalBehaviorProfileForManager(manager: StudioManager, rival: RivalStudio): {
   arcPressure: Record<string, number>;
   talentPoachChance: number;
   calendarMoveChance: number;
@@ -939,7 +940,7 @@ export function getRivalBehaviorProfileForManager(manager: any, rival: RivalStud
   };
 }
 
-export function rivalNewsHeadlineForManager(_manager: any, name: string, delta: number): string {
+export function rivalNewsHeadlineForManager(_manager: StudioManager, name: string, delta: number): string {
   if (delta >= 8) return `${name} lands a breakout hit. Heat +${delta.toFixed(0)}.`;
   if (delta >= 3) return `${name} posts a solid industry week. Heat +${delta.toFixed(0)}.`;
   if (delta <= -8) return `${name} stumbles on a costly miss. Heat ${delta.toFixed(0)}.`;
@@ -947,7 +948,7 @@ export function rivalNewsHeadlineForManager(_manager: any, name: string, delta: 
 }
 
 export function pickTalentForRivalForManager(
-  manager: any,
+  manager: StudioManager,
   rival: RivalStudio,
   candidates: Talent[]
 ): Talent | null {
@@ -964,3 +965,5 @@ export function pickTalentForRivalForManager(
   }
   return sorted[0] ?? null;
 }
+
+
