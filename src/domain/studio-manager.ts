@@ -224,6 +224,7 @@ export class StudioManager {
   ownedIps: OwnedIp[] = [];
   studioCapacityUpgrades = 0;
   studioSpecialization: StudioSpecialization = 'balanced';
+  pendingSpecialization: StudioSpecialization = 'balanced';
   specializationCommittedWeek: number | null = null;
   departmentLevels: Record<DepartmentTrack, number> = {
     development: 0,
@@ -529,27 +530,23 @@ export class StudioManager {
   }
 
   setStudioSpecialization(next: StudioSpecialization): { success: boolean; message: string } {
-    if (this.studioSpecialization === next) {
-      return { success: false, message: `${next} specialization is already active.` };
+    if (this.pendingSpecialization === next) {
+      return { success: false, message: `${next} specialization is already selected for this turn.` };
     }
-    const switchCost = this.specializationCommittedWeek === null ? 0 : 650_000;
-    if (this.cash < switchCost) {
-      return { success: false, message: `Insufficient cash to pivot specialization (${Math.round(switchCost / 1000)}K).` };
+    this.pendingSpecialization = next;
+    if (this.pendingSpecialization === this.studioSpecialization) {
+      return {
+        success: true,
+        message: `Specialization change reverted. ${this.studioSpecialization} remains active with no charge this turn.`,
+      };
     }
-    if (switchCost > 0) {
-      this.adjustCash(-switchCost);
-      this.adjustReputation(-1, 'talent');
-      this.adjustReputation(-1, 'distributor');
-    }
-    this.studioSpecialization = next;
-    this.specializationCommittedWeek = this.currentWeek;
-    this.evaluateBankruptcy();
+    const switchCost = this.specializationCommittedWeek === null ? 0 : 1_000_000;
     return {
       success: true,
       message:
         switchCost > 0
-          ? `Studio identity pivoted to ${next}. Repositioning cost paid and partner confidence dipped.`
-          : `Studio identity set to ${next}.`,
+          ? `${next} specialization staged. ${Math.round(switchCost / 1_000_000)}M will be charged on End Turn if committed.`
+          : `${next} specialization staged. First specialization commitment is free on End Turn.`,
     };
   }
 
@@ -1562,6 +1559,30 @@ export class StudioManager {
     const targetWeeks = this.turnLengthWeeks;
     const cashBefore = this.cash;
     const combinedEvents: string[] = [];
+
+    if (this.pendingSpecialization !== this.studioSpecialization) {
+      const switchCost = this.specializationCommittedWeek === null ? 0 : 1_000_000;
+      if (this.cash < switchCost) {
+        combinedEvents.push(
+          `Specialization switch to ${this.pendingSpecialization} failed: requires ${Math.round(switchCost / 1_000_000)}M cash. ${this.studioSpecialization} remains active.`
+        );
+        this.pendingSpecialization = this.studioSpecialization;
+      } else {
+        if (switchCost > 0) {
+          this.adjustCash(-switchCost);
+          this.adjustReputation(-1, 'talent');
+          this.adjustReputation(-1, 'distributor');
+        }
+        this.studioSpecialization = this.pendingSpecialization;
+        this.specializationCommittedWeek = this.currentWeek;
+        this.evaluateBankruptcy();
+        combinedEvents.push(
+          switchCost > 0
+            ? `Specialization committed: ${this.studioSpecialization} (-$${Math.round(switchCost / 1000)}K).`
+            : `Specialization committed: ${this.studioSpecialization} (first commitment is free).`
+        );
+      }
+    }
 
     for (let step = 0; step < targetWeeks; step += 1) {
       if (!this.canEndWeek) {

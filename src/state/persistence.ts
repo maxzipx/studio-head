@@ -60,6 +60,14 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   ) {
     manager.studioSpecialization = 'balanced';
   }
+  if (
+    manager.pendingSpecialization !== 'balanced' &&
+    manager.pendingSpecialization !== 'blockbuster' &&
+    manager.pendingSpecialization !== 'prestige' &&
+    manager.pendingSpecialization !== 'indie'
+  ) {
+    manager.pendingSpecialization = manager.studioSpecialization;
+  }
   if (!Number.isFinite(manager.specializationCommittedWeek)) manager.specializationCommittedWeek = null;
   if (!isRecord(manager.departmentLevels)) {
     manager.departmentLevels = { development: 0, production: 0, distribution: 0 };
@@ -637,6 +645,7 @@ const SERIALIZE_MANAGER_KEYS = [
   'ownedIps',
   'studioCapacityUpgrades',
   'studioSpecialization',
+  'pendingSpecialization',
   'specializationCommittedWeek',
   'departmentLevels',
   'exclusiveDistributionPartner',

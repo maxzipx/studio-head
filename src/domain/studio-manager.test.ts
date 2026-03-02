@@ -790,8 +790,8 @@ describe('StudioManager', () => {
     expect(third.success).toBe(false);
   });
 
-  it('applies specialization modifiers to projection profile', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+  it('applies specialization modifiers only after end-turn commitment', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0, eventRng: () => 1, rivalRng: () => 1 });
     const project = manager.activeProjects[0];
     project.releaseWeek = manager.currentWeek + 8;
 
@@ -799,14 +799,93 @@ describe('StudioManager', () => {
     expect(base).toBeTruthy();
 
     manager.setStudioSpecialization('blockbuster');
+    const preCommit = manager.getProjectedForProject(project.id);
+    expect(preCommit).toBeTruthy();
+    expect((preCommit?.openingHigh ?? 0)).toBeCloseTo(base?.openingHigh ?? 0, 4);
+    manager.endTurn();
     const blockbuster = manager.getProjectedForProject(project.id);
     expect(blockbuster).toBeTruthy();
     expect((blockbuster?.openingHigh ?? 0)).toBeGreaterThan(base?.openingHigh ?? 0);
 
+    const cashBeforeSecondPivot = manager.cash;
     manager.setStudioSpecialization('prestige');
+    manager.endTurn();
     const prestige = manager.getProjectedForProject(project.id);
     expect(prestige).toBeTruthy();
     expect((prestige?.critical ?? 0)).toBeGreaterThan(base?.critical ?? 0);
+    expect(cashBeforeSecondPivot - manager.cash).toBeGreaterThanOrEqual(1_000_000);
+  });
+
+  it('settles specialization cost on end-turn with first commitment free', () => {
+    const manager = new StudioManager({ crisisRng: () => 1, eventRng: () => 1, rivalRng: () => 1 });
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+    manager.cash = 3_000_000;
+
+    const cashBeforeFirst = manager.cash;
+    manager.setStudioSpecialization('blockbuster');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('blockbuster');
+    expect(cashBeforeFirst - manager.cash).toBe(0);
+
+    const cashBeforeSecond = manager.cash;
+    manager.setStudioSpecialization('prestige');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('prestige');
+    expect(cashBeforeSecond - manager.cash).toBe(1_000_000);
+  });
+
+  it('charges once for final specialization delta after multiple in-turn changes', () => {
+    const manager = new StudioManager({ crisisRng: () => 1, eventRng: () => 1, rivalRng: () => 1 });
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+    manager.cash = 4_000_000;
+    manager.setStudioSpecialization('blockbuster');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('blockbuster');
+
+    const before = manager.cash;
+    manager.setStudioSpecialization('prestige');
+    manager.setStudioSpecialization('indie');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('indie');
+    expect(before - manager.cash).toBe(1_000_000);
+  });
+
+  it('does not charge when staged specialization is reverted before end-turn', () => {
+    const manager = new StudioManager({ crisisRng: () => 1, eventRng: () => 1, rivalRng: () => 1 });
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+    manager.cash = 4_000_000;
+    manager.setStudioSpecialization('blockbuster');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('blockbuster');
+
+    const before = manager.cash;
+    manager.setStudioSpecialization('prestige');
+    manager.setStudioSpecialization('blockbuster');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('blockbuster');
+    expect(before - manager.cash).toBe(0);
+  });
+
+  it('keeps committed specialization when end-turn settlement lacks cash', () => {
+    const manager = new StudioManager({ crisisRng: () => 1, eventRng: () => 1, rivalRng: () => 1 });
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+    manager.cash = 2_000_000;
+    manager.setStudioSpecialization('blockbuster');
+    manager.endTurn();
+    expect(manager.studioSpecialization).toBe('blockbuster');
+
+    manager.cash = 500_000;
+    manager.setStudioSpecialization('prestige');
+    const summary = manager.endTurn();
+
+    expect(manager.studioSpecialization).toBe('blockbuster');
+    expect(manager.pendingSpecialization).toBe('blockbuster');
+    expect(summary.events.some((event) => event.includes('failed'))).toBe(true);
+    expect(manager.cash).toBe(500_000);
   });
 
   it('scales script sprint quality gain with development department level', () => {

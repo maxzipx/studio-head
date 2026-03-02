@@ -163,7 +163,10 @@ export default function HQScreen() {
     Math.max(0, manager.marketingTeamLevel - 1) * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
   const trackingConfidenceLo = Math.round(Math.min(0.9, Math.max(0.6, 0.57 + manager.marketingTeamLevel * 0.075)) * 100);
   const trackingConfidenceHi = Math.round(Math.min(0.9, Math.max(0.6, 0.58 + manager.marketingTeamLevel * 0.08)) * 100);
-  const specializationPivotCost = manager.specializationCommittedWeek === null ? 0 : 650_000;
+  const hasPendingSpecializationChange = manager.pendingSpecialization !== manager.studioSpecialization;
+  const specializationPivotCost = hasPendingSpecializationChange
+    ? manager.specializationCommittedWeek === null ? 0 : 1_000_000
+    : 0;
   const executivePoachCost = manager.executiveNetworkLevel >= 3 ? null : 900_000 * (manager.executiveNetworkLevel + 1);
   const activePartner = manager.getActiveExclusivePartner();
   const partnerWeeksRemaining = manager.exclusivePartnerUntilWeek
@@ -546,7 +549,7 @@ export default function HQScreen() {
 
             <SectionLabel label="Specialization" style={{ marginTop: spacing.sp1 }} />
             <Text style={styles.muted}>
-              Choose one focus. Pivoting later costs {money(specializationPivotCost)} and reduces Talent/Distributor reputation.
+              Choose one focus. Changes are staged now and committed on End Turn. First commitment is free, then {money(1_000_000)} per committed change.
             </Text>
             <View style={styles.actionsRow}>
               {SPECIALIZATION_OPTIONS.map((option) => (
@@ -555,7 +558,7 @@ export default function HQScreen() {
                   label={option.label}
                   onPress={() => setStudioSpecialization(option.key)}
                   disabled={isGameOver}
-                  variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
+                  variant={manager.pendingSpecialization === option.key ? 'primary' : 'secondary'}
                   size="sm"
                   style={styles.choiceBtn}
                 />
@@ -564,6 +567,12 @@ export default function HQScreen() {
             <Text style={styles.muted}>
               Active effect: {specializationEffects[manager.studioSpecialization]}
             </Text>
+            {hasPendingSpecializationChange ? (
+              <Text style={[styles.muted, { color: specializationPivotCost > manager.cash ? colors.accentRed : colors.goldMid }]}>
+                Pending: {manager.pendingSpecialization} ({specializationPivotCost > 0 ? `${money(specializationPivotCost)} on End Turn` : 'free on first commitment'})
+                {specializationPivotCost > manager.cash ? ' - insufficient cash to commit this turn.' : ''}
+              </Text>
+            ) : null}
 
             <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
             <Text style={styles.muted}>
