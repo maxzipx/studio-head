@@ -163,6 +163,52 @@ export function buildSlateRivalsSignature(rivals: RivalStudio[]): string {
     .join('|');
 }
 
+export function buildBoxOfficeReleasedSignature(projects: MovieProject[]): string {
+  return projects
+    .filter((project) => project.phase === 'released')
+    .map((project) =>
+      joinParts([
+        project.id,
+        project.title,
+        project.phase,
+        project.finalBoxOffice ?? '',
+        project.projectedROI,
+        project.budget.ceiling,
+        project.marketingBudget,
+        project.criticalScore ?? '',
+        project.audienceScore ?? '',
+        project.openingWeekendGross ?? '',
+        project.awardsNominations,
+        project.awardsWins,
+        project.studioRevenueShare,
+        project.distributionPartner ?? '',
+      ])
+    )
+    .join('|');
+}
+
+export function buildReleaseReportsSignature(reports: {
+  projectId: string;
+  weekResolved: number;
+  roi: number;
+  totalBudget: number;
+  totalGross: number;
+  profit: number;
+}[]): string {
+  return reports
+    .map((report) =>
+      joinParts([
+        report.projectId,
+        report.weekResolved,
+        report.roi,
+        report.totalBudget,
+        report.totalGross,
+        report.profit,
+      ])
+    )
+    .join('|');
+}
+
 export function buildTalentProjectsSignature(projects: MovieProject[]): string {
   return projects
     .filter((project) => project.phase === 'development')

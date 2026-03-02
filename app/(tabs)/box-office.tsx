@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
+import { selectBoxOfficeView } from '@/src/state/view-selectors';
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
@@ -15,26 +16,18 @@ function outcomeLabel(roi: number): string {
 }
 
 export default function BoxOfficeScreen() {
-  const { manager, lastMessage } = useGameStore(useShallow((state) => {
-    const mgr = state.manager;
-    return {
-      manager: mgr,
-      lastMessage: state.lastMessage,
-      releasedSignature: mgr.activeProjects
-        .filter((p) => p.phase === 'released')
-        .map(
-          (p) =>
-            `${p.id}:${p.finalBoxOffice ?? 0}:${p.projectedROI}:${p.budget.ceiling}:${p.marketingBudget}:${p.criticalScore ?? -1}:` +
-            `${p.audienceScore ?? -1}:${p.openingWeekendGross ?? 0}:${p.awardsNominations}:${p.awardsWins}:${p.studioRevenueShare}:` +
-            `${p.distributionPartner ?? 'none'}:${mgr.getLatestReleaseReport(p.id)?.weekResolved ?? -1}:` +
-            `${mgr.getLatestReleaseReport(p.id)?.roi ?? -1}`
-        )
-        .join('|'),
-    };
-  }));
-  const released = manager.activeProjects
+  const { projects, releaseReports, lastMessage } = useGameStore(useShallow(selectBoxOfficeView));
+
+  const released = projects
     .filter((project) => project.phase === 'released')
     .sort((a, b) => (b.finalBoxOffice ?? 0) - (a.finalBoxOffice ?? 0));
+  const reportByProjectId = new Map<string, (typeof releaseReports)[number]>();
+  for (const report of releaseReports) {
+    const existing = reportByProjectId.get(report.projectId);
+    if (!existing || report.weekResolved > existing.weekResolved) {
+      reportByProjectId.set(report.projectId, report);
+    }
+  }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -58,7 +51,7 @@ export default function BoxOfficeScreen() {
       ) : null}
 
       {released.map((project) => {
-        const report = manager.getLatestReleaseReport(project.id);
+        const report = reportByProjectId.get(project.id);
         const totalBudget = report?.totalBudget ?? Math.round(project.budget.ceiling + project.marketingBudget);
         const totalGross = report?.totalGross ?? Math.round(project.finalBoxOffice ?? 0);
         const profit = report?.profit ?? Math.round(totalGross * project.studioRevenueShare - totalBudget);
