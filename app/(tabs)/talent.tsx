@@ -110,11 +110,11 @@ function interactionLabel(kind: string): string {
 }
 
 export default function TalentScreen() {
-  const { manager, startNegotiationRound, adjustNegotiation, attachTalent, lastMessage } = useGameStore(useShallow((state) => {
+  const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
-      startNegotiationRound: state.startNegotiationRound,
+      startNegotiation: state.startNegotiation,
       adjustNegotiation: state.adjustNegotiation,
       attachTalent: state.attachTalent,
       lastMessage: state.lastMessage,
@@ -225,7 +225,16 @@ export default function TalentScreen() {
 
   const submitNegotiationRound = () => {
     if (!activeProject || !negotiationModalTalentId) return;
-    startNegotiationRound(activeProject.id, negotiationModalTalentId, negotiationDraftAction);
+    const wasOpen = manager.playerNegotiations.some(
+      (entry) => entry.projectId === activeProject.id && entry.talentId === negotiationModalTalentId
+    );
+    startNegotiation(activeProject.id, negotiationModalTalentId);
+    const isOpen = manager.playerNegotiations.some(
+      (entry) => entry.projectId === activeProject.id && entry.talentId === negotiationModalTalentId
+    );
+    if (!wasOpen && isOpen) {
+      adjustNegotiation(activeProject.id, negotiationModalTalentId, negotiationDraftAction);
+    }
     closeNegotiationModal();
   };
 
