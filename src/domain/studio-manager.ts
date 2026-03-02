@@ -173,8 +173,8 @@ export class StudioManager {
   readonly eventRng: () => number;
   readonly negotiationRng: () => number;
   readonly rivalRng: () => number;
-  private readonly eventDeck: EventTemplate[] = getEventDeck();
-  private readonly lastEventWeek = new Map<string, number>();
+  readonly eventDeck: EventTemplate[] = getEventDeck();
+  readonly lastEventWeek = new Map<string, number>();
 
   studioName = 'Project Greenlight';
   cash: number = STUDIO_STARTING.CASH;
@@ -1674,7 +1674,7 @@ export class StudioManager {
     return chooseProjectForEventForManager(this, event);
   }
 
-  private hasStoryFlag(flag: string): boolean {
+  hasStoryFlag(flag: string): boolean {
     return hasStoryFlagForManager(this, flag);
   }
 
@@ -2567,7 +2567,7 @@ export class StudioManager {
     return this.rivalAiService.rivalHeatBias(personality);
   }
 
-  private getRivalBehaviorProfile(rival: RivalStudio): {
+  getRivalBehaviorProfile(rival: RivalStudio): {
     arcPressure: Record<string, number>;
     talentPoachChance: number;
     calendarMoveChance: number;
