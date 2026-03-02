@@ -15,6 +15,15 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+type ScriptMarketTier = 'bargain' | 'standard' | 'biddingWar';
+
+function rollScriptMarketTier(manager: StudioManager): ScriptMarketTier {
+  const roll = manager.eventRng();
+  if (roll < 0.25) return 'bargain';
+  if (roll < 0.35) return 'biddingWar';
+  return 'standard';
+}
+
 function pickScriptByDemandForManager(manager: StudioManager, pool: ScriptPitch[]): ScriptPitch | null {
   if (pool.length === 0) return null;
   const weighted = pool.map((item) => {
@@ -92,15 +101,41 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
     const source = pickScriptByDemandForManager(manager, pool);
     if (!source) break;
 
-    const qualityJitter = (manager.eventRng() - 0.5) * 0.6;
-    const conceptJitter = (manager.eventRng() - 0.5) * 0.6;
-    const priceMultiplier = 0.88 + manager.eventRng() * 0.28;
+    const tier = rollScriptMarketTier(manager);
+    let scriptQuality = source.scriptQuality;
+    let conceptStrength = source.conceptStrength;
+    let askingPrice = source.askingPrice;
+
+    if (tier === 'bargain') {
+      const qualityPenalty = 0.5 + manager.eventRng() * 0.2;
+      const conceptPenalty = 0.5 + manager.eventRng() * 0.2;
+      const priceMultiplier = 0.1 + manager.eventRng() * 0.1;
+      scriptQuality = clamp(source.scriptQuality * qualityPenalty, 1, 9.9);
+      conceptStrength = clamp(source.conceptStrength * conceptPenalty, 1, 9.9);
+      askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
+    } else if (tier === 'biddingWar') {
+      const qualityBoost = 1.5 + manager.eventRng() * 1.0;
+      const conceptBoost = 1.5 + manager.eventRng() * 1.0;
+      const priceMultiplier = 2.5 + manager.eventRng() * 1.5;
+      scriptQuality = clamp(source.scriptQuality + qualityBoost, 1, 9.8);
+      conceptStrength = clamp(source.conceptStrength + conceptBoost, 1, 9.8);
+      askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
+    } else {
+      const qualityJitter = (manager.eventRng() - 0.5) * 2.0;
+      const conceptJitter = (manager.eventRng() - 0.5) * 2.0;
+      const priceMultiplier = 0.7 + manager.eventRng() * 0.7;
+      scriptQuality = clamp(source.scriptQuality + qualityJitter, 1, 9.9);
+      conceptStrength = clamp(source.conceptStrength + conceptJitter, 1, 9.9);
+      askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
+    }
+
     const refreshed: ScriptPitch = {
       ...source,
       id: createId('script'),
-      askingPrice: Math.max(300_000, Math.round(source.askingPrice * priceMultiplier)),
-      scriptQuality: clamp(source.scriptQuality + qualityJitter, 1, 10),
-      conceptStrength: clamp(source.conceptStrength + conceptJitter, 1, 10),
+      marketTier: tier,
+      askingPrice,
+      scriptQuality,
+      conceptStrength,
       expiresInWeeks: 3 + Math.floor(manager.eventRng() * 4),
     };
 

@@ -120,6 +120,7 @@ export interface ScriptPitch {
   id: string;
   title: string;
   genre: MovieGenre;
+  marketTier?: 'bargain' | 'standard' | 'biddingWar';
   askingPrice: number;
   scriptQuality: number;
   conceptStrength: number;

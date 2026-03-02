@@ -122,6 +122,7 @@ export function buildSlateScriptsSignature(scripts: ScriptPitch[]): string {
         script.id,
         script.title,
         script.genre,
+        script.marketTier ?? 'standard',
         script.askingPrice,
         script.scriptQuality,
         script.conceptStrength,

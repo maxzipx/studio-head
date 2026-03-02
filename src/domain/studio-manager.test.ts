@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { TALENT_MARKET_RULES } from './balance-constants';
+import { createSeedScriptMarket } from './seeds';
 import { StudioManager } from './studio-manager';
 
 describe('StudioManager', () => {
@@ -1405,6 +1406,92 @@ describe('StudioManager', () => {
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     expect(manager.scriptMarket.length).toBeLessThanOrEqual(4);
+  });
+
+  it('generates bargain-bin scripts with steep discounts and quality penalties', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.scriptMarket = [];
+    const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    for (const script of manager.scriptMarket) {
+      const source = baseByTitle.get(script.title);
+      expect(source).toBeTruthy();
+      expect(script.marketTier).toBe('bargain');
+      expect(script.askingPrice).toBeGreaterThanOrEqual(Math.max(25_000, Math.round((source?.askingPrice ?? 0) * 0.1)));
+      expect(script.askingPrice).toBeLessThanOrEqual(Math.max(25_000, Math.round((source?.askingPrice ?? 0) * 0.2)));
+      expect(script.scriptQuality).toBeGreaterThanOrEqual((source?.scriptQuality ?? 0) * 0.5 - 0.01);
+      expect(script.scriptQuality).toBeLessThanOrEqual((source?.scriptQuality ?? 0) * 0.7 + 0.01);
+      expect(script.conceptStrength).toBeGreaterThanOrEqual((source?.conceptStrength ?? 0) * 0.5 - 0.01);
+      expect(script.conceptStrength).toBeLessThanOrEqual((source?.conceptStrength ?? 0) * 0.7 + 0.01);
+    }
+  });
+
+  it('generates bidding-war scripts with quality boosts and price spikes', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.3, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.scriptMarket = [];
+    const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    for (const script of manager.scriptMarket) {
+      const source = baseByTitle.get(script.title);
+      expect(source).toBeTruthy();
+      expect(script.marketTier).toBe('biddingWar');
+      expect(script.askingPrice).toBeGreaterThanOrEqual(Math.round((source?.askingPrice ?? 0) * 2.5));
+      expect(script.askingPrice).toBeLessThanOrEqual(Math.round((source?.askingPrice ?? 0) * 4));
+      expect(script.scriptQuality).toBeGreaterThanOrEqual(Math.min(9.8, (source?.scriptQuality ?? 0) + 1.5) - 0.01);
+      expect(script.scriptQuality).toBeLessThanOrEqual(Math.min(9.8, (source?.scriptQuality ?? 0) + 2.5) + 0.01);
+      expect(script.conceptStrength).toBeGreaterThanOrEqual(Math.min(9.8, (source?.conceptStrength ?? 0) + 1.5) - 0.01);
+      expect(script.conceptStrength).toBeLessThanOrEqual(Math.min(9.8, (source?.conceptStrength ?? 0) + 2.5) + 0.01);
+    }
+  });
+
+  it('generates standard scripts with wider but bounded jitter', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.8, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.scriptMarket = [];
+    const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    for (const script of manager.scriptMarket) {
+      const source = baseByTitle.get(script.title);
+      expect(source).toBeTruthy();
+      expect(script.marketTier).toBe('standard');
+      expect(script.askingPrice).toBeGreaterThanOrEqual(Math.round((source?.askingPrice ?? 0) * 0.7));
+      expect(script.askingPrice).toBeLessThanOrEqual(Math.round((source?.askingPrice ?? 0) * 1.4));
+      expect(script.scriptQuality).toBeGreaterThanOrEqual(Math.max(1, (source?.scriptQuality ?? 0) - 1) - 0.01);
+      expect(script.scriptQuality).toBeLessThanOrEqual(Math.min(9.9, (source?.scriptQuality ?? 0) + 1) + 0.01);
+      expect(script.conceptStrength).toBeGreaterThanOrEqual(Math.max(1, (source?.conceptStrength ?? 0) - 1) - 0.01);
+      expect(script.conceptStrength).toBeLessThanOrEqual(Math.min(9.9, (source?.conceptStrength ?? 0) + 1) + 0.01);
+    }
+  });
+
+  it('keeps script market values within safe bounds and does not mutate base catalog', () => {
+    const seededSnapshot = JSON.stringify(createSeedScriptMarket().map(({ id, ...rest }) => rest));
+    let state = 0x1234abcd;
+    const seededRng = () => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x1_0000_0000;
+    };
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: seededRng, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    for (let i = 0; i < 16; i += 1) {
+      manager.endWeek();
+      for (const script of manager.scriptMarket) {
+        expect(script.askingPrice).toBeGreaterThanOrEqual(25_000);
+        expect(script.scriptQuality).toBeGreaterThanOrEqual(1);
+        expect(script.scriptQuality).toBeLessThanOrEqual(9.9);
+        expect(script.conceptStrength).toBeGreaterThanOrEqual(1);
+        expect(script.conceptStrength).toBeLessThanOrEqual(9.9);
+      }
+    }
+
+    expect(JSON.stringify(createSeedScriptMarket().map(({ id, ...rest }) => rest))).toBe(seededSnapshot);
   });
 
   it('evaluates scripts independent of current talent pool state', () => {

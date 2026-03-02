@@ -391,6 +391,22 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (manager.scriptMarket.length > scriptMarketTargetOffers) {
     manager.scriptMarket = manager.scriptMarket.slice(0, scriptMarketTargetOffers);
   }
+  manager.scriptMarket = manager.scriptMarket
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
+    .map((entry) => ({
+      id: String(entry.id),
+      title: String(entry.title),
+      genre: typeof entry.genre === 'string' ? entry.genre : 'drama',
+      ...(entry.marketTier === 'bargain' || entry.marketTier === 'standard' || entry.marketTier === 'biddingWar'
+        ? { marketTier: entry.marketTier }
+        : {}),
+      askingPrice: Number.isFinite(entry.askingPrice) ? Math.max(25_000, Math.round(Number(entry.askingPrice))) : 300_000,
+      scriptQuality: Number.isFinite(entry.scriptQuality) ? Math.min(9.9, Math.max(1, Number(entry.scriptQuality))) : 7,
+      conceptStrength: Number.isFinite(entry.conceptStrength) ? Math.min(9.9, Math.max(1, Number(entry.conceptStrength))) : 7,
+      logline: typeof entry.logline === 'string' ? entry.logline : '',
+      expiresInWeeks: Number.isFinite(entry.expiresInWeeks) ? Math.max(0, Math.round(Number(entry.expiresInWeeks))) : 3,
+    }))
+    .slice(0, scriptMarketTargetOffers);
   if (manager.scriptMarket.length === 0) {
     const managerWithRefill = manager as unknown as { refillScriptMarket?: (events: string[]) => void };
     if (typeof managerWithRefill.refillScriptMarket === 'function') {

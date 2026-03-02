@@ -32,6 +32,12 @@ function agencyLabel(agentTier: string): string {
   return 'IND';
 }
 
+function scriptTierLabel(value: string | undefined): string | null {
+  if (value === 'bargain') return 'Bargain';
+  if (value === 'biddingWar') return 'Bidding War';
+  return null;
+}
+
 export default function ScriptRoomScreen() {
   const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
@@ -69,7 +75,7 @@ export default function ScriptRoomScreen() {
       scriptMarketSignature: mgr.scriptMarket
         .map(
           (s) =>
-            `${s.id}:${s.title}:${s.genre}:${s.askingPrice}:${s.scriptQuality}:${s.conceptStrength}:${s.expiresInWeeks}`
+            `${s.id}:${s.title}:${s.genre}:${s.marketTier ?? 'standard'}:${s.askingPrice}:${s.scriptQuality}:${s.conceptStrength}:${s.expiresInWeeks}`
         )
         .join('|'),
       negotiationSignature: mgr.playerNegotiations
@@ -223,7 +229,14 @@ export default function ScriptRoomScreen() {
             <View key={script.id} style={styles.card}>
               <View style={styles.row}>
                 <Text style={styles.cardTitle}>{script.title}</Text>
-                <Text style={styles.genre}>{script.genre}</Text>
+                <View style={styles.inlineBadges}>
+                  {scriptTierLabel(script.marketTier) ? (
+                    <Text style={script.marketTier === 'bargain' ? styles.bargainBadge : styles.biddingBadge}>
+                      {scriptTierLabel(script.marketTier)}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.genre}>{script.genre}</Text>
+                </View>
               </View>
               <Text style={styles.body}>{script.logline}</Text>
               <Text style={styles.muted}>Ask: {money(script.askingPrice)} | Expires in {script.expiresInWeeks}w</Text>
@@ -404,6 +417,29 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     fontSize: 12,
     fontWeight: '600',
+  },
+  inlineBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bargainBadge: {
+    color: tokens.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: tokens.accentGreen,
+  },
+  biddingBadge: {
+    color: tokens.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: tokens.accentGold,
   },
   body: {
     color: tokens.textSecondary,
