@@ -148,6 +148,10 @@ export default function HQScreen() {
   const news = manager.industryNewsLog.slice(0, 6);
   const chronicle = manager.studioChronicle.slice(0, 8);
   const milestones = manager.getActiveMilestones().slice(0, 6);
+  const visibleCrises = manager.pendingCrises.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const visibleDecisions = manager.decisionQueue.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const visibleUpdates = manager.inboxNotifications.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const inboxCount = visibleCrises.length + visibleDecisions.length + visibleUpdates.length;
   const weeklyExpenses = manager.estimateWeeklyBurn();
   const marketingUpgradeCost = manager.getMarketingTeamUpgradeCost();
   const capacityUpgradeCost = manager.getStudioCapacityUpgradeCost();
@@ -285,10 +289,10 @@ export default function HQScreen() {
             </GlassCard>
             <GlassCard variant="elevated" style={styles.statusTile}>
               <MetricTile
-                value={manager.decisionQueue.length}
+                value={inboxCount}
                 label="Inbox"
                 size="sm"
-                accent={manager.decisionQueue.length > 0 ? colors.goldMid : colors.textMuted}
+                accent={inboxCount > 0 ? colors.goldMid : colors.textMuted}
               />
             </GlassCard>
           </View>
@@ -343,7 +347,12 @@ export default function HQScreen() {
               {manager.pendingCrises.length} blocking crisis{manager.pendingCrises.length === 1 ? '' : 'es'} must be resolved before End Turn.
             </Text>
           )}
-          {manager.pendingCrises.map((crisis) => (
+          {manager.pendingCrises.length !== visibleCrises.length ? (
+            <Text style={[styles.muted, { color: colors.accentRed }]}>
+              Some crisis entries are malformed. Restarting the app will repair persisted inbox data.
+            </Text>
+          ) : null}
+          {visibleCrises.map((crisis) => (
             <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
               <View style={styles.inboxHeader}>
                 <Text style={styles.muted}>
@@ -377,7 +386,7 @@ export default function HQScreen() {
               </View>
             </GlassCard>
           ))}
-          {manager.inboxNotifications.map((item) => (
+          {visibleUpdates.map((item) => (
             <GlassCard key={item.id} variant="elevated" accentBorder={colors.ctaBlue} style={{ gap: spacing.sp2 }}>
               <View style={styles.inboxHeader}>
                 <Text style={styles.muted}>
@@ -400,7 +409,12 @@ export default function HQScreen() {
               />
             </GlassCard>
           ))}
-          {manager.decisionQueue.map((item) => (
+          {manager.decisionQueue.length !== visibleDecisions.length ? (
+            <Text style={[styles.muted, { color: colors.accentRed }]}>
+              Some decision entries are malformed. Use the Inbox tab to dismiss broken items.
+            </Text>
+          ) : null}
+          {visibleDecisions.map((item) => (
               <GlassCard key={item.id} variant="elevated" accentBorder={colors.goldMid} style={{ gap: spacing.sp2 }}>
                 <View style={styles.inboxHeader}>
                   <Text style={styles.muted}>
@@ -439,7 +453,7 @@ export default function HQScreen() {
                 </View>
               </GlassCard>
             ))}
-          {manager.pendingCrises.length === 0 && manager.inboxNotifications.length === 0 && manager.decisionQueue.length === 0
+          {inboxCount === 0
             ? <Text style={styles.muted}>Inbox clear. No active crises, updates, or decisions.</Text>
             : null}
         </GlassCard>

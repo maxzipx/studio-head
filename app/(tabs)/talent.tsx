@@ -110,12 +110,13 @@ function interactionLabel(kind: string): string {
 }
 
 export default function TalentScreen() {
-  const { manager, startNegotiation, adjustNegotiation, attachTalent, lastMessage } = useGameStore(useShallow((state) => {
+  const { manager, startNegotiation, adjustNegotiation, dismissNegotiation, attachTalent, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
       startNegotiation: state.startNegotiation,
       adjustNegotiation: state.adjustNegotiation,
+      dismissNegotiation: state.dismissNegotiation,
       attachTalent: state.attachTalent,
       lastMessage: state.lastMessage,
       projectsSignature: mgr.activeProjects
@@ -381,25 +382,36 @@ export default function TalentScreen() {
                       <Text style={styles.muted}>
                         Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
                       </Text>
-                      <View style={styles.actions}>
-                        {[
-                          { label: 'Salary+', action: 'sweetenSalary', pressure: 'salary' },
-                          { label: 'Backend+', action: 'sweetenBackend', pressure: 'backend' },
-                          { label: 'Perks+', action: 'sweetenPerks', pressure: 'perks' },
-                          { label: 'Hold', action: 'holdFirm', pressure: null },
-                        ].map(({ label, action, pressure }) => (
-                          <PremiumButton
-                            key={action}
-                            label={label}
-                            onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as NegotiationAction)}
-                            variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
-                            size="sm"
-                            style={styles.negBtn}
-                          />
-                        ))}
-                      </View>
                     </>
                   )}
+                  {!snapshot && (
+                    <Text style={[styles.alert, { color: colors.accentRed }]}>
+                      Negotiation details failed to load. You can still submit a counter or dismiss this stuck entry.
+                    </Text>
+                  )}
+                  <View style={styles.actions}>
+                    {[
+                      { label: 'Salary+', action: 'sweetenSalary', pressure: 'salary' },
+                      { label: 'Backend+', action: 'sweetenBackend', pressure: 'backend' },
+                      { label: 'Perks+', action: 'sweetenPerks', pressure: 'perks' },
+                      { label: 'Hold', action: 'holdFirm', pressure: null },
+                    ].map(({ label, action, pressure }) => (
+                      <PremiumButton
+                        key={action}
+                        label={label}
+                        onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as NegotiationAction)}
+                        variant={pressure !== null && pressure === snapshot?.pressurePoint ? 'primary' : 'secondary'}
+                        size="sm"
+                        style={styles.negBtn}
+                      />
+                    ))}
+                  </View>
+                  <PremiumButton
+                    label="Drop Negotiation"
+                    onPress={() => dismissNegotiation(entry.projectId, entry.talentId)}
+                    variant="ghost"
+                    size="sm"
+                  />
                 </GlassCard>
               );
             })

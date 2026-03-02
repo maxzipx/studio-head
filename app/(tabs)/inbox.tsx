@@ -23,13 +23,23 @@ export default function InboxScreen() {
       projectsSignature: mgr.activeProjects.map(p => p.id).join('|'),
     };
   }));
+  const visibleCrises = manager.pendingCrises.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const visibleDecisions = manager.decisionQueue.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const visibleUpdates = manager.inboxNotifications.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
+  const inboxCount = visibleCrises.length + visibleDecisions.length + visibleUpdates.length;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Inbox</Text>
       <Text style={styles.subtitle}>Crises block week advancement until resolved</Text>
 
-      {manager.pendingCrises.map((crisis) => (
+      {manager.pendingCrises.length !== visibleCrises.length ? (
+        <View style={[styles.card, styles.crisisCard]}>
+          <Text style={styles.crisisTitle}>Malformed crisis entries detected</Text>
+          <Text style={styles.body}>Restart app to repair saved inbox data.</Text>
+        </View>
+      ) : null}
+      {visibleCrises.map((crisis) => (
         <View key={crisis.id} style={[styles.card, styles.crisisCard]}>
           <Text style={styles.scope}>
             Affects: {manager.activeProjects.find((project) => project.id === crisis.projectId)?.title ?? 'Unknown project'}
@@ -52,7 +62,13 @@ export default function InboxScreen() {
         </View>
       ))}
 
-      {manager.decisionQueue.map((item) => (
+      {manager.decisionQueue.length !== visibleDecisions.length ? (
+        <View style={styles.card}>
+          <Text style={styles.decisionTitle}>Malformed decision entries detected</Text>
+          <Text style={styles.body}>Use dismiss on broken items after restarting if they remain.</Text>
+        </View>
+      ) : null}
+      {visibleDecisions.map((item) => (
         <View key={item.id} style={styles.card}>
           <Text style={styles.scope}>
             Scope: {item.projectId ? manager.activeProjects.find((project) => project.id === item.projectId)?.title ?? 'Unknown project' : 'Studio-wide'}
@@ -77,7 +93,7 @@ export default function InboxScreen() {
         </View>
       ))}
 
-      {manager.inboxNotifications.map((item) => (
+      {visibleUpdates.map((item) => (
         <View key={item.id} style={styles.card}>
           <Text style={styles.scope}>
             Scope: {item.projectId ? manager.activeProjects.find((project) => project.id === item.projectId)?.title ?? 'Unknown project' : 'Studio-wide'}
@@ -90,7 +106,7 @@ export default function InboxScreen() {
         </View>
       ))}
 
-      {manager.pendingCrises.length === 0 && manager.decisionQueue.length === 0 && manager.inboxNotifications.length === 0 ? (
+      {inboxCount === 0 ? (
         <View style={styles.card}>
           <Text style={styles.decisionTitle}>Inbox clear</Text>
           <Text style={styles.body}>No blocking crises, updates, or active decisions this week.</Text>

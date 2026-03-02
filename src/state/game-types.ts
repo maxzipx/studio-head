@@ -21,6 +21,7 @@ export interface GameContextValue {
   startNegotiation: (projectId: string, talentId: string) => void;
   startNegotiationRound: (projectId: string, talentId: string, action: NegotiationAction) => void;
   adjustNegotiation: (projectId: string, talentId: string, action: NegotiationAction) => void;
+  dismissNegotiation: (projectId: string, talentId: string) => void;
   advancePhase: (projectId: string) => void;
   setReleaseWeek: (projectId: string, releaseWeek: number) => void;
   acceptOffer: (projectId: string, offerId: string) => void;

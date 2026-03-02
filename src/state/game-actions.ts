@@ -101,6 +101,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    dismissNegotiation: (projectId: string, talentId: string) => {
+      runWhenHydrated(() => {
+        manager.dismissTalentNegotiation(projectId, talentId);
+        saveAndTick('Negotiation dismissed.');
+      });
+    },
     advancePhase: (projectId: string) => {
       runWhenHydrated(() => {
         const result = manager.advanceProjectPhase(projectId);

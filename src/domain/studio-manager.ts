@@ -1093,6 +1093,18 @@ export class StudioManager {
     return startTalentNegotiationRoundForManager(this, projectId, talentId, action);
   }
 
+  dismissTalentNegotiation(projectId: string, talentId: string): void {
+    this.playerNegotiations = this.playerNegotiations.filter(
+      (item) => !(item.projectId === projectId && item.talentId === talentId)
+    );
+    const talent = this.talentPool.find((item) => item.id === talentId);
+    if (!talent) return;
+    const stillNegotiating = this.playerNegotiations.some((item) => item.talentId === talentId);
+    if (!stillNegotiating && talent.attachedProjectId === null && talent.availability === 'inNegotiation') {
+      talent.availability = 'available';
+    }
+  }
+
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
     return setProjectReleaseWeekForManager(this, projectId, releaseWeek);
   }

@@ -512,6 +512,28 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     }))
     .slice(0, 20);
   if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
+  manager.playerNegotiations = manager.playerNegotiations
+    .filter(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry.talentId === 'string' &&
+        typeof entry.projectId === 'string'
+    )
+    .map((entry) => ({
+      talentId: String(entry.talentId),
+      projectId: String(entry.projectId),
+      openedWeek: Number.isFinite(entry.openedWeek)
+        ? Math.min(manager.currentWeek, Math.max(1, Math.round(Number(entry.openedWeek))))
+        : manager.currentWeek,
+      rounds: Number.isFinite(entry.rounds) ? Math.max(0, Math.round(Number(entry.rounds))) : 0,
+      holdLineCount: Number.isFinite(entry.holdLineCount) ? Math.max(0, Math.round(Number(entry.holdLineCount))) : 0,
+      ...(Number.isFinite(entry.offerSalaryMultiplier) ? { offerSalaryMultiplier: Number(entry.offerSalaryMultiplier) } : {}),
+      ...(Number.isFinite(entry.offerBackendPoints) ? { offerBackendPoints: Number(entry.offerBackendPoints) } : {}),
+      ...(Number.isFinite(entry.offerPerksBudget) ? { offerPerksBudget: Math.max(0, Number(entry.offerPerksBudget)) } : {}),
+      ...(Number.isFinite(entry.lastComputedChance) ? { lastComputedChance: Number(entry.lastComputedChance) } : {}),
+      ...(typeof entry.lastResponse === 'string' ? { lastResponse: entry.lastResponse } : {}),
+    }))
+    .slice(0, 40);
   if (!Array.isArray(manager.recentDecisionCategories)) manager.recentDecisionCategories = [];
 
   if (!isRecord(manager.storyFlags)) manager.storyFlags = {};
