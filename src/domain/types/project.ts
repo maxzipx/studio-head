@@ -45,6 +45,18 @@ export interface BudgetObject {
   actualSpend: number;
 }
 
+export interface ProjectBudgetPlan {
+  directorPlanned: number;
+  castPlannedTotal: number;
+  castPlannedActor: number;
+  castPlannedActress: number;
+}
+
+export interface CastRequirements {
+  actorCount: number;
+  actressCount: number;
+}
+
 export interface SalaryObject {
   base: number;
   backendPoints: number;
@@ -194,6 +206,8 @@ export interface MovieProject {
   genre: MovieGenre;
   phase: ProjectPhase;
   budget: BudgetObject;
+  budgetPlan: ProjectBudgetPlan;
+  castRequirements: CastRequirements;
   scriptQuality: number;
   conceptStrength: number;
   editorialScore: number;

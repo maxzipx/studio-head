@@ -183,6 +183,43 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .slice(0, 40);
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
   for (const project of manager.activeProjects) {
+    if (!isRecord(project.castRequirements)) {
+      project.castRequirements = { actorCount: 1, actressCount: 0 };
+    }
+    if (!Number.isFinite(project.castRequirements.actorCount)) project.castRequirements.actorCount = 1;
+    if (!Number.isFinite(project.castRequirements.actressCount)) project.castRequirements.actressCount = 0;
+    project.castRequirements.actorCount = Math.max(0, Math.round(project.castRequirements.actorCount));
+    project.castRequirements.actressCount = Math.max(0, Math.round(project.castRequirements.actressCount));
+
+    if (!isRecord(project.budgetPlan)) {
+      const fallbackDirector = Math.round(project.budget.ceiling * 0.1);
+      const fallbackCastActor = Math.round(project.budget.ceiling * 0.15 * Math.max(1, project.castRequirements.actorCount));
+      const fallbackCastActress = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actressCount));
+      project.budgetPlan = {
+        directorPlanned: fallbackDirector,
+        castPlannedTotal: fallbackCastActor + fallbackCastActress,
+        castPlannedActor: fallbackCastActor,
+        castPlannedActress: fallbackCastActress,
+      };
+    }
+    if (!Number.isFinite(project.budgetPlan.directorPlanned)) project.budgetPlan.directorPlanned = Math.round(project.budget.ceiling * 0.1);
+    if (!Number.isFinite(project.budgetPlan.castPlannedActor)) {
+      project.budgetPlan.castPlannedActor = Math.round(project.budget.ceiling * 0.15 * Math.max(1, project.castRequirements.actorCount));
+    }
+    if (!Number.isFinite(project.budgetPlan.castPlannedActress)) {
+      project.budgetPlan.castPlannedActress = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actressCount));
+    }
+    if (!Number.isFinite(project.budgetPlan.castPlannedTotal)) {
+      project.budgetPlan.castPlannedTotal = project.budgetPlan.castPlannedActor + project.budgetPlan.castPlannedActress;
+    }
+    project.budgetPlan.directorPlanned = Math.max(0, Math.round(project.budgetPlan.directorPlanned));
+    project.budgetPlan.castPlannedActor = Math.max(0, Math.round(project.budgetPlan.castPlannedActor));
+    project.budgetPlan.castPlannedActress = Math.max(0, Math.round(project.budgetPlan.castPlannedActress));
+    project.budgetPlan.castPlannedTotal = Math.max(
+      0,
+      Math.round(Math.max(project.budgetPlan.castPlannedTotal, project.budgetPlan.castPlannedActor + project.budgetPlan.castPlannedActress))
+    );
+
     if (
       project.phase !== 'released' &&
       project.releaseWindow &&

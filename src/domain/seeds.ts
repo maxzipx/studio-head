@@ -267,6 +267,16 @@ export function createSeedProjects(): MovieProject[] {
         overrunRisk: 0.38,
         actualSpend: 9_500_000,
       },
+      budgetPlan: {
+        directorPlanned: 2_400_000,
+        castPlannedTotal: 3_600_000,
+        castPlannedActor: 3_600_000,
+        castPlannedActress: 0,
+      },
+      castRequirements: {
+        actorCount: 1,
+        actressCount: 0,
+      },
       scriptQuality: 7.4,
       conceptStrength: 7.1,
       editorialScore: 5,
@@ -337,6 +347,16 @@ export function createSeedProjects(): MovieProject[] {
         contingency: 1_100_000,
         overrunRisk: 0.26,
         actualSpend: 500_000,
+      },
+      budgetPlan: {
+        directorPlanned: 1_200_000,
+        castPlannedTotal: 2_100_000,
+        castPlannedActor: 2_100_000,
+        castPlannedActress: 0,
+      },
+      castRequirements: {
+        actorCount: 1,
+        actressCount: 0,
       },
       scriptQuality: 8.1,
       conceptStrength: 6.8,
@@ -2417,4 +2437,3 @@ export function createSeedRivals(): RivalStudio[] {
     },
   ];
 }
-

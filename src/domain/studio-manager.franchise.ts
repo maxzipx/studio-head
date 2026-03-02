@@ -1,18 +1,68 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import { createId } from './id';
 import type {
+  CastRequirements,
   FranchiseStatusSnapshot,
   FranchiseProjectionModifiers,
   FranchiseStrategy,
   FranchiseTrack,
   MovieProject,
+  ProjectBudgetPlan,
   SequelCandidate,
   SequelEligibility,
+  TalentRole,
 } from './types';
 import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function estimateRoleMarketComp(manager: StudioManager, role: TalentRole, genre: MovieProject['genre']): number {
+  const pool = manager.talentPool.filter((talent) => talent.role === role);
+  if (pool.length === 0) return 0;
+  const sample = [...pool]
+    .sort((a, b) => {
+      const aFit = a.genreFit[genre] ?? 0.55;
+      const bFit = b.genreFit[genre] ?? 0.55;
+      const aScore = aFit * 5 + a.starPower * 0.35 + a.craftScore * 0.3;
+      const bScore = bFit * 5 + b.starPower * 0.35 + b.craftScore * 0.3;
+      return bScore - aScore;
+    })
+    .slice(0, Math.max(8, Math.min(20, Math.round(pool.length * 0.12))));
+  const values = sample
+    .map((talent) => talent.salary.base + talent.salary.perksCost)
+    .sort((a, b) => a - b);
+  const middle = Math.floor(values.length / 2);
+  return values[middle] ?? values[0] ?? 0;
+}
+
+function buildProjectBudgetPlan(
+  manager: StudioManager,
+  genre: MovieProject['genre'],
+  ceiling: number,
+  castRequirements: CastRequirements
+): ProjectBudgetPlan {
+  const directorEstimate = estimateRoleMarketComp(manager, 'director', genre);
+  const actorEstimate = estimateRoleMarketComp(manager, 'leadActor', genre);
+  const actressEstimate = estimateRoleMarketComp(manager, 'leadActor', genre);
+  const castPlannedActor = Math.round(actorEstimate * castRequirements.actorCount);
+  const castPlannedActress = Math.round(actressEstimate * castRequirements.actressCount);
+  const castPlannedTotal = castPlannedActor + castPlannedActress;
+  const directorFloor = Math.round(ceiling * 0.06);
+  const directorCeiling = Math.round(ceiling * 0.26);
+  const directorPlanned = clamp(
+    Math.round(directorEstimate),
+    directorFloor,
+    Math.max(directorFloor, directorCeiling)
+  );
+
+  return {
+    directorPlanned,
+    castPlannedTotal,
+    castPlannedActor,
+    castPlannedActress,
+  };
 }
 
 // ── Sequel subtitle generator ─────────────────────────────────────────────────
@@ -388,6 +438,7 @@ export function startSequelForManager(
   const budgetBase = PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[baseProject.genre];
   const budgetMultiplier = clamp(0.9 + eligibility.projectedMomentum / 180 - eligibility.projectedFatigue / 260, 0.75, 1.25);
   const ceiling = Math.round(budgetBase * budgetMultiplier);
+  const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
   const scriptQuality = clamp(
     baseProject.scriptQuality * 0.72 + (baseProject.criticalScore ?? 60) * 0.028 - eligibility.projectedFatigue * 0.01 + 0.45,
     5.5,
@@ -411,6 +462,8 @@ export function startSequelForManager(
       overrunRisk: clamp(baseProject.budget.overrunRisk * 0.92 + 0.04, 0.12, 0.62),
       actualSpend: eligibility.upfrontCost,
     },
+    budgetPlan: buildProjectBudgetPlan(manager, baseProject.genre, ceiling, castRequirements),
+    castRequirements,
     scriptQuality,
     conceptStrength,
     editorialScore: 5,

@@ -258,6 +258,34 @@ describe('StudioManager', () => {
     expect(result.success).toBe(true);
     expect(manager.activeProjects.length).toBe(beforeProjects + 1);
     expect(manager.scriptMarket.length).toBe(beforeScripts - 1);
+    const created = manager.activeProjects.find((project) => project.id === result.projectId);
+    expect(created).toBeTruthy();
+    expect(created!.budgetPlan.directorPlanned).toBeGreaterThan(0);
+    expect(created!.budgetPlan.castPlannedTotal).toBeGreaterThan(0);
+    expect(created!.budgetPlan.castPlannedActor).toBeGreaterThan(0);
+    expect(created!.budgetPlan.castPlannedActress).toBeGreaterThanOrEqual(0);
+  });
+
+  it('updates cast/director committed spend inputs when deals are signed', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const attachDirector = manager.negotiateAndAttachTalent(project!.id, director!.id);
+    const attachLead = manager.negotiateAndAttachTalent(project!.id, lead!.id);
+    expect(attachDirector.success).toBe(true);
+    expect(attachLead.success).toBe(true);
+
+    const directorCommitted = director!.salary.base + director!.salary.perksCost;
+    const castCommitted = lead!.salary.base + lead!.salary.perksCost;
+    expect(project!.directorId).toBe(director!.id);
+    expect(project!.castIds).toContain(lead!.id);
+    expect(directorCommitted).toBeGreaterThan(0);
+    expect(castCommitted).toBeGreaterThan(0);
   });
 
   it('starts sequel development from an eligible released project and creates franchise tracking', () => {

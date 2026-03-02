@@ -106,6 +106,15 @@ export default function ProjectDetailScreen() {
   const cast = project.castIds
     .map((tid) => manager.talentPool.find((t) => t.id === tid))
     .filter((t): t is NonNullable<typeof t> => !!t);
+  const talentComp = (talent: NonNullable<typeof director>) => talent.salary.base + talent.salary.perksCost;
+  const directorCommitted = director ? talentComp(director) : 0;
+  const castCommittedActor = cast
+    .filter((talent) => !String(talent.role).toLowerCase().includes('actress'))
+    .reduce((sum, talent) => sum + talentComp(talent), 0);
+  const castCommittedActress = cast
+    .filter((talent) => String(talent.role).toLowerCase().includes('actress'))
+    .reduce((sum, talent) => sum + talentComp(talent), 0);
+  const castCommittedTotal = castCommittedActor + castCommittedActress;
   const projection = manager.getProjectedForProjectAtWeek(project.id, projectionWeek);
   const burnPct = project.budget.ceiling > 0 ? (project.budget.actualSpend / project.budget.ceiling) * 100 : 0;
   const projectCrises = manager.pendingCrises.filter((c) => c.projectId === project.id);
@@ -445,6 +454,18 @@ export default function ProjectDetailScreen() {
           value={burnPct}
           color={burnBarColor(burnPct)}
         />
+        <Text style={styles.bodyText}>
+          Director Budget (Planned / Committed): {money(project.budgetPlan.directorPlanned)} / {money(directorCommitted)}
+        </Text>
+        <Text style={styles.bodyText}>
+          Cast Budget (Planned / Committed): {money(project.budgetPlan.castPlannedTotal)} / {money(castCommittedTotal)}
+        </Text>
+        <Text style={styles.mutedText}>
+          Actor Budget: {money(project.budgetPlan.castPlannedActor)} planned / {money(castCommittedActor)} committed
+        </Text>
+        <Text style={styles.mutedText}>
+          Actress Budget: {money(project.budgetPlan.castPlannedActress)} planned / {money(castCommittedActress)} committed
+        </Text>
         {project.budget.overrunRisk > 0.2 ? (
           <Text style={[styles.mutedText, { color: colors.accentRed }]}>
             ⚠ Overrun risk: {pct(project.budget.overrunRisk)} — may add unplanned spend

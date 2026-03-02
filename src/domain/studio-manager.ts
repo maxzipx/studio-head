@@ -129,6 +129,7 @@ import {
 } from './talent.service';
 import type {
   AwardsSeasonRecord,
+  CastRequirements,
   ChronicleEntry,
   CrisisEvent,
   DecisionCategory,
@@ -150,6 +151,7 @@ import type {
   NegotiationAction,
   OwnedIp,
   PlayerNegotiation,
+  ProjectBudgetPlan,
   ReleasePerformanceBreakdown,
   ReleaseReport,
   RivalInteractionKind,
@@ -830,6 +832,7 @@ export class StudioManager {
       return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
     }
     const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
+    const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
     const project: MovieProject = {
       id: createId('project'),
       title: this.generateIpTitle(ip),
@@ -844,6 +847,8 @@ export class StudioManager {
         overrunRisk: 0.27,
         actualSpend: Math.round(ip.acquisitionCost * 0.4),
       },
+      budgetPlan: this.buildProjectBudgetPlan(ip.genre, budget, castRequirements),
+      castRequirements,
       scriptQuality: clamp(6.1 + ip.qualityBonus, 0, 9.2),
       conceptStrength: clamp(6.4 + ip.commercialBonus * 0.12, 0, 9.5),
       editorialScore: 5,
@@ -900,6 +905,56 @@ export class StudioManager {
 
   getGenreDemandMultiplier(genre: MovieGenre): number {
     return this.genreCycles[genre]?.demand ?? 1;
+  }
+
+  private talentCompensationValue(talent: Talent): number {
+    return talent.salary.base + talent.salary.perksCost;
+  }
+
+  private estimateRoleMarketComp(role: TalentRole, genre: MovieGenre): number {
+    const pool = this.talentPool.filter((talent) => talent.role === role);
+    if (pool.length === 0) return 0;
+    const sample = [...pool]
+      .sort((a, b) => {
+        const aFit = a.genreFit[genre] ?? 0.55;
+        const bFit = b.genreFit[genre] ?? 0.55;
+        const aScore = aFit * 5 + a.starPower * 0.35 + a.craftScore * 0.3;
+        const bScore = bFit * 5 + b.starPower * 0.35 + b.craftScore * 0.3;
+        return bScore - aScore;
+      })
+      .slice(0, Math.max(8, Math.min(20, Math.round(pool.length * 0.12))));
+    const values = sample
+      .map((talent) => this.talentCompensationValue(talent))
+      .sort((a, b) => a - b);
+    const middle = Math.floor(values.length / 2);
+    return values[middle] ?? values[0] ?? 0;
+  }
+
+  private buildProjectBudgetPlan(
+    genre: MovieGenre,
+    ceiling: number,
+    castRequirements: CastRequirements
+  ): ProjectBudgetPlan {
+    const directorEstimate = this.estimateRoleMarketComp('director', genre);
+    const actorEstimate = this.estimateRoleMarketComp('leadActor', genre);
+    const actressEstimate = this.estimateRoleMarketComp('leadActor', genre);
+    const castPlannedActor = Math.round(actorEstimate * castRequirements.actorCount);
+    const castPlannedActress = Math.round(actressEstimate * castRequirements.actressCount);
+    const castPlannedTotal = castPlannedActor + castPlannedActress;
+    const directorFloor = Math.round(ceiling * 0.06);
+    const directorCeiling = Math.round(ceiling * 0.26);
+    const directorPlanned = clamp(
+      Math.round(directorEstimate),
+      directorFloor,
+      Math.max(directorFloor, directorCeiling)
+    );
+
+    return {
+      directorPlanned,
+      castPlannedTotal,
+      castPlannedActor,
+      castPlannedActress,
+    };
   }
 
   getGenreCycleSnapshot(): {
@@ -1199,6 +1254,7 @@ export class StudioManager {
     this.scriptMarket = this.scriptMarket.filter((item) => item.id !== scriptId);
 
     const ceiling = initialBudgetForGenre(pitch.genre);
+    const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
     const project: MovieProject = {
       id: createId('project'),
       title: pitch.title,
@@ -1213,6 +1269,8 @@ export class StudioManager {
         overrunRisk: 0.28,
         actualSpend: pitch.askingPrice,
       },
+      budgetPlan: this.buildProjectBudgetPlan(pitch.genre, ceiling, castRequirements),
+      castRequirements,
       scriptQuality: pitch.scriptQuality,
       conceptStrength: pitch.conceptStrength,
       editorialScore: 5,
