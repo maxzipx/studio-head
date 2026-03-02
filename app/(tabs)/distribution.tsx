@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: tokens.border,
-    backgroundColor: '#1E2940',
+    backgroundColor: tokens.bgSurface,
     padding: 10,
     gap: 3,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     borderColor: tokens.border,
     paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: '#2A3650',
+    backgroundColor: tokens.bgElevated,
   },
   buttonText: { color: tokens.textPrimary, fontSize: 12, fontWeight: '600' },
   walkButton: {
@@ -337,11 +337,11 @@ const styles = StyleSheet.create({
   },
   readinessReady: {
     borderColor: tokens.accentGreen,
-    backgroundColor: '#1A3030',
+    backgroundColor: tokens.bgDeep,
   },
   readinessBlocked: {
     borderColor: tokens.accentGold,
-    backgroundColor: '#2D2616',
+    backgroundColor: tokens.bgChampagne,
   },
   shiftCard: {
     borderRadius: 10,
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: tokens.accentGold,
-    backgroundColor: '#6A5222',
+    backgroundColor: tokens.goldDeep,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 4,

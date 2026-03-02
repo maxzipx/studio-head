@@ -10,8 +10,8 @@ interface MetricsStripProps {
 
 function formatCash(value: number): string {
   if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000)     return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000)         return `$${(value / 1_000).toFixed(0)}K`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value}`;
 }
 
@@ -26,8 +26,8 @@ function MetricColumn({
   label,
   valueColor = colors.textInverse,
 }: {
-  value:       string;
-  label:       string;
+  value: string;
+  label: string;
   valueColor?: string;
 }) {
   return (
@@ -52,36 +52,36 @@ export function MetricsStrip({ cash, heat, week }: MetricsStripProps) {
 
 const styles = StyleSheet.create({
   strip: {
-    backgroundColor:  colors.bgDeep,
-    height:           44,
-    flexDirection:    'row',
-    alignItems:       'center',
+    backgroundColor: colors.bgDeep,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
+    borderBottomColor: colors.borderSubtle,
   },
   column: {
-    flex:           1,
-    alignItems:     'center',
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   value: {
-    fontFamily:    typography.fontBodySemiBold,
-    fontSize:      typography.sizeMD,
-    color:         colors.textInverse,
+    fontFamily: typography.fontBodySemiBold,
+    fontSize: typography.sizeMD,
+    color: colors.textInverse,
     letterSpacing: typography.trackingNormal,
-    lineHeight:    19,
+    lineHeight: 19,
   },
   label: {
-    fontFamily:    typography.fontBodySemiBold,
-    fontSize:      8,
-    color:         'rgba(255,255,255,0.50)',
+    fontFamily: typography.fontBodySemiBold,
+    fontSize: 8,
+    color: colors.textMuted,
     letterSpacing: typography.trackingWidest,
     textTransform: 'uppercase',
-    lineHeight:    10,
+    lineHeight: 10,
   },
   divider: {
-    width:           1,
-    height:          24,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 1,
+    height: 24,
+    backgroundColor: colors.borderSubtle,
   },
 });

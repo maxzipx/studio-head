@@ -33,7 +33,7 @@ function recommendationColor(value: 'strongBuy' | 'conditional' | 'pass'): strin
 function phaseColor(phase: string): string {
   if (phase === 'development') return colors.accentGreen;
   if (phase === 'preProduction') return colors.goldMid;
-  if (phase === 'production') return '#6FAEEA';
+  if (phase === 'production') return colors.ctaBlue;
   if (phase === 'postProduction') return colors.accentGreen;
   if (phase === 'distribution') return colors.goldDeep;
   return colors.textMuted;

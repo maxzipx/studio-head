@@ -60,7 +60,7 @@ function trustLevelLabel(value: string): string {
 
 function trustLevelColor(value: string): string {
   if (value === 'hostile') return colors.accentRed;
-  if (value === 'wary') return '#F5D089';
+  if (value === 'wary') return colors.goldMid;
   if (value === 'aligned') return colors.accentGreen;
   if (value === 'loyal') return colors.accentGreen;
   return colors.textMuted;
@@ -588,7 +588,7 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
       )}
 
       {showDetails && outlook.reason && (
-        <Text style={[styles.alert, { color: '#F5D089' }]}>{outlook.reason}</Text>
+        <Text style={[styles.alert, { color: colors.goldMid }]}>{outlook.reason}</Text>
       )}
 
       {activeProject && (
