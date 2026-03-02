@@ -478,6 +478,8 @@ export class StudioManager {
     negotiationRng?: () => number;
     rivalRng?: () => number;
     talentSeed?: number;
+    startWithSeedProjects?: boolean;
+    includeOpeningDecisions?: boolean;
   }) {
     this.crisisRng = input?.crisisRng ?? Math.random;
     this.eventRng = input?.eventRng ?? Math.random;
@@ -487,6 +489,12 @@ export class StudioManager {
     if (Number.isFinite(inputTalentSeed)) {
       this.talentSeed = Math.max(0, Math.floor(Math.abs(inputTalentSeed as number)));
       this.talentPool = createSeedTalentPool(this.talentSeed);
+    }
+    if (input?.startWithSeedProjects === false) {
+      this.activeProjects = [];
+    }
+    if (input?.includeOpeningDecisions === false) {
+      this.decisionQueue = [];
     }
     this.bindOpeningDecisionToLeadProject();
     this.refreshIpMarketplace();

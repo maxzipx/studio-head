@@ -18,6 +18,14 @@ function flushPromises(): Promise<void> {
 }
 
 describe('game store autosave queue', () => {
+  it('starts new sessions with an empty slate while keeping script market offers', () => {
+    const store = createGameStore();
+    const manager = store.getState().manager;
+
+    expect(manager.activeProjects.length).toBe(0);
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+  });
+
   it('coalesces rapid saves and persists the latest snapshot', async () => {
     const resolvers: (() => void)[] = [];
     const payloads: string[] = [];

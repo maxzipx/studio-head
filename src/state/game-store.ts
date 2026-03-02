@@ -26,7 +26,11 @@ const AUTOSAVE_WARNING = 'Autosave failed: local storage is full. Gameplay conti
 export const createGameStore = () => {
     return createStore<GameState>()((set, get) => {
         const freshTalentSeed = Math.floor(Math.random() * 2_147_483_647);
-        const manager = new StudioManager({ talentSeed: freshTalentSeed });
+        const manager = new StudioManager({
+            talentSeed: freshTalentSeed,
+            startWithSeedProjects: false,
+            includeOpeningDecisions: false,
+        });
         let queuedSnapshot: ReturnType<typeof serializeStudioManager> | null = null;
         let queuedSaveId = 0;
         let saveWorkerRunning = false;
