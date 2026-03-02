@@ -62,46 +62,6 @@ import {
   tickScriptMarketExpiryForManager,
 } from './studio-manager.events';
 import {
-  acceptDistributionOfferForManager,
-  advanceProjectPhaseForManager,
-  counterDistributionOfferForManager,
-  estimateReleaseRunWeeksForManager,
-  generateDistributionOffersForManager,
-  setProjectReleaseWeekForManager,
-  tickDistributionWindowsForManager,
-  walkAwayDistributionForManager,
-} from './studio-manager.lifecycle';
-import {
-  checkRivalReleaseResponsesForManager,
-  processRivalCalendarMovesForManager,
-  processRivalSignatureMovesForManager,
-  processRivalTalentAcquisitionsForManager,
-  queueRivalCounterplayDecisionForManager,
-  tickRivalHeatForManager,
-} from './studio-manager.rivals.actions';
-import {
-  getRivalBehaviorProfileForManager,
-  rivalHeatBiasForManager,
-  rivalNewsHeadlineForManager,
-} from './studio-manager.rivals.evaluation';
-import { pickTalentForRivalForManager } from './studio-manager.rivals.selectors';
-import {
-  getFranchiseProjectionModifiersForManager,
-} from './studio-manager.franchise.evaluation';
-import {
-  markFranchiseReleaseForManager,
-  runFranchiseBrandResetForManager,
-  runFranchiseHiatusPlanningForManager,
-  runFranchiseLegacyCastingCampaignForManager,
-  setFranchiseStrategyForManager,
-  startSequelForManager,
-} from './studio-manager.franchise.actions';
-import {
-  getFranchiseStatusForManager,
-  getSequelCandidatesForManager,
-  getSequelEligibilityForManager,
-} from './studio-manager.franchise.selectors';
-import {
   runGreenlightReviewForManager,
   runTestScreeningForManager,
   runReshootsForManager,
@@ -121,6 +81,9 @@ import {
   createSeedTalentPool,
 } from './seeds';
 import { adjustCashForManager, evaluateBankruptcyForManager } from './finance.service';
+import { FranchiseService } from './services/franchise.service';
+import { ProjectLifecycleService } from './services/project-lifecycle.service';
+import { RivalAiService } from './services/rival-ai.service';
 import {
   ARC_LABELS,
   buildIpTemplate,
@@ -271,6 +234,9 @@ export class StudioManager {
   lastMarketBurstWeek = 0;
   marketDirectorIdx = 0;
   marketActorIdx = 0;
+  private readonly lifecycleService = new ProjectLifecycleService(this);
+  private readonly franchiseService = new FranchiseService(this);
+  private readonly rivalAiService = new RivalAiService(this);
 
   get studioHeat(): number {
     return Math.round(
@@ -1106,7 +1072,7 @@ export class StudioManager {
   }
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
-    return setProjectReleaseWeekForManager(this, projectId, releaseWeek);
+    return this.lifecycleService.setProjectReleaseWeek(projectId, releaseWeek);
   }
 
   getOffersForProject(projectId: string): DistributionOffer[] {
@@ -1149,11 +1115,11 @@ export class StudioManager {
   }
 
   getSequelEligibility(projectId: string): SequelEligibility | null {
-    return getSequelEligibilityForManager(this, projectId);
+    return this.franchiseService.getSequelEligibility(projectId);
   }
 
   getSequelCandidates(): SequelCandidate[] {
-    return getSequelCandidatesForManager(this);
+    return this.franchiseService.getSequelCandidates();
   }
 
   startSequel(projectId: string): { success: boolean; message: string; projectId?: string } {
@@ -1171,36 +1137,36 @@ export class StudioManager {
         message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand capacity before starting a sequel.`,
       };
     }
-    return startSequelForManager(this, projectId);
+    return this.franchiseService.startSequel(projectId);
   }
 
   setFranchiseStrategy(
     projectId: string,
     strategy: Exclude<FranchiseStrategy, 'none'>
   ): { success: boolean; message: string } {
-    return setFranchiseStrategyForManager(this, projectId, strategy);
+    return this.franchiseService.setFranchiseStrategy(projectId, strategy);
   }
 
   getFranchiseProjectionModifiers(projectId: string): FranchiseProjectionModifiers | null {
     const project = this.activeProjects.find((item) => item.id === projectId);
     if (!project) return null;
-    return getFranchiseProjectionModifiersForManager(this, project, project.releaseWeek ?? this.currentWeek + 4);
+    return this.franchiseService.getFranchiseProjectionModifiers(project, project.releaseWeek ?? this.currentWeek + 4);
   }
 
   getFranchiseStatus(projectId: string): FranchiseStatusSnapshot | null {
-    return getFranchiseStatusForManager(this, projectId);
+    return this.franchiseService.getFranchiseStatus(projectId);
   }
 
   runFranchiseBrandReset(projectId: string): { success: boolean; message: string } {
-    return runFranchiseBrandResetForManager(this, projectId);
+    return this.franchiseService.runFranchiseBrandReset(projectId);
   }
 
   runFranchiseLegacyCastingCampaign(projectId: string): { success: boolean; message: string } {
-    return runFranchiseLegacyCastingCampaignForManager(this, projectId);
+    return this.franchiseService.runFranchiseLegacyCastingCampaign(projectId);
   }
 
   runFranchiseHiatusPlanning(projectId: string): { success: boolean; message: string } {
-    return runFranchiseHiatusPlanningForManager(this, projectId);
+    return this.franchiseService.runFranchiseHiatusPlanning(projectId);
   }
 
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
@@ -1319,19 +1285,19 @@ export class StudioManager {
   }
 
   advanceProjectPhase(projectId: string): { success: boolean; message: string } {
-    return advanceProjectPhaseForManager(this, projectId);
+    return this.lifecycleService.advanceProjectPhase(projectId);
   }
 
   acceptDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
-    return acceptDistributionOfferForManager(this, projectId, offerId);
+    return this.lifecycleService.acceptDistributionOffer(projectId, offerId);
   }
 
   counterDistributionOffer(projectId: string, offerId: string): { success: boolean; message: string } {
-    return counterDistributionOfferForManager(this, projectId, offerId);
+    return this.lifecycleService.counterDistributionOffer(projectId, offerId);
   }
 
   walkAwayDistribution(projectId: string): { success: boolean; message: string } {
-    return walkAwayDistributionForManager(this, projectId);
+    return this.lifecycleService.walkAwayDistribution(projectId);
   }
 
   resolveCrisis(crisisId: string, optionId: string): { success: boolean; message: string } {
@@ -1577,7 +1543,7 @@ export class StudioManager {
   } {
     const director = this.talentPool.find((item) => item.id === project.directorId);
     const lead = this.talentPool.find((item) => project.castIds.includes(item.id) && item.role === 'leadActor');
-    const franchiseModifiers = getFranchiseProjectionModifiersForManager(this, project, releaseWeek);
+    const franchiseModifiers = this.franchiseService.getFranchiseProjectionModifiers(project, releaseWeek);
     const baseCritical = projectedCriticalScore({
       scriptQuality: project.scriptQuality,
       directorCraft: director?.craftScore ?? 6,
@@ -1788,7 +1754,7 @@ export class StudioManager {
         project.releaseResolved = true;
         this.settleTrackingLeverage(project, events);
         this.maybeStartMerchandiseStream(project, events);
-        markFranchiseReleaseForManager(this, project.id);
+        this.franchiseService.markFranchiseRelease(project.id);
         this.applyMajorIpReleaseProgress(project, events);
         events.push(
           `${project.title} completed theatrical run. Critics ${criticsDelta >= 0 ? '+' : ''}${criticsDelta.toFixed(0)}, Audience ${audienceDelta >= 0 ? '+' : ''}${audienceDelta.toFixed(0)}.`
@@ -2297,15 +2263,15 @@ export class StudioManager {
   }
 
   private estimateReleaseRunWeeks(project: MovieProject): number {
-    return estimateReleaseRunWeeksForManager(this, project);
+    return this.lifecycleService.estimateReleaseRunWeeks(project);
   }
 
   private tickRivalHeat(events: string[]): void {
-    tickRivalHeatForManager(this, events);
+    this.rivalAiService.tickRivalHeat(events);
   }
 
   private processRivalTalentAcquisitions(events: string[]): void {
-    processRivalTalentAcquisitionsForManager(this, events);
+    this.rivalAiService.processRivalTalentAcquisitions(events);
   }
 
   private processPlayerNegotiations(events: string[]): void {
@@ -2313,19 +2279,19 @@ export class StudioManager {
   }
 
   private processRivalCalendarMoves(events: string[]): void {
-    processRivalCalendarMovesForManager(this, events);
+    this.rivalAiService.processRivalCalendarMoves(events);
   }
 
   private processRivalSignatureMoves(events: string[]): void {
-    processRivalSignatureMovesForManager(this, events);
+    this.rivalAiService.processRivalSignatureMoves(events);
   }
 
   private checkRivalReleaseResponses(project: MovieProject, events: string[]): void {
-    checkRivalReleaseResponsesForManager(this, project, events);
+    this.rivalAiService.checkRivalReleaseResponses(project, events);
   }
 
   private queueRivalCounterplayDecision(flag: string, rivalName: string, projectId?: string): void {
-    queueRivalCounterplayDecisionForManager(this, flag, rivalName, projectId);
+    this.rivalAiService.queueRivalCounterplayDecision(flag, rivalName, projectId);
   }
 
   private calendarPressureMultiplier(week: number, genre: MovieGenre): number {
@@ -2343,7 +2309,7 @@ export class StudioManager {
   }
 
   private pickTalentForRival(rival: RivalStudio, candidates: Talent[]): Talent | null {
-    return pickTalentForRivalForManager(this, rival, candidates);
+    return this.rivalAiService.pickTalentForRival(rival, candidates);
   }
 
   private findNegotiation(talentId: string, projectId?: string): PlayerNegotiation | null {
@@ -2598,7 +2564,7 @@ export class StudioManager {
   }
 
   private rivalHeatBias(personality: RivalStudio['personality']): number {
-    return rivalHeatBiasForManager(this, personality);
+    return this.rivalAiService.rivalHeatBias(personality);
   }
 
   private getRivalBehaviorProfile(rival: RivalStudio): {
@@ -2610,7 +2576,7 @@ export class StudioManager {
     budgetScale: number;
     hypeScale: number;
   } {
-    return getRivalBehaviorProfileForManager(this, rival);
+    return this.rivalAiService.getRivalBehaviorProfile(rival);
   }
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
@@ -2688,15 +2654,15 @@ export class StudioManager {
   }
 
   private rivalNewsHeadline(name: string, delta: number): string {
-    return rivalNewsHeadlineForManager(this, name, delta);
+    return this.rivalAiService.rivalNewsHeadline(name, delta);
   }
 
   private tickDistributionWindows(events: string[]): void {
-    tickDistributionWindowsForManager(this, events);
+    this.lifecycleService.tickDistributionWindows(events);
   }
 
   private generateDistributionOffers(projectId: string): void {
-    generateDistributionOffersForManager(this, projectId);
+    this.lifecycleService.generateDistributionOffers(projectId);
   }
 
   releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {
