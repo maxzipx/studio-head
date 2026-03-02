@@ -22,6 +22,50 @@ export interface NegotiationSnapshot {
   sweetenBackendShareDeltaPct: number;
 }
 
+export interface NegotiationRoundPreview {
+  action: NegotiationAction;
+  salaryMultiplier: number;
+  backendPoints: number;
+  perksBudget: number;
+  rounds: number;
+  holdLineCount: number;
+  chance: number;
+  signal: string;
+  pressurePoint: 'salary' | 'backend' | 'perks';
+  roundsRemaining: number;
+  demandSalaryMultiplier: number;
+  demandBackendPoints: number;
+  demandPerksBudget: number;
+  sweetenSalaryRetainerDelta: number;
+  sweetenPerksRetainerDelta: number;
+  sweetenBackendShareDeltaPct: number;
+}
+
+function applyNegotiationAction(
+  negotiation: PlayerNegotiation,
+  talent: any,
+  action: NegotiationAction
+): PlayerNegotiation {
+  const next = { ...negotiation };
+  if (action === 'sweetenSalary') {
+    next.offerSalaryMultiplier = clamp((next.offerSalaryMultiplier ?? 1) + 0.06, 1, 1.5);
+    next.holdLineCount = Math.max(0, (next.holdLineCount ?? 0) - 1);
+  } else if (action === 'sweetenBackend') {
+    next.offerBackendPoints = clamp((next.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
+    next.holdLineCount = Math.max(0, (next.holdLineCount ?? 0) - 1);
+  } else if (action === 'sweetenPerks') {
+    next.offerPerksBudget = Math.min(
+      talent.salary.perksCost * 3,
+      Math.max(talent.salary.perksCost * 0.4, Math.round((next.offerPerksBudget ?? talent.salary.perksCost) + 60_000))
+    );
+    next.holdLineCount = Math.max(0, (next.holdLineCount ?? 0) - 1);
+  } else if (action === 'holdFirm') {
+    next.holdLineCount = (next.holdLineCount ?? 0) + 1;
+  }
+  next.rounds = (next.rounds ?? 0) + 1;
+  return next;
+}
+
 export function getNegotiationChanceForManager(manager: any, talentId: string, projectId?: string): number | null {
   const talent = manager.talentPool.find((item: any) => item.id === talentId);
   if (!talent) return null;
@@ -105,6 +149,77 @@ export function getNegotiationSnapshotForManager(manager: any, projectId: string
   };
 }
 
+export function previewTalentNegotiationRoundForManager(
+  manager: any,
+  projectId: string,
+  talentId: string,
+  action: NegotiationAction
+): { success: boolean; message?: string; preview?: NegotiationRoundPreview } {
+  const project = manager.activeProjects.find((item: any) => item.id === projectId);
+  if (!project) return { success: false, message: 'Project not found.' };
+  if (project.phase !== 'development') {
+    return { success: false, message: 'Talent negotiations can only be opened for development projects.' };
+  }
+  const talent = manager.talentPool.find((item: any) => item.id === talentId);
+  if (!talent) return { success: false, message: 'Talent not found.' };
+
+  const readiness = manager.canOpenTalentNegotiation?.(talent);
+  if (readiness && readiness.ok === false) {
+    const lockoutWeeks = Math.max(1, Math.round(readiness.lockoutWeeks ?? 1));
+    const revisitWeek = manager.currentWeek + lockoutWeeks;
+    return {
+      success: false,
+      message: `${talent.name} refused to open talks. ${readiness.reason ?? 'Cooling-off period in effect.'} Revisit week ${revisitWeek}.`,
+    };
+  }
+
+  const opening: PlayerNegotiation = {
+    talentId,
+    projectId,
+    openedWeek: manager.currentWeek,
+    rounds: 0,
+    holdLineCount: 0,
+    offerSalaryMultiplier: 1,
+    offerBackendPoints: talent.salary.backendPoints,
+    offerPerksBudget: talent.salary.perksCost,
+    lastComputedChance: manager.talentDealChance(talent, 0.7),
+    lastResponse: 'Initial offer package sent.',
+  };
+  const normalized = manager.normalizeNegotiation(opening, talent);
+  const applied = applyNegotiationAction(normalized, talent, action);
+  const evaluation = manager.evaluateNegotiation(applied, talent);
+  const signal = manager.composeNegotiationPreview(talent.name, evaluation, applied.holdLineCount ?? 0);
+  const currentTerms = manager.readNegotiationTerms(normalized, talent);
+  const currentMemoCost = manager.computeDealMemoCost(talent, currentTerms);
+  const appliedTerms = manager.readNegotiationTerms(applied, talent);
+  const appliedMemoCost = manager.computeDealMemoCost(talent, appliedTerms);
+  const nextBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
+  const backendPointsDelta = Math.max(0, nextBackendPoints - (normalized.offerBackendPoints ?? talent.salary.backendPoints));
+  const backendShareDeltaPct = backendPointsDelta * 0.4;
+
+  return {
+    success: true,
+    preview: {
+      action,
+      salaryMultiplier: applied.offerSalaryMultiplier ?? 1,
+      backendPoints: applied.offerBackendPoints ?? talent.salary.backendPoints,
+      perksBudget: applied.offerPerksBudget ?? talent.salary.perksCost,
+      rounds: applied.rounds ?? 0,
+      holdLineCount: applied.holdLineCount ?? 0,
+      chance: evaluation.chance,
+      signal,
+      pressurePoint: manager.negotiationPressurePoint(evaluation),
+      roundsRemaining: Math.max(0, 4 - (applied.rounds ?? 0)),
+      demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
+      demandBackendPoints: evaluation.demand.backendPoints,
+      demandPerksBudget: evaluation.demand.perksBudget,
+      sweetenSalaryRetainerDelta: Math.max(0, Math.round(appliedMemoCost - currentMemoCost)),
+      sweetenPerksRetainerDelta: action === 'sweetenPerks' ? Math.max(0, Math.round(appliedMemoCost - currentMemoCost)) : 0,
+      sweetenBackendShareDeltaPct: action === 'sweetenBackend' ? backendShareDeltaPct : 0,
+    },
+  };
+}
+
 export function adjustTalentNegotiationForManager(
   manager: any,
   projectId: string,
@@ -127,8 +242,6 @@ export function adjustTalentNegotiationForManager(
   }
 
   if (action === 'sweetenSalary') {
-    normalized.offerSalaryMultiplier = clamp((normalized.offerSalaryMultiplier ?? 1) + 0.06, 1, 1.5);
-    normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
     manager.recordTalentInteraction(talent, {
       kind: 'negotiationSweetened',
       trustDelta: 1,
@@ -137,8 +250,6 @@ export function adjustTalentNegotiationForManager(
       projectId,
     });
   } else if (action === 'sweetenBackend') {
-    normalized.offerBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
-    normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
     manager.recordTalentInteraction(talent, {
       kind: 'negotiationSweetened',
       trustDelta: 1,
@@ -147,11 +258,6 @@ export function adjustTalentNegotiationForManager(
       projectId,
     });
   } else if (action === 'sweetenPerks') {
-    normalized.offerPerksBudget = Math.min(
-      talent.salary.perksCost * 3,
-      Math.max(talent.salary.perksCost * 0.4, Math.round((normalized.offerPerksBudget ?? talent.salary.perksCost) + 60_000))
-    );
-    normalized.holdLineCount = Math.max(0, (normalized.holdLineCount ?? 0) - 1);
     manager.recordTalentInteraction(talent, {
       kind: 'negotiationSweetened',
       trustDelta: 1,
@@ -160,7 +266,6 @@ export function adjustTalentNegotiationForManager(
       projectId,
     });
   } else if (action === 'holdFirm') {
-    normalized.holdLineCount = (normalized.holdLineCount ?? 0) + 1;
     manager.recordTalentInteraction(talent, {
       kind: 'negotiationHardline',
       trustDelta: -2,
@@ -170,7 +275,12 @@ export function adjustTalentNegotiationForManager(
     });
   }
 
-  normalized.rounds = rounds + 1;
+  const advanced = applyNegotiationAction(normalized, talent, action);
+  normalized.offerSalaryMultiplier = advanced.offerSalaryMultiplier;
+  normalized.offerBackendPoints = advanced.offerBackendPoints;
+  normalized.offerPerksBudget = advanced.offerPerksBudget;
+  normalized.holdLineCount = advanced.holdLineCount;
+  normalized.rounds = advanced.rounds;
   const evaluation = manager.evaluateNegotiation(normalized, talent);
   normalized.lastComputedChance = evaluation.chance;
   normalized.lastResponse = manager.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
@@ -182,6 +292,18 @@ export function adjustTalentNegotiationForManager(
       evaluation.chance * 100
     )}%.`,
   };
+}
+
+export function startTalentNegotiationRoundForManager(
+  manager: any,
+  projectId: string,
+  talentId: string,
+  action: NegotiationAction
+): { success: boolean; message: string } {
+  const opened = startTalentNegotiationForManager(manager, projectId, talentId);
+  if (!opened.success) return opened;
+  const adjusted = adjustTalentNegotiationForManager(manager, projectId, talentId, action);
+  return adjusted.success ? adjusted : opened;
 }
 
 export function startTalentNegotiationForManager(

@@ -83,6 +83,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    startNegotiationRound: (projectId: string, talentId: string, action) => {
+      runWhenHydrated(() => {
+        const result = manager.startTalentNegotiationRound(projectId, talentId, action);
+        saveAndTick(result.message);
+      });
+    },
     adjustNegotiation: (projectId: string, talentId: string, action) => {
       runWhenHydrated(() => {
         const result = manager.adjustTalentNegotiation(projectId, talentId, action);

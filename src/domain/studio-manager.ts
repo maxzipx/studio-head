@@ -24,11 +24,14 @@ import {
 import {
   adjustTalentNegotiationForManager,
   getNegotiationChanceForManager,
+  previewTalentNegotiationRoundForManager,
   getNegotiationSnapshotForManager,
   getQuickCloseChanceForManager,
   negotiateAndAttachTalentForManager,
   processPlayerNegotiationsForManager,
+  startTalentNegotiationRoundForManager,
   startTalentNegotiationForManager,
+  type NegotiationRoundPreview,
   type NegotiationSnapshot,
 } from './studio-manager.negotiation';
 import {
@@ -963,6 +966,14 @@ export class StudioManager {
     return getNegotiationSnapshotForManager(this, projectId, talentId);
   }
 
+  previewTalentNegotiationRound(
+    projectId: string,
+    talentId: string,
+    action: NegotiationAction
+  ): { success: boolean; message?: string; preview?: NegotiationRoundPreview } {
+    return previewTalentNegotiationRoundForManager(this, projectId, talentId, action);
+  }
+
   adjustTalentNegotiation(
     projectId: string,
     talentId: string,
@@ -1068,6 +1079,14 @@ export class StudioManager {
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
     return startTalentNegotiationForManager(this, projectId, talentId);
+  }
+
+  startTalentNegotiationRound(
+    projectId: string,
+    talentId: string,
+    action: NegotiationAction
+  ): { success: boolean; message: string } {
+    return startTalentNegotiationRoundForManager(this, projectId, talentId, action);
   }
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {

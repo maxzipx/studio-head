@@ -18,6 +18,7 @@ export interface GameContextValue {
   renameStudio: (name: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
   startNegotiation: (projectId: string, talentId: string) => void;
+  startNegotiationRound: (projectId: string, talentId: string, action: NegotiationAction) => void;
   adjustNegotiation: (projectId: string, talentId: string, action: NegotiationAction) => void;
   advancePhase: (projectId: string) => void;
   setReleaseWeek: (projectId: string, releaseWeek: number) => void;
