@@ -755,6 +755,48 @@ describe('StudioManager', () => {
     expect(lead!.availability).toBe('inNegotiation');
   });
 
+  it('repairs stale availability drift instead of dropping a countered negotiation', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+    lead!.availability = 'available';
+
+    const summary = manager.endWeek();
+    expect(summary.events.some((entry) => entry.includes('negotiation remains open'))).toBe(true);
+    expect(manager.playerNegotiations.some((entry) => entry.projectId === project!.id && entry.talentId === lead!.id)).toBe(true);
+    expect(lead!.availability).toBe('inNegotiation');
+  });
+
+  it('removes only resolved negotiation entries even when stale duplicates share a talent id', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99, eventRng: () => 1, rivalRng: () => 1 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+    manager.playerNegotiations.push({
+      talentId: lead!.id,
+      projectId: 'missing-project',
+      openedWeek: manager.currentWeek,
+      rounds: 1,
+      holdLineCount: 0,
+      offerSalaryMultiplier: 1,
+      offerBackendPoints: lead!.salary.backendPoints,
+      offerPerksBudget: lead!.salary.perksCost,
+    });
+
+    manager.endWeek();
+    expect(manager.playerNegotiations.some((entry) => entry.projectId === project!.id && entry.talentId === lead!.id)).toBe(true);
+    expect(manager.playerNegotiations.some((entry) => entry.projectId === 'missing-project' && entry.talentId === lead!.id)).toBe(false);
+  });
+
   it('applies quick-close attempt cost and cooldown on decline', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');

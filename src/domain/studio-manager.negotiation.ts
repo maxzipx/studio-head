@@ -455,8 +455,9 @@ export function negotiateAndAttachTalentForManager(
 }
 
 export function processPlayerNegotiationsForManager(manager: any, events: string[]): void {
-  const resolved: string[] = [];
+  const resolved = new Set<string>();
   for (const negotiation of manager.playerNegotiations) {
+    const negotiationKey = `${negotiation.projectId}::${negotiation.talentId}`;
     // Resolve on the next End Turn after opening (same-week pre-increment check).
     if (manager.currentWeek < negotiation.openedWeek) continue;
     const talent = manager.talentPool.find((item: any) => item.id === negotiation.talentId);
@@ -465,12 +466,19 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       if (talent?.availability === 'inNegotiation') {
         talent.availability = 'available';
       }
-      resolved.push(negotiation.talentId);
+      resolved.add(negotiationKey);
       continue;
     }
     if (talent.availability !== 'inNegotiation') {
-      resolved.push(negotiation.talentId);
-      continue;
+      const canRepair =
+        talent.attachedProjectId === null &&
+        (talent.availability === 'available' || talent.availability === 'inTalks');
+      if (canRepair) {
+        talent.availability = 'inNegotiation';
+      } else {
+        resolved.add(negotiationKey);
+        continue;
+      }
     }
     if (project.phase !== 'development') {
       talent.availability = 'available';
@@ -482,7 +490,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         note: `Negotiation closed when ${project.title} moved out of development.`,
         projectId: project.id,
       });
-      resolved.push(negotiation.talentId);
+      resolved.add(negotiationKey);
       continue;
     }
 
@@ -521,15 +529,18 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         events.push(manager.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
       } else {
         normalized.lastComputedChance = evaluation.chance;
+        talent.availability = 'inNegotiation';
         normalized.lastResponse = `${talent.name}'s reps countered. Talks remain open; adjust one lever and try again next turn.`;
         Object.assign(negotiation, normalized);
         events.push(`${talent.name} countered on ${project.title}; negotiation remains open.`);
         continue;
       }
     }
-    resolved.push(negotiation.talentId);
+    resolved.add(negotiationKey);
   }
-  if (resolved.length > 0) {
-    manager.playerNegotiations = manager.playerNegotiations.filter((item: any) => !resolved.includes(item.talentId));
+  if (resolved.size > 0) {
+    manager.playerNegotiations = manager.playerNegotiations.filter(
+      (item: any) => !resolved.has(`${item.projectId}::${item.talentId}`)
+    );
   }
 }
