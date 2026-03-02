@@ -178,6 +178,7 @@ import type {
   FranchiseStrategy,
   FranchiseStatusSnapshot,
   GenreCycleState,
+  InboxNotification,
   IndustryNewsItem,
   IpKind,
   MilestoneRecord,
@@ -230,6 +231,7 @@ export class StudioManager {
   distributionOffers: DistributionOffer[] = [];
   pendingReleaseReveals: string[] = [];
   decisionQueue: DecisionItem[] = createOpeningDecisions();
+  inboxNotifications: InboxNotification[] = [];
   activeProjects: MovieProject[] = createSeedProjects();
   franchises: FranchiseTrack[] = [];
   talentSeed = 0;
@@ -1110,6 +1112,26 @@ export class StudioManager {
   dismissReleaseReveal(projectId: string): void {
     this.pendingReleaseReveals = this.pendingReleaseReveals.filter((idValue) => idValue !== projectId);
     this.pendingFinalReleaseReveals = this.pendingFinalReleaseReveals.filter((idValue) => idValue !== projectId);
+  }
+
+  queueInboxNotification(
+    input: Omit<InboxNotification, 'id' | 'week'> & { id?: string; week?: number }
+  ): void {
+    this.inboxNotifications.unshift({
+      id: input.id ?? createId('inbox'),
+      week: input.week ?? this.currentWeek,
+      kind: input.kind,
+      title: input.title,
+      body: input.body,
+      projectId: input.projectId,
+    });
+    if (this.inboxNotifications.length > 40) {
+      this.inboxNotifications = this.inboxNotifications.slice(0, 40);
+    }
+  }
+
+  dismissInboxNotification(notificationId: string): void {
+    this.inboxNotifications = this.inboxNotifications.filter((item) => item.id !== notificationId);
   }
 
   getSequelEligibility(projectId: string): SequelEligibility | null {

@@ -110,6 +110,18 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Array.isArray(manager.pendingReleaseReveals)) manager.pendingReleaseReveals = [];
   if (!Array.isArray(manager.pendingFinalReleaseReveals)) manager.pendingFinalReleaseReveals = [];
   if (!Array.isArray(manager.decisionQueue)) manager.decisionQueue = defaults.decisionQueue;
+  if (!Array.isArray(manager.inboxNotifications)) manager.inboxNotifications = [];
+  manager.inboxNotifications = manager.inboxNotifications
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
+    .map((entry) => ({
+      id: String(entry.id),
+      week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
+      kind: 'negotiationSuccess' as const,
+      title: String(entry.title).slice(0, 120),
+      body: typeof entry.body === 'string' ? entry.body.slice(0, 240) : '',
+      projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,
+    }))
+    .slice(0, 40);
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
   for (const project of manager.activeProjects) {
     if (

@@ -131,6 +131,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick();
       }, { allowWhenBankrupt: true });
     },
+    dismissInboxNotification: (notificationId: string) => {
+      runWhenHydrated(() => {
+        manager.dismissInboxNotification(notificationId);
+        saveAndTick();
+      }, { allowWhenBankrupt: true });
+    },
     runMarketingPush: (projectId: string) => {
       runWhenHydrated(() => {
         const result = manager.runMarketingPushOnProject(projectId);

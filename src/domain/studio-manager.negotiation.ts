@@ -479,8 +479,17 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
     const evaluation = manager.evaluateNegotiation(normalized, talent);
     normalized.lastComputedChance = evaluation.chance;
     if (manager.negotiationRng() <= evaluation.chance) {
-      if (manager.finalizeTalentAttachment(project, talent, manager.readNegotiationTerms(normalized, talent))) {
+      const finalizedTerms = manager.readNegotiationTerms(normalized, talent);
+      if (manager.finalizeTalentAttachment(project, talent, finalizedTerms)) {
         events.push(manager.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0));
+        manager.queueInboxNotification?.({
+          kind: 'negotiationSuccess',
+          projectId: project.id,
+          title: `Negotiation won: ${talent.name}`,
+          body:
+            `${project.title} signed. Salary $${Math.round(talent.salary.base * finalizedTerms.salaryMultiplier).toLocaleString()} | ` +
+            `Backend ${finalizedTerms.backendPoints.toFixed(1)} pts | Perks $${Math.round(finalizedTerms.perksBudget).toLocaleString()}.`,
+        });
       } else {
         manager.setNegotiationCooldown(talent, 1);
         events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);

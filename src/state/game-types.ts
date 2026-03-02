@@ -26,6 +26,7 @@ export interface GameContextValue {
   counterOffer: (projectId: string, offerId: string) => void;
   walkAwayOffer: (projectId: string) => void;
   dismissReleaseReveal: (projectId: string) => void;
+  dismissInboxNotification: (notificationId: string) => void;
   runMarketingPush: (projectId: string) => void;
   runFestivalSubmission: (projectId: string) => void;
   runScriptSprint: (projectId: string) => void;

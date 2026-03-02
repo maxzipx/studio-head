@@ -64,6 +64,17 @@ export interface DecisionItem {
   options: DecisionOption[];
 }
 
+export type InboxNotificationKind = 'negotiationSuccess';
+
+export interface InboxNotification {
+  id: string;
+  week: number;
+  kind: InboxNotificationKind;
+  title: string;
+  body: string;
+  projectId: string | null;
+}
+
 export interface ArcRequirement {
   id: string;
   minStage?: number;
