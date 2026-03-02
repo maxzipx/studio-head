@@ -91,15 +91,17 @@ export const SPECIALIZATION_OPTIONS: { key: 'balanced' | 'blockbuster' | 'presti
 export const PARTNER_OPTIONS = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
 
 export function stanceLabel(value: string): string {
-  if (value === 'hostile') return 'Hostile';
-  if (value === 'competitive') return 'Competitive';
-  if (value === 'respectful') return 'Respectful';
+  if (value === 'friendly') return 'Friendly';
+  if (value === 'warm') return 'Warm';
+  if (value === 'competitor') return 'Competitor';
+  if (value === 'rival') return 'Rival';
   return 'Neutral';
 }
 
 export function stanceColor(value: string): string {
-  if (value === 'hostile') return colors.accentRed;
-  if (value === 'competitive') return colors.goldMid;
-  if (value === 'respectful') return colors.accentGreen;
-  return colors.textMuted;
+  if (value === 'friendly') return '#0E6B44'; // dark green
+  if (value === 'warm') return '#5FAE8A'; // light green
+  if (value === 'competitor') return '#D87A77'; // light red
+  if (value === 'rival') return '#A93232'; // dark red
+  return '#000000';
 }

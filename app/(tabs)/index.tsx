@@ -183,6 +183,12 @@ export default function HQScreen() {
   const rivalRelations = [...manager.rivals]
     .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
     .slice(0, 4);
+  const cycleStrengthLabel = (momentum: number): string => {
+    const intensity = Math.abs(momentum);
+    if (intensity >= 0.015) return 'Strong';
+    if (intensity >= 0.007) return 'Moderate';
+    return 'Mild';
+  };
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
   const [confirmNewRun, setConfirmNewRun] = useState(false);
 
@@ -569,21 +575,21 @@ export default function HQScreen() {
 
       {/* Genre Cycles */}
       <CollapsibleCard title="Genre Cycles">
-        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>Up Heating</Text>
+        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>Heating Up</Text>
         {hotGenres.map((entry) => (
           <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
             <Text style={[styles.muted, { color: colors.accentGreen }]}>
-              {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+              {cycleStrengthLabel(entry.momentum)}
             </Text>
           </View>
         ))}
-        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>Down Cooling</Text>
+        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>Cooling Off</Text>
         {coolGenres.map((entry) => (
           <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
             <Text style={styles.body}>{capitalize(entry.genre)}</Text>
             <Text style={[styles.muted, { color: colors.accentRed }]}>
-              {entry.demand.toFixed(2)}x ({entry.momentum >= 0 ? '+' : ''}{Math.round(entry.momentum * 1000) / 10}%)
+              {cycleStrengthLabel(entry.momentum)}
             </Text>
           </View>
         ))}
@@ -611,7 +617,7 @@ export default function HQScreen() {
             <View key={rival.id} style={styles.leaderRow}>
               <Text style={styles.body}>{rival.name}</Text>
               <Text style={[styles.muted, { color: stanceColor(stance) }]}>
-                {stanceLabel(stance)} | H{rival.memory.hostility}/R{rival.memory.respect}
+                {stanceLabel(stance)}
               </Text>
             </View>
           );

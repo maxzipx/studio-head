@@ -463,12 +463,13 @@ export class StudioManager {
     return rival.memory;
   }
 
-  getRivalStance(rival: RivalStudio): 'hostile' | 'competitive' | 'neutral' | 'respectful' {
+  getRivalStance(rival: RivalStudio): 'friendly' | 'warm' | 'neutral' | 'competitor' | 'rival' {
     const memory = this.getRivalMemory(rival);
     const score = memory.hostility - memory.respect;
-    if (score >= 20) return 'hostile';
-    if (score >= 8) return 'competitive';
-    if (score <= -12) return 'respectful';
+    if (score >= 26) return 'rival';
+    if (score >= 10) return 'competitor';
+    if (score <= -22) return 'friendly';
+    if (score <= -8) return 'warm';
     return 'neutral';
   }
 
@@ -2082,7 +2083,7 @@ export class StudioManager {
       const coolest = snapshot[snapshot.length - 1];
       if (hottest && coolest && hottest.genre !== coolest.genre) {
         events.push(
-          `Genre cycle shift: ${hottest.genre} heating (${Math.round((hottest.demand - 1) * 100)}%), ${coolest.genre} cooling (${Math.round((coolest.demand - 1) * 100)}%).`
+          `Genre cycle shift: ${hottest.genre} is heating up while ${coolest.genre} is cooling off.`
         );
       }
     }
