@@ -6,6 +6,12 @@ import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { GlassCard, MetricTile, MetricsStrip, PremiumButton, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
+import {
+  buildSlateOffersSignature,
+  buildSlateProjectsSignature,
+  buildSlateRivalsSignature,
+  buildSlateScriptsSignature,
+} from '@/src/state/view-signatures';
 
 function money(amount: number): string {
   const abs = Math.abs(amount);
@@ -73,11 +79,10 @@ export default function SlateScreen() {
       counterOffer: state.counterOffer,
       walkAwayOffer: state.walkAwayOffer,
       lastMessage: state.lastMessage,
-      // Create primitive signatures so useShallow can detect deep mutations without forcing updates every single tick
-      projectsSignature: mgr.activeProjects.map(p => `${p.id}:${p.phase}:${p.scheduledWeeksRemaining}:${p.budget.actualSpend}:${p.releaseWeek}`).join('|'),
-      scriptsSignature: mgr.scriptMarket.map(s => s.id).join('|'),
-      offersSignature: mgr.distributionOffers.map(o => `${o.id}:${o.counterAttempts}`).join('|'),
-      rivalsSignature: mgr.rivals.map(r => r.upcomingReleases.length).join('|'),
+      projectsSignature: buildSlateProjectsSignature(mgr.activeProjects),
+      scriptsSignature: buildSlateScriptsSignature(mgr.scriptMarket),
+      offersSignature: buildSlateOffersSignature(mgr.distributionOffers),
+      rivalsSignature: buildSlateRivalsSignature(mgr.rivals),
     };
   }));
 

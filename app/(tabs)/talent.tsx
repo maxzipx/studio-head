@@ -7,6 +7,12 @@ import { GlassCard, MetricsStrip, PremiumButton, ProgressBar, SectionLabel, Star
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 import type { StudioManager } from '@/src/domain/studio-manager';
 import type { MovieProject, NegotiationAction, Talent } from '@/src/domain/types';
+import {
+  buildTalentNegotiationSignature,
+  buildTalentPoolSignature,
+  buildTalentProjectsSignature,
+  buildTalentRivalsSignature,
+} from '@/src/state/view-signatures';
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -119,44 +125,10 @@ export default function TalentScreen() {
       dismissNegotiation: state.dismissNegotiation,
       attachTalent: state.attachTalent,
       lastMessage: state.lastMessage,
-      projectsSignature: mgr.activeProjects
-        .filter((p) => p.phase === 'development')
-        .map(
-          (p) =>
-            `${p.id}:${p.title}:${p.genre}:${p.scriptQuality}:${p.directorId ?? 'none'}:${p.castIds.join(',')}:${p.hypeScore}:` +
-            `${p.budget.actualSpend}`
-        )
-        .join('|'),
-      talentSignature: mgr.talentPool
-        .map((t) => {
-          const memory = t.relationshipMemory;
-          const trust = memory?.trust ?? -1;
-          const loyalty = memory?.loyalty ?? -1;
-          const memoryTail = (memory?.interactionHistory ?? [])
-            .slice(-3)
-            .map((entry) => `${entry.week}:${entry.kind}:${entry.trustDelta}:${entry.loyaltyDelta}:${entry.projectId ?? 'none'}`)
-            .join(',');
-          return (
-            `${t.id}:${t.role}:${t.availability}:${t.attachedProjectId ?? 'none'}:${t.unavailableUntilWeek ?? -1}:` +
-            `${t.marketWindowExpiresWeek ?? -1}:${t.starPower}:${t.craftScore}:${t.egoLevel}:${t.agentTier}:${t.reputation}:${t.studioRelationship}:${trust}:${loyalty}:` +
-            `${memoryTail}:${Object.entries(t.genreFit).map(([genre, fit]) => `${genre}:${fit}`).join(',')}`
-          );
-        })
-        .join('|'),
-      negotiationSignature: mgr.playerNegotiations
-        .map(
-          (n) =>
-            `${n.talentId}:${n.projectId}:${n.rounds ?? 0}:${n.holdLineCount ?? 0}:${n.offerSalaryMultiplier ?? -1}:` +
-            `${n.offerBackendPoints ?? -1}:${n.offerPerksBudget ?? -1}`
-        )
-        .join('|'),
-      rivalsSignature: mgr.rivals
-        .map(
-          (r) =>
-            `${r.id}:${r.studioHeat}:${r.lockedTalentIds.join(',')}:${r.memory.hostility}:${r.memory.respect}:` +
-            `${r.memory.retaliationBias}:${r.memory.cooperationBias}`
-        )
-        .join('|'),
+      projectsSignature: buildTalentProjectsSignature(mgr.activeProjects),
+      talentSignature: buildTalentPoolSignature(mgr.talentPool),
+      negotiationSignature: buildTalentNegotiationSignature(mgr.playerNegotiations),
+      rivalsSignature: buildTalentRivalsSignature(mgr.rivals),
       talentChanceContext: `${mgr.reputation.talent}:${mgr.executiveNetworkLevel}:${mgr.studioSpecialization}`,
     };
   }));

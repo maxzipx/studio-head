@@ -3,6 +3,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
+import {
+  buildInboxCrisesSignature,
+  buildInboxDecisionsSignature,
+  buildInboxNotificationsSignature,
+  buildInboxProjectsSignature,
+} from '@/src/state/view-signatures';
 
 function money(amount: number): string {
   return `${amount >= 0 ? '+' : '-'}$${Math.round(Math.abs(amount)).toLocaleString()}`;
@@ -17,10 +23,10 @@ export default function InboxScreen() {
       resolveDecision: state.resolveDecision,
       dismissDecision: state.dismissDecision,
       dismissInboxNotification: state.dismissInboxNotification,
-      crisesSignature: mgr.pendingCrises.map(c => c.id).join('|'),
-      decisionsSignature: mgr.decisionQueue.map(d => d.id).join('|'),
-      inboxSignature: mgr.inboxNotifications.map((item) => item.id).join('|'),
-      projectsSignature: mgr.activeProjects.map(p => p.id).join('|'),
+      crisesSignature: buildInboxCrisesSignature(mgr.pendingCrises),
+      decisionsSignature: buildInboxDecisionsSignature(mgr.decisionQueue),
+      inboxSignature: buildInboxNotificationsSignature(mgr.inboxNotifications),
+      projectsSignature: buildInboxProjectsSignature(mgr.activeProjects),
     };
   }));
   const visibleCrises = manager.pendingCrises.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
