@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -48,6 +49,7 @@ function phaseProgress(phase: string, weeksRemaining: number): number {
 
 export default function SlateScreen() {
   const router = useRouter();
+  const [showHelp, setShowHelp] = useState(false);
 
   const {
     manager,
@@ -106,6 +108,22 @@ export default function SlateScreen() {
             <Text style={styles.message}>{lastMessage}</Text>
           </GlassCard>
         ) : null}
+
+        {/* ── Help ── */}
+        <PremiumButton
+          label={showHelp ? 'Hide Help' : 'Show Help'}
+          onPress={() => setShowHelp((v) => !v)}
+          variant="ghost"
+          size="sm"
+        />
+        {showHelp && (
+          <GlassCard variant="elevated">
+            <Text style={styles.helpTitle}>How the Slate Works</Text>
+            <Text style={styles.helpBody}>Projects move through pipeline phases automatically if they meet the requirements. Without a director, lead actor, and script quality {'>='} 6.0, projects are blocked in development.</Text>
+            <Text style={styles.helpBody}>During production, they burn through your cash buffer weekly based on budget size. Run out of cash, and your studio goes bankrupt.</Text>
+            <Text style={styles.helpBody}>In distribution, you will receive competing acquisition offers from rival distributors with guarantees, P&A, and rev-share. Releasing a film against crowded rival release weeks significantly hurts box office returns.</Text>
+          </GlassCard>
+        )}
 
         {/* ── Pipeline Snapshot ── */}
         <GlassCard>
@@ -389,9 +407,11 @@ const styles = StyleSheet.create({
 
   message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentGreen },
   empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
+  helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
+  helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
 
   snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
-  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
+  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2, flexShrink: 1 },
 
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary, flex: 1, marginRight: spacing.sp2 },

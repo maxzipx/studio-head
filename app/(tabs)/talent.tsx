@@ -144,7 +144,6 @@ export default function TalentScreen() {
   const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
-  const [compactView, setCompactView] = useState(true);
   const [showOpsPanels, setShowOpsPanels] = useState(false);
 
   const activeProject = selectedProjectId
@@ -207,13 +206,6 @@ export default function TalentScreen() {
           size="sm"
         />
         <View style={styles.topControls}>
-          <PremiumButton
-            label={compactView ? 'Compact View' : 'Expanded View'}
-            onPress={() => setCompactView((v) => !v)}
-            variant={compactView ? 'primary' : 'secondary'}
-            size="sm"
-            style={styles.controlBtn}
-          />
           <PremiumButton
             label={showOpsPanels ? 'Hide Ops Panels' : 'Show Ops Panels'}
             onPress={() => setShowOpsPanels((v) => !v)}
@@ -410,7 +402,25 @@ export default function TalentScreen() {
               <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
             </GlassCard>
           )
-          : marketDirectors.map((talent) => <TalentCard
+          : marketDirectors.map((talent) => (
+            <TalentCard
+              key={talent.id}
+              talent={talent}
+              manager={manager}
+              activeProject={activeProject}
+              startNegotiation={startNegotiation}
+              attachTalent={attachTalent}
+              showCountdown
+            />
+          ))}
+
+        {/* ── Actors In Market ── */}
+        <View style={styles.roleHeaderActor}>
+          <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
+          <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
+        </View>
+        {marketActors.map((talent) => (
+          <TalentCard
             key={talent.id}
             talent={talent}
             manager={manager}
@@ -418,25 +428,8 @@ export default function TalentScreen() {
             startNegotiation={startNegotiation}
             attachTalent={attachTalent}
             showCountdown
-            compact={compactView}
-          />)
-        }
-
-        {/* ── Actors In Market ── */}
-        <View style={styles.roleHeaderActor}>
-          <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
-          <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
-        </View>
-        {marketActors.map((talent) => <TalentCard
-          key={talent.id}
-          talent={talent}
-          manager={manager}
-          activeProject={activeProject}
-          startNegotiation={startNegotiation}
-          attachTalent={attachTalent}
-          showCountdown
-          compact={compactView}
-        />)}
+          />
+        ))}
 
         {/* ── Your Roster ── */}
         {rosterTalent.length > 0 && (
@@ -453,7 +446,6 @@ export default function TalentScreen() {
               startNegotiation={startNegotiation}
               attachTalent={attachTalent}
               showCountdown={false}
-              compact={compactView}
             />)}
             {rosterActors.map((talent) => <TalentCard
               key={talent.id}
@@ -463,7 +455,6 @@ export default function TalentScreen() {
               startNegotiation={startNegotiation}
               attachTalent={attachTalent}
               showCountdown={false}
-              compact={compactView}
             />)}
           </>
         )}
@@ -479,10 +470,9 @@ interface TalentCardProps {
   startNegotiation: (projectId: string, talentId: string) => void;
   attachTalent: (projectId: string, talentId: string) => void;
   showCountdown: boolean;
-  compact: boolean;
 }
 
-function TalentCard({ talent, manager, activeProject, startNegotiation, attachTalent, showCountdown, compact }: TalentCardProps) {
+function TalentCard({ talent, manager, activeProject, startNegotiation, attachTalent, showCountdown }: TalentCardProps) {
   const isAvailable = talent.availability === 'available';
   const [detailsOpen, setDetailsOpen] = useState(false);
   const rival = manager.rivals.find((r) => r.lockedTalentIds.includes(talent.id));
@@ -503,12 +493,12 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
 
   const windowUrgent = weeksLeft !== null && weeksLeft <= 1;
   const windowWarning = weeksLeft !== null && weeksLeft === 2;
-  const showDetails = !compact || detailsOpen;
+  const showDetails = detailsOpen;
 
   return (
     <GlassCard
       variant={!isAvailable ? 'elevated' : 'default'}
-      style={{ gap: compact ? spacing.sp1 : spacing.sp2, opacity: !isAvailable ? 0.82 : 1 }}
+      style={{ gap: spacing.sp2, opacity: !isAvailable ? 0.82 : 1 }}
     >
       {/* Row 1: Name + window countdown */}
       <View style={styles.talentHeader}>
@@ -536,25 +526,29 @@ function TalentCard({ talent, manager, activeProject, startNegotiation, attachTa
               </Text>
             </View>
           )}
-          {compact && (
-            <Pressable style={styles.detailsToggle} onPress={() => setDetailsOpen((v) => !v)}>
-              <Text style={styles.detailsToggleText}>{detailsOpen ? 'Less' : 'Details'}</Text>
-            </Pressable>
-          )}
+          <Pressable style={styles.detailsToggle} onPress={() => setDetailsOpen((v) => !v)}>
+            <Text style={styles.detailsToggleText}>{detailsOpen ? 'Less' : 'Details'}</Text>
+          </Pressable>
         </View>
       </View>
 
-      {/* Row 2: Star rating + craft bar */}
-      <View style={[styles.statsRow, compact ? { gap: spacing.sp2 } : null]}>
+      {/* Row 2: Star rating + craft bar + base cost */}
+      <View style={styles.statsRow}>
         <View style={styles.statBlock}>
           <Text style={styles.statLabel}>STAR POWER</Text>
-          <StarRating value={talent.starPower} size="md" />
-          <Text style={[styles.statNum, { color: colors.goldMid }]}>{talent.starPower.toFixed(1)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <StarRating value={talent.starPower} size="sm" />
+          </View>
+        </View>
+        <View style={styles.statBlockSmall}>
+          <Text style={styles.statLabel}>CRAFT</Text>
+          <View style={styles.miniBarContainer}>
+            <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={4} animated />
+          </View>
         </View>
         <View style={styles.statBlock}>
-          <Text style={styles.statLabel}>CRAFT</Text>
-          <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={6} animated />
-          <Text style={[styles.statNum, { color: colors.accentGreen }]}>{talent.craftScore.toFixed(1)}</Text>
+          <Text style={styles.statLabel}>Est. Base Cost</Text>
+          <Text style={[styles.statNum, { color: colors.textPrimary }]}>${(talent.salary.base / 1_000_000).toFixed(1)}M</Text>
         </View>
       </View>
 
@@ -659,8 +653,8 @@ const styles = StyleSheet.create({
   topControls: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap' },
   controlBtn: { flexBasis: '48%', flexGrow: 0 },
 
-  snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
-  snapshotTile: { minWidth: 56, alignItems: 'center', paddingVertical: spacing.sp2 },
+  snapshotRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
+  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
   snapshotValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeLG, letterSpacing: typography.trackingTight },
   snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
 
@@ -735,8 +729,10 @@ const styles = StyleSheet.create({
   availBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 8 },
   availText: { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
 
-  statsRow: { flexDirection: 'row', gap: spacing.sp3 },
+  statsRow: { flexDirection: 'row', gap: spacing.sp3, alignItems: 'flex-start' },
   statBlock: { flex: 1, gap: 3 },
+  statBlockSmall: { flex: 0.5, gap: 3 },
+  miniBarContainer: { width: 36, marginTop: 4 },
   statLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest },
   statNum: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeXS },
 

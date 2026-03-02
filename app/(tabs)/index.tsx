@@ -136,13 +136,13 @@ export default function HQScreen() {
     };
   }));
 
-  const reveal        = manager.getNextReleaseReveal();
+  const reveal = manager.getNextReleaseReveal();
   const isFinalReveal = !!reveal && manager.isFinalReleaseReveal(reveal.id);
-  const revealReport  = reveal ? manager.getLatestReleaseReport(reveal.id) : null;
-  const leaderboard   = manager.getIndustryHeatLeaderboard();
-  const news          = manager.industryNewsLog.slice(0, 6);
-  const chronicle     = manager.studioChronicle.slice(0, 8);
-  const milestones    = manager.getActiveMilestones().slice(0, 6);
+  const revealReport = reveal ? manager.getLatestReleaseReport(reveal.id) : null;
+  const leaderboard = manager.getIndustryHeatLeaderboard();
+  const news = manager.industryNewsLog.slice(0, 6);
+  const chronicle = manager.studioChronicle.slice(0, 8);
+  const milestones = manager.getActiveMilestones().slice(0, 6);
   const weeklyExpenses = manager.estimateWeeklyBurn();
   const marketingUpgradeCost = manager.getMarketingTeamUpgradeCost();
   const capacityUpgradeCost = manager.getStudioCapacityUpgradeCost();
@@ -169,16 +169,16 @@ export default function HQScreen() {
     prestige: '+Critics and awards upside, lower opening pop, slight burn increase.',
     indie: 'Lower burn profile, modest critical upside, lighter commercial leverage.',
   };
-  const isGameOver    = manager.isBankrupt;
-  const hasLowCashWarning       = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
+  const isGameOver = manager.isBankrupt;
+  const hasLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
   const hasUrgentLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.URGENT_WEEKS;
 
   const arcEntries = Object.entries(manager.storyArcs)
     .sort((a, b) => {
       if (a[1].status === b[1].status) return b[1].lastUpdatedWeek - a[1].lastUpdatedWeek;
-      if (a[1].status === 'active')    return -1;
-      if (b[1].status === 'active')    return 1;
-      if (a[1].status === 'resolved')  return -1;
+      if (a[1].status === 'active') return -1;
+      if (b[1].status === 'active') return 1;
+      if (a[1].status === 'resolved') return -1;
       return 1;
     })
     .slice(0, 8);
@@ -191,10 +191,10 @@ export default function HQScreen() {
     return manager.currentWeek + (AWARDS_RULES.SEASON_LENGTH_WEEKS - offset);
   })();
 
-  const lastAwards   = manager.awardsHistory[0];
+  const lastAwards = manager.awardsHistory[0];
   const genreSnapshot = manager.getGenreCycleSnapshot();
-  const hotGenres     = genreSnapshot.slice(0, 3);
-  const coolGenres    = [...genreSnapshot].slice(-2).reverse();
+  const hotGenres = genreSnapshot.slice(0, 3);
+  const coolGenres = [...genreSnapshot].slice(-2).reverse();
   const rivalRelations = [...manager.rivals]
     .sort((a, b) => (b.memory.hostility - b.memory.respect) - (a.memory.hostility - a.memory.respect))
     .slice(0, 4);
@@ -214,604 +214,618 @@ export default function HQScreen() {
   const canEnd = manager.canEndWeek && !isGameOver;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingBottom: 0 }]}>
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]}>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <LinearGradient
-          colors={[colors.navyPrimary + '14', 'transparent']}
-          style={styles.headerGlow}
-          pointerEvents="none"
-        />
-        <Text style={styles.studioName}>{manager.studioName}</Text>
-        <Text style={styles.weekLine}>Week {manager.currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
-      </View>
-
-      {/* Getting Started - always at top when visible */}
-      {!manager.firstSessionComplete && (
-        <GlassCard variant="blue">
-          <SectionLabel label="Getting Started" />
-          {[
-            'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
-            'Projects need a Director + Lead Actor + Script Quality >= 6.0 to advance to Pre-Production.',
-            'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
-            'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
-          ].map((tip, i) => (
-            <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>- {tip}</Text>
-          ))}
-        </GlassCard>
-      )}
-
-      {lastMessage ? (
-        <GlassCard variant="blue">
-          <Text style={styles.message}>{lastMessage}</Text>
-        </GlassCard>
-      ) : null}
-
-      {/* Game Over */}
-      {isGameOver && (
-        <GlassCard variant="red">
-          <SectionLabel label="Game Over" />
-          <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>Bankruptcy Declared</Text>
-          <Text style={styles.body}>{manager.bankruptcyReason ?? 'Studio is bankrupt.'}</Text>
-          <Text style={styles.muted}>Start a new run from the save menu to continue.</Text>
-        </GlassCard>
-      )}
-
-      {/* Weekly Status */}
-      <GlassCard style={{ gap: spacing.sp2 }}>
-        <SectionLabel label="Weekly Status" />
-        <View style={styles.statusRow}>
-          <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile value={manager.currentWeek} label="Week" size="sm" />
-          </GlassCard>
-          <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile
-              value={manager.canEndWeek ? 'Ready' : 'Blocked'}
-              label="Turn"
-              size="sm"
-              accent={manager.canEndWeek ? colors.accentGreen : colors.accentRed}
-            />
-          </GlassCard>
-          <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile value={manager.activeProjects.length} label="Projects" size="sm" />
-          </GlassCard>
-          <GlassCard variant="elevated" style={styles.statusTile}>
-            <MetricTile
-              value={manager.decisionQueue.length}
-              label="Inbox"
-              size="sm"
-              accent={manager.decisionQueue.length > 0 ? colors.goldMid : colors.textMuted}
-            />
-          </GlassCard>
+        {/* Header */}
+        <View style={styles.header}>
+          <LinearGradient
+            colors={[colors.navyPrimary + '14', 'transparent']}
+            style={styles.headerGlow}
+            pointerEvents="none"
+          />
+          <Text style={styles.studioName}>{manager.studioName}</Text>
+          <Text style={styles.weekLine}>Week {manager.currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
         </View>
 
-        {/* Cash snapshot */}
-        <View style={styles.cashRow}>
-          <MetricTile value={money(manager.cash)}           label="Cash"         size="sm" />
-          <MetricTile value={money(weeklyExpenses)}         label="Weekly Burn"  size="sm" accent={colors.accentRed} />
-          <MetricTile value={money(manager.lifetimeProfit)} label="Lifetime P/L" size="sm"
-            accent={manager.lifetimeProfit >= 0 ? colors.accentGreen : colors.accentRed} />
-        </View>
-
-        {!manager.canEndWeek && (
-          <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text>
+        {/* Getting Started - always at top when visible */}
+        {!manager.firstSessionComplete && (
+          <GlassCard variant="blue">
+            <SectionLabel label="Getting Started" />
+            {[
+              'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
+              'Projects need a Director + Lead Actor + Script Quality >= 6.0 to advance to Pre-Production.',
+              'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
+              'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
+            ].map((tip, i) => (
+              <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>- {tip}</Text>
+            ))}
+          </GlassCard>
         )}
-        {hasLowCashWarning && (
-          <Text style={styles.alert}>
-            WARNING: Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
-            {hasUrgentLowCashWarning ? ' Emergency action required.' : ''}
-          </Text>
+
+        {lastMessage ? (
+          <GlassCard variant="blue">
+            <Text style={styles.message}>{lastMessage}</Text>
+          </GlassCard>
+        ) : null}
+
+        {/* Game Over */}
+        {isGameOver && (
+          <GlassCard variant="red">
+            <SectionLabel label="Game Over" />
+            <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>Bankruptcy Declared</Text>
+            <Text style={styles.body}>{manager.bankruptcyReason ?? 'Studio is bankrupt.'}</Text>
+            <Text style={styles.muted}>Start a new run from the save menu to continue.</Text>
+          </GlassCard>
         )}
-      </GlassCard>
 
-      {/* Studio Standing */}
-      <GlassCard variant={manager.studioHeat >= 70 ? 'gold' : 'default'}>
-        <View style={styles.standingHeader}>
-          <View style={{ flex: 1 }}>
-            <SectionLabel label="Studio Standing" />
-            <Text style={styles.tierName}>{TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
-          </View>
-          <View style={styles.heatBadge}>
-            <Text style={styles.heatValue}>{manager.studioHeat.toFixed(0)}</Text>
-            <Text style={styles.heatLabel}>HEAT</Text>
-          </View>
-        </View>
-        <ProgressBar
-          value={manager.studioHeat}
-          color={manager.studioHeat >= 70 ? colors.accentGreen : manager.studioHeat >= 40 ? colors.goldMid : colors.accentRed}
-          height={5}
-          animated
-        />
-        <RepPillarGrid reputation={manager.reputation} style={{ marginTop: spacing.sp1 }} />
-        <Text style={styles.muted}>{TIER_NEXT_GOAL[manager.studioTier]}</Text>
-        <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
-      </GlassCard>
-
-      {/* Blocking Crises (always visible - urgent) */}
-      {manager.pendingCrises.length > 0 && (
-        <GlassCard variant="red">
-          <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
-          {manager.pendingCrises.map((crisis) => (
-            <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
-              <Text style={styles.muted}>
-                Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
-              </Text>
-              <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
-              <Text style={styles.body}>{crisis.body}</Text>
-              <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
-              <View style={styles.optionGroup}>
-                {crisis.options.map((option) => (
-                  <Pressable
-                    key={option.id}
-                    style={[styles.optionBtn, { borderColor: colors.borderRed }]}
-                    onPress={() => resolveCrisis(crisis.id, option.id)}
-                  >
-                    <Text style={styles.optionTitle}>{option.label}</Text>
-                    <Text style={styles.optionBody}>
-                      {option.preview} ({signedMoney(option.cashDelta)}, schedule {option.scheduleDelta >= 0 ? '+' : ''}{option.scheduleDelta}w)
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+        {/* Weekly Status */}
+        <GlassCard style={{ gap: spacing.sp2 }}>
+          <SectionLabel label="Weekly Status" />
+          <View style={styles.statusRow}>
+            <GlassCard variant="elevated" style={styles.statusTile}>
+              <MetricTile value={manager.currentWeek} label="Week" size="sm" />
             </GlassCard>
-          ))}
+            <GlassCard variant="elevated" style={styles.statusTile}>
+              <MetricTile
+                value={manager.canEndWeek ? 'Ready' : 'Blocked'}
+                label="Turn"
+                size="sm"
+                accent={manager.canEndWeek ? colors.accentGreen : colors.accentRed}
+              />
+            </GlassCard>
+            <GlassCard variant="elevated" style={styles.statusTile}>
+              <MetricTile value={manager.activeProjects.length} label="Projects" size="sm" />
+            </GlassCard>
+            <GlassCard variant="elevated" style={styles.statusTile}>
+              <MetricTile
+                value={manager.decisionQueue.length}
+                label="Inbox"
+                size="sm"
+                accent={manager.decisionQueue.length > 0 ? colors.goldMid : colors.textMuted}
+              />
+            </GlassCard>
+          </View>
+
+          {/* Cash snapshot */}
+          <View style={styles.cashRow}>
+            <MetricTile value={money(manager.cash)} label="Cash" size="sm" />
+            <MetricTile value={money(weeklyExpenses)} label="Weekly Burn" size="sm" accent={colors.accentRed} />
+            <MetricTile value={money(manager.lifetimeProfit)} label="Lifetime P/L" size="sm"
+              accent={manager.lifetimeProfit >= 0 ? colors.accentGreen : colors.accentRed} />
+          </View>
+
+          {!manager.canEndWeek && (
+            <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text>
+          )}
+          {hasLowCashWarning && (
+            <Text style={styles.alert}>
+              WARNING: Bankruptcy Risk: Cash below $1M for {manager.consecutiveLowCashWeeks} consecutive weeks.
+              {hasUrgentLowCashWarning ? ' Emergency action required.' : ''}
+            </Text>
+          )}
         </GlassCard>
-      )}
 
-      {/* Decision Inbox (always visible) */}
-      <GlassCard style={{ gap: spacing.sp2 }}>
-        <SectionLabel label="Decision Inbox" />
-        {manager.decisionQueue.length === 0
-          ? <Text style={styles.muted}>No active decisions right now.</Text>
-          : manager.decisionQueue.map((item) => (
-            <GlassCard key={item.id} variant="elevated" accentBorder={colors.goldMid} style={{ gap: spacing.sp2 }}>
-              <View style={styles.inboxHeader}>
-                <Text style={styles.muted}>
-                  {item.projectId
-                    ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown Project'
-                    : 'Studio-wide'}
-                </Text>
-                <View style={[styles.expiryPill, { borderColor: item.weeksUntilExpiry <= 1 ? colors.borderRed : colors.borderGold }]}>
-                  <Text style={[styles.expiryText, { color: item.weeksUntilExpiry <= 1 ? colors.accentRed : colors.goldMid }]}>
-                    {Math.max(0, item.weeksUntilExpiry)}w left
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.bodyStrong}>{item.title}</Text>
-              <Text style={styles.body}>{item.body}</Text>
-              <View style={styles.optionGroup}>
-                {item.options.map((option) => (
-                  <Pressable
-                    key={option.id}
-                    style={styles.optionBtn}
-                    onPress={() => resolveDecision(item.id, option.id)}
-                  >
-                    <Text style={styles.optionTitle}>{option.label}</Text>
-                    <Text style={styles.optionBody}>{option.preview} ({signedMoney(option.cashDelta)})</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </GlassCard>
-          ))
-        }
-      </GlassCard>
-
-      {/* COLLAPSIBLE SECTIONS */}
-
-      {/* Operations (grouped collapsible) */}
-      <CollapsibleCard
-        title="Operations"
-        badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
-        badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
-        defaultOpen={false}
-      >
-        {/* Capacity */}
-        <View>
-          <SectionLabel label="Capacity" />
-          <Text style={styles.muted}>
-            Marketing improves optional-action output (+{optionalActionHype} hype and +{money(optionalActionMarketing)} project marketing)
-            and boosts tracking confidence ({trackingConfidenceLo}% - {trackingConfidenceHi}%).
-          </Text>
-          <View style={[styles.capRow, { marginTop: spacing.sp1 }]}>
-            <MetricTile value={`L${manager.marketingTeamLevel}`}    label="Marketing"    size="sm" />
-            <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Slots" size="sm" />
-            <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
+        {/* Studio Standing */}
+        <GlassCard variant={manager.studioHeat >= 70 ? 'gold' : 'default'}>
+          <View style={styles.standingHeader}>
+            <View style={{ flex: 1 }}>
+              <SectionLabel label="Studio Standing" />
+              <Text style={styles.tierName}>{TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
+            </View>
+            <View style={styles.heatBadge}>
+              <Text style={styles.heatValue}>{manager.studioHeat.toFixed(0)}</Text>
+              <Text style={styles.heatLabel}>HEAT</Text>
+            </View>
           </View>
           <ProgressBar
-            value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
-            color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
-            height={4}
+            value={manager.studioHeat}
+            color={manager.studioHeat >= 70 ? colors.accentGreen : manager.studioHeat >= 40 ? colors.goldMid : colors.accentRed}
+            height={5}
             animated
-            style={{ marginTop: spacing.sp2 }}
           />
-          <View style={[styles.actionsRow, { marginTop: spacing.sp2 }]}>
-            <PremiumButton
-              label={
-                marketingUpgradeCost !== null
-                  ? `Upgrade Marketing (${money(marketingUpgradeCost)})`
-                  : `Marketing Cap Reached (L${marketingTierCap})`
-              }
-              onPress={upgradeMarketingTeam}
-              disabled={isGameOver || marketingUpgradeCost === null || (marketingUpgradeCost !== null && manager.cash < marketingUpgradeCost)}
-              variant="secondary"
-              size="sm"
-              style={styles.flexBtn}
-            />
-            <PremiumButton
-              label={
-                capacityUpgradeCost !== null
-                  ? `Expand Capacity (${money(capacityUpgradeCost)})`
-                  : `Capacity Cap Reached (+${capacityTierCap})`
-              }
-              onPress={upgradeStudioCapacity}
-              disabled={isGameOver || capacityUpgradeCost === null || (capacityUpgradeCost !== null && manager.cash < capacityUpgradeCost)}
-              variant="secondary"
-              size="sm"
-              style={styles.flexBtn}
-            />
-          </View>
-          <Text style={styles.muted}>
-            Tier gates: marketing cap L{marketingTierCap}; expansion cap +{capacityTierCap} slot{capacityTierCap === 1 ? '' : 's'} at your current tier.
-          </Text>
-        </View>
+          <RepPillarGrid reputation={manager.reputation} style={{ marginTop: spacing.sp1 }} />
+          <Text style={styles.muted}>{TIER_NEXT_GOAL[manager.studioTier]}</Text>
+          <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
+        </GlassCard>
 
-        {/* Studio Identity */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
-          <SectionLabel label="Studio Identity" />
-          <TextInput
-            value={studioNameDraft}
-            onChangeText={setStudioNameDraft}
-            placeholder="Enter studio name"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            maxLength={32}
-          />
-          <PremiumButton label="Rename Studio" onPress={() => renameStudio(studioNameDraft)} variant="secondary" size="sm" />
-
-          <SectionLabel label="Specialization" style={{ marginTop: spacing.sp1 }} />
-          <Text style={styles.muted}>
-            Choose one focus. Pivoting later costs {money(specializationPivotCost)} and reduces Talent/Distributor reputation.
-          </Text>
-          <View style={styles.actionsRow}>
-            {SPECIALIZATION_OPTIONS.map((option) => (
-              <PremiumButton
-                key={option.key}
-                label={option.label}
-                onPress={() => setStudioSpecialization(option.key)}
-                disabled={isGameOver}
-                variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
-                size="sm"
-                style={styles.choiceBtn}
-              />
-            ))}
-          </View>
-          <Text style={styles.muted}>
-            Active effect: {specializationEffects[manager.studioSpecialization]}
-          </Text>
-
-          <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
-          <Text style={styles.muted}>
-            Development L{manager.departmentLevels.development} | Production L{manager.departmentLevels.production} | Distribution L{manager.departmentLevels.distribution}
-          </Text>
-          <Text style={styles.muted}>Development: -$15K greenlight fee and +0.08 script sprint quality per level.</Text>
-          <Text style={styles.muted}>Production: about 3% lower weekly burn per level.</Text>
-          <Text style={styles.muted}>Distribution: +1.5% leverage per level for stronger deal/counter terms.</Text>
-          <View style={styles.actionsRow}>
-            <PremiumButton
-              label={developmentUpgradeCost === null ? 'Dev Maxed' : `Invest Dev (${money(developmentUpgradeCost)})`}
-              onPress={() => investDepartment('development')}
-              disabled={isGameOver || developmentUpgradeCost === null || manager.cash < developmentUpgradeCost}
-              variant="secondary"
-              size="sm"
-              style={styles.choiceBtn}
-            />
-            <PremiumButton
-              label={productionUpgradeCost === null ? 'Prod Maxed' : `Invest Prod (${money(productionUpgradeCost)})`}
-              onPress={() => investDepartment('production')}
-              disabled={isGameOver || productionUpgradeCost === null || manager.cash < productionUpgradeCost}
-              variant="secondary"
-              size="sm"
-              style={styles.choiceBtn}
-            />
-            <PremiumButton
-              label={distributionUpgradeCost === null ? 'Dist Maxed' : `Invest Dist (${money(distributionUpgradeCost)})`}
-              onPress={() => investDepartment('distribution')}
-              disabled={isGameOver || distributionUpgradeCost === null || manager.cash < distributionUpgradeCost}
-              variant="secondary"
-              size="sm"
-              style={styles.choiceBtn}
-            />
-          </View>
-        </View>
-
-        {/* Strategic Levers */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
-          <SectionLabel label="Strategic Levers" />
-          <Text style={styles.muted}>These are long-tail strategy actions with immediate costs and ongoing effects.</Text>
-          <Text style={styles.muted}>Exclusive partner effect: +16% MG, +2% share, +8% P&A on matching offers (off-partner offers weaken).</Text>
-          <Text style={styles.muted}>Executive network effect: improves distribution counter leverage and talent negotiation leverage.</Text>
-          <Text style={styles.body}>
-            Partner: <Text style={{ color: colors.goldMid }}>{activePartner ?? 'None'}</Text>
-            {activePartner && manager.exclusivePartnerUntilWeek ? ` (${partnerWeeksRemaining}w remaining)` : ''}
-          </Text>
-          <View style={styles.actionsRow}>
-            {PARTNER_OPTIONS.map((partner) => (
-              <PremiumButton
-                key={partner}
-                label={`${partner.split(' ')[0]} (${money(480_000)})`}
-                onPress={() => signExclusivePartner(partner)}
-                disabled={isGameOver || manager.cash < 480_000 || activePartner === partner}
-                variant={activePartner === partner ? 'primary' : 'secondary'}
-                size="sm"
-                style={styles.choiceBtn}
-              />
-            ))}
-          </View>
-          <Text style={styles.muted}>Executive network level: L{manager.executiveNetworkLevel} / 3</Text>
-          <PremiumButton
-            label={executivePoachCost === null ? 'Executive Network Maxed' : `Poach Executive Team (${money(executivePoachCost)})`}
-            onPress={poachExecutiveTeam}
-            disabled={isGameOver || executivePoachCost === null || manager.cash < executivePoachCost}
-            variant="gold-outline"
-            size="sm"
-          />
-        </View>
-
-        {/* Turn Length */}
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
-          <SectionLabel label="Turn Length" />
-          <Text style={styles.muted}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
-          <View style={styles.actionsRow}>
-            {([
-              { weeks: 1 as const, desc: 'More control, safer pacing' },
-              { weeks: 2 as const, desc: 'Faster flow, bigger swings' },
-            ] as const).map(({ weeks, desc }) => (
-              <Pressable
-                key={weeks}
-                style={[
-                  styles.turnBtn,
-                  manager.turnLengthWeeks === weeks ? styles.turnBtnActive : null,
-                ]}
-                disabled={isGameOver}
-                onPress={() => setTurnLength(weeks)}
-              >
-                <Text style={[styles.optionTitle, manager.turnLengthWeeks === weeks ? { color: colors.goldMid } : null]}>
-                  {weeks} Week{weeks > 1 ? 's' : ''}
+        {/* Blocking Crises (always visible - urgent) */}
+        {manager.pendingCrises.length > 0 && (
+          <GlassCard variant="red">
+            <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
+            {manager.pendingCrises.map((crisis) => (
+              <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
+                <Text style={styles.muted}>
+                  Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
                 </Text>
-                <Text style={styles.optionBody}>{desc}</Text>
-              </Pressable>
+                <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
+                <Text style={styles.body}>{crisis.body}</Text>
+                <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
+                <View style={styles.optionGroup}>
+                  {crisis.options.map((option) => (
+                    <Pressable
+                      key={option.id}
+                      style={[styles.optionBtn, { borderColor: colors.borderRed }]}
+                      onPress={() => resolveCrisis(crisis.id, option.id)}
+                    >
+                      <Text style={styles.optionTitle}>{option.label}</Text>
+                      <Text style={styles.optionBody}>
+                        {option.preview} ({signedMoney(option.cashDelta)}, schedule {option.scheduleDelta >= 0 ? '+' : ''}{option.scheduleDelta}w)
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </GlassCard>
             ))}
-          </View>
-        </View>
-      </CollapsibleCard>
+          </GlassCard>
+        )}
 
-      {/* Story Arcs */}
-      <CollapsibleCard
-        title="Story Arcs"
-        badge={activeArcCount > 0 ? `${activeArcCount} Active` : undefined}
-        badgeColor={colors.goldMid}
-        defaultOpen={activeArcCount > 0}
-      >
-        {arcEntries.length === 0
-          ? <Text style={styles.muted}>No major arc threads have started yet.</Text>
-          : arcEntries.map(([arcId, arc]) => {
-            const arcColor = arc.status === 'resolved' ? colors.accentGreen : arc.status === 'failed' ? colors.accentRed : colors.goldMid;
-            return (
-              <GlassCard key={arcId} variant="elevated" style={{ gap: 4 }}>
-                <View style={styles.arcRow}>
-                  <Text style={styles.bodyStrong}>{ARC_LABELS[arcId] ?? arcId}</Text>
-                  <View style={[styles.arcBadge, { borderColor: arcColor + '50', backgroundColor: arcColor + '12' }]}>
-                    <Text style={[styles.arcStatus, { color: arcColor }]}>{arc.status.toUpperCase()}</Text>
+        {/* Decision Inbox (always visible) */}
+        <GlassCard style={{ gap: spacing.sp2 }}>
+          <SectionLabel label="Decision Inbox" />
+          {manager.decisionQueue.length === 0
+            ? <Text style={styles.muted}>No active decisions right now.</Text>
+            : manager.decisionQueue.map((item) => (
+              <GlassCard key={item.id} variant="elevated" accentBorder={colors.goldMid} style={{ gap: spacing.sp2 }}>
+                <View style={styles.inboxHeader}>
+                  <Text style={styles.muted}>
+                    {item.projectId
+                      ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown Project'
+                      : 'Studio-wide'}
+                  </Text>
+                  <View style={[styles.expiryPill, { borderColor: item.weeksUntilExpiry <= 1 ? colors.borderRed : colors.borderGold }]}>
+                    <Text style={[styles.expiryText, { color: item.weeksUntilExpiry <= 1 ? colors.accentRed : colors.goldMid }]}>
+                      {Math.max(0, item.weeksUntilExpiry)}w left
+                    </Text>
                   </View>
                 </View>
-                <Text style={styles.muted}>Stage {arc.stage} | Last updated W{arc.lastUpdatedWeek}</Text>
+                <Text style={styles.bodyStrong}>{item.title}</Text>
+                <Text style={styles.body}>{item.body}</Text>
+                <View style={styles.optionGroup}>
+                  {item.options.map((option) => (
+                    <Pressable
+                      key={option.id}
+                      style={styles.optionBtn}
+                      onPress={() => resolveDecision(item.id, option.id)}
+                    >
+                      <Text style={styles.optionTitle}>{option.label}</Text>
+                      <Text style={styles.optionBody}>{option.preview} ({signedMoney(option.cashDelta)})</Text>
+                    </Pressable>
+                  ))}
+                </View>
               </GlassCard>
-            );
-          })
-        }
-      </CollapsibleCard>
+            ))
+          }
+        </GlassCard>
 
-      {/* Last Week Summary */}
-      {manager.lastWeekSummary && (
-        <CollapsibleCard title="Last Week Summary" defaultOpen>
-          <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentGreen : colors.accentRed }]}>
-            Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
-          </Text>
-          {manager.lastWeekSummary.events.map((event) => (
-            <Text key={event} style={styles.muted}>- {event}</Text>
-          ))}
-        </CollapsibleCard>
-      )}
+        {/* COLLAPSIBLE SECTIONS */}
 
-      {/* Genre Cycles */}
-      <CollapsibleCard title="Genre Cycles">
-        <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>Heating Up</Text>
-        {hotGenres.map((entry) => (
-          <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
-            <Text style={styles.body}>{capitalize(entry.genre)}</Text>
-            <Text style={[styles.muted, { color: colors.accentGreen }]}>
-              {cycleStrengthLabel(entry.momentum)}
+        {/* Operations (grouped collapsible) */}
+        <CollapsibleCard
+          title="Operations"
+          badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
+          badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
+          defaultOpen={false}
+        >
+          {/* Capacity */}
+          <View>
+            <SectionLabel label="Capacity" />
+            <Text style={styles.muted}>
+              Marketing improves optional-action output (+{optionalActionHype} hype and +{money(optionalActionMarketing)} project marketing)
+              and boosts tracking confidence ({trackingConfidenceLo}% - {trackingConfidenceHi}%).
             </Text>
-          </View>
-        ))}
-        <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>Cooling Off</Text>
-        {coolGenres.map((entry) => (
-          <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
-            <Text style={styles.body}>{capitalize(entry.genre)}</Text>
-            <Text style={[styles.muted, { color: colors.accentRed }]}>
-              {cycleStrengthLabel(entry.momentum)}
-            </Text>
-          </View>
-        ))}
-      </CollapsibleCard>
-
-      {/* Industry Heat Leaderboard */}
-      <CollapsibleCard title="Industry Leaderboard">
-        {leaderboard.map((entry, index) => (
-          <View key={entry.name} style={styles.leaderRow}>
-            <Text style={[styles.body, entry.isPlayer ? { color: colors.goldMid, fontFamily: typography.fontBodyBold } : null]}>
-              #{index + 1} {entry.name}
-            </Text>
-            <Text style={[styles.body, entry.isPlayer ? { color: colors.goldMid, fontFamily: typography.fontBodyBold } : null]}>
-              {entry.heat.toFixed(0)}
-            </Text>
-          </View>
-        ))}
-      </CollapsibleCard>
-
-      {/* Rival Relations */}
-      <CollapsibleCard title="Rival Relations">
-        {rivalRelations.map((rival) => {
-          const stance = manager.getRivalStance(rival);
-          return (
-            <View key={rival.id} style={styles.leaderRow}>
-              <Text style={styles.body}>{rival.name}</Text>
-              <Text style={[styles.muted, { color: stanceColor(stance) }]}>
-                {stanceLabel(stance)}
-              </Text>
+            <View style={[styles.capRow, { marginTop: spacing.sp1 }]}>
+              <MetricTile value={`L${manager.marketingTeamLevel}`} label="Marketing" size="sm" />
+              <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Slots" size="sm" />
+              <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
             </View>
-          );
-        })}
-      </CollapsibleCard>
-
-      {/* Awards Pulse */}
-      <CollapsibleCard title="Awards Pulse">
-        <Text style={styles.body}>Next awards week: <Text style={{ color: colors.goldMid }}>W{nextAwardsWeek}</Text></Text>
-        {lastAwards ? (
-          <>
-            <Text style={styles.bodyStrong}>{lastAwards.headline}</Text>
-            {lastAwards.results.slice(0, 3).map((result) => (
-              <Text key={`${lastAwards.seasonYear}-${result.projectId}`} style={styles.muted}>
-                {result.title}: {result.nominations} nom(s), {result.wins} win(s)
-              </Text>
-            ))}
-          </>
-        ) : (
-          <Text style={styles.muted}>No awards seasons have resolved yet.</Text>
-        )}
-      </CollapsibleCard>
-
-      {/* Milestones */}
-      <CollapsibleCard
-        title="Milestones"
-        badge={milestones.length > 0 ? `${milestones.length}` : undefined}
-        badgeColor={colors.goldMid}
-      >
-        {milestones.length === 0
-          ? <Text style={styles.muted}>No milestones unlocked yet.</Text>
-          : milestones.map((milestone) => (
-            <View key={`${milestone.id}-${milestone.unlockedWeek}`} style={styles.leaderRow}>
-              <Text style={styles.bodyStrong}>[Milestone] {milestone.title}</Text>
-              <Text style={styles.muted}>W{milestone.unlockedWeek}</Text>
-            </View>
-          ))
-        }
-      </CollapsibleCard>
-
-      {/* Studio Chronicle */}
-      <CollapsibleCard title="Studio Chronicle">
-        {chronicle.length === 0
-          ? <Text style={styles.muted}>No defining moments yet.</Text>
-          : chronicle.map((entry) => (
-            <View key={entry.id} style={styles.chronicleEntry}>
-              <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? '.'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[
-                  styles.chronicleHeadline,
-                  entry.impact === 'positive' ? { color: colors.accentGreen } :
-                  entry.impact === 'negative' ? { color: colors.accentRed } : null,
-                ]}>
-                  {entry.headline}
-                </Text>
-                {entry.detail && <Text style={styles.muted}>{entry.detail}</Text>}
-              </View>
-            </View>
-          ))
-        }
-      </CollapsibleCard>
-
-      {/* Industry News */}
-      <CollapsibleCard title="Industry News">
-        {news.length === 0
-          ? <Text style={styles.muted}>No major rival movement yet.</Text>
-          : news.map((item) => (
-            <Text key={item.id} style={styles.muted}>W{item.week}: {item.headline}</Text>
-          ))
-        }
-      </CollapsibleCard>
-
-      {/* Actions */}
-      {confirmNewRun ? (
-        <GlassCard variant="red">
-          <SectionLabel label="Confirm New Run" />
-          <Text style={styles.body}>This resets your current studio and starts a fresh game.</Text>
-          <View style={styles.actionsRow}>
-            <PremiumButton
-              label="Confirm New Run"
-              onPress={() => {
-                setConfirmNewRun(false);
-                startNewRun();
-              }}
-              variant="danger"
-              size="sm"
-              style={styles.flexBtn}
+            <ProgressBar
+              value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
+              color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
+              height={4}
+              animated
+              style={{ marginTop: spacing.sp2 }}
             />
+            <View style={[styles.actionsRow, { marginTop: spacing.sp2 }]}>
+              <PremiumButton
+                label={
+                  marketingUpgradeCost !== null
+                    ? `Upgrade Marketing (${money(marketingUpgradeCost)})`
+                    : `Marketing Cap Reached (L${marketingTierCap})`
+                }
+                onPress={upgradeMarketingTeam}
+                disabled={isGameOver || marketingUpgradeCost === null || (marketingUpgradeCost !== null && manager.cash < marketingUpgradeCost)}
+                variant="secondary"
+                size="sm"
+                style={styles.flexBtn}
+              />
+              <PremiumButton
+                label={
+                  capacityUpgradeCost !== null
+                    ? `Expand Capacity (${money(capacityUpgradeCost)})`
+                    : `Capacity Cap Reached (+${capacityTierCap})`
+                }
+                onPress={upgradeStudioCapacity}
+                disabled={isGameOver || capacityUpgradeCost === null || (capacityUpgradeCost !== null && manager.cash < capacityUpgradeCost)}
+                variant="secondary"
+                size="sm"
+                style={styles.flexBtn}
+              />
+            </View>
+            <Text style={styles.muted}>
+              Tier gates: marketing cap L{marketingTierCap}; expansion cap +{capacityTierCap} slot{capacityTierCap === 1 ? '' : 's'} at your current tier.
+            </Text>
+
+            <SectionLabel label="Optional Marketing Push" style={{ marginTop: spacing.sp2 }} />
+            <Text style={styles.muted}>
+              Costs 1 production action per use.
+              Generates +{optionalActionHype} Hype and allocates +{money(optionalActionMarketing)} extra marketing spend to all active projects.
+            </Text>
             <PremiumButton
-              label="Cancel"
-              onPress={() => setConfirmNewRun(false)}
+              label="Run Optional Action"
+              onPress={runOptionalAction}
+              disabled={isGameOver}
               variant="secondary"
               size="sm"
-              style={styles.flexBtn}
+              style={{ marginTop: spacing.sp1 }}
             />
           </View>
-        </GlassCard>
-      ) : (
+
+          {/* Studio Identity */}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+            <SectionLabel label="Studio Identity" />
+            <TextInput
+              value={studioNameDraft}
+              onChangeText={setStudioNameDraft}
+              placeholder="Enter studio name"
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+              maxLength={32}
+            />
+            <PremiumButton label="Rename Studio" onPress={() => renameStudio(studioNameDraft)} variant="secondary" size="sm" />
+
+            <SectionLabel label="Specialization" style={{ marginTop: spacing.sp1 }} />
+            <Text style={styles.muted}>
+              Choose one focus. Pivoting later costs {money(specializationPivotCost)} and reduces Talent/Distributor reputation.
+            </Text>
+            <View style={styles.actionsRow}>
+              {SPECIALIZATION_OPTIONS.map((option) => (
+                <PremiumButton
+                  key={option.key}
+                  label={option.label}
+                  onPress={() => setStudioSpecialization(option.key)}
+                  disabled={isGameOver}
+                  variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
+                  size="sm"
+                  style={styles.choiceBtn}
+                />
+              ))}
+            </View>
+            <Text style={styles.muted}>
+              Active effect: {specializationEffects[manager.studioSpecialization]}
+            </Text>
+
+            <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
+            <Text style={styles.muted}>
+              Development L{manager.departmentLevels.development} | Production L{manager.departmentLevels.production} | Distribution L{manager.departmentLevels.distribution}
+            </Text>
+            <Text style={styles.muted}>Development: -$15K greenlight fee and +0.08 script sprint quality per level.</Text>
+            <Text style={styles.muted}>Production: about 3% lower weekly burn per level.</Text>
+            <Text style={styles.muted}>Distribution: +1.5% leverage per level for stronger deal/counter terms.</Text>
+            <View style={styles.actionsRow}>
+              <PremiumButton
+                label={developmentUpgradeCost === null ? 'Dev Maxed' : `Invest Dev (${money(developmentUpgradeCost)})`}
+                onPress={() => investDepartment('development')}
+                disabled={isGameOver || developmentUpgradeCost === null || manager.cash < developmentUpgradeCost}
+                variant="secondary"
+                size="sm"
+                style={styles.choiceBtn}
+              />
+              <PremiumButton
+                label={productionUpgradeCost === null ? 'Prod Maxed' : `Invest Prod (${money(productionUpgradeCost)})`}
+                onPress={() => investDepartment('production')}
+                disabled={isGameOver || productionUpgradeCost === null || manager.cash < productionUpgradeCost}
+                variant="secondary"
+                size="sm"
+                style={styles.choiceBtn}
+              />
+              <PremiumButton
+                label={distributionUpgradeCost === null ? 'Dist Maxed' : `Invest Dist (${money(distributionUpgradeCost)})`}
+                onPress={() => investDepartment('distribution')}
+                disabled={isGameOver || distributionUpgradeCost === null || manager.cash < distributionUpgradeCost}
+                variant="secondary"
+                size="sm"
+                style={styles.choiceBtn}
+              />
+            </View>
+          </View>
+
+          {/* Strategic Levers */}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+            <SectionLabel label="Strategic Levers" />
+            <Text style={styles.muted}>These are long-tail strategy actions with immediate costs and ongoing effects.</Text>
+            <Text style={styles.muted}>Exclusive partner effect: +16% MG, +2% share, +8% P&A on matching offers (off-partner offers weaken).</Text>
+            <Text style={styles.muted}>Executive network effect: improves distribution counter leverage and talent negotiation leverage.</Text>
+            <Text style={styles.body}>
+              Partner: <Text style={{ color: colors.goldMid }}>{activePartner ?? 'None'}</Text>
+              {activePartner && manager.exclusivePartnerUntilWeek ? ` (${partnerWeeksRemaining}w remaining)` : ''}
+            </Text>
+            <View style={styles.actionsRow}>
+              {PARTNER_OPTIONS.map((partner) => (
+                <PremiumButton
+                  key={partner}
+                  label={`${partner.split(' ')[0]} (${money(480_000)})`}
+                  onPress={() => signExclusivePartner(partner)}
+                  disabled={isGameOver || manager.cash < 480_000 || activePartner === partner}
+                  variant={activePartner === partner ? 'primary' : 'secondary'}
+                  size="sm"
+                  style={styles.choiceBtn}
+                />
+              ))}
+            </View>
+            <Text style={styles.muted}>Executive network level: L{manager.executiveNetworkLevel} / 3</Text>
+            <PremiumButton
+              label={executivePoachCost === null ? 'Executive Network Maxed' : `Poach Executive Team (${money(executivePoachCost)})`}
+              onPress={poachExecutiveTeam}
+              disabled={isGameOver || executivePoachCost === null || manager.cash < executivePoachCost}
+              variant="gold-outline"
+              size="sm"
+            />
+          </View>
+
+          {/* Turn Length */}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
+            <SectionLabel label="Turn Length" />
+            <Text style={styles.muted}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
+            <View style={styles.actionsRow}>
+              {([
+                { weeks: 1 as const, desc: 'More control, safer pacing' },
+                { weeks: 2 as const, desc: 'Faster flow, bigger swings' },
+              ] as const).map(({ weeks, desc }) => (
+                <Pressable
+                  key={weeks}
+                  style={[
+                    styles.turnBtn,
+                    manager.turnLengthWeeks === weeks ? styles.turnBtnActive : null,
+                  ]}
+                  disabled={isGameOver}
+                  onPress={() => setTurnLength(weeks)}
+                >
+                  <Text style={[styles.optionTitle, manager.turnLengthWeeks === weeks ? { color: colors.goldMid } : null]}>
+                    {weeks} Week{weeks > 1 ? 's' : ''}
+                  </Text>
+                  <Text style={styles.optionBody}>{desc}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </CollapsibleCard>
+
+        {/* Story Arcs */}
+        <CollapsibleCard
+          title="Story Arcs"
+          badge={activeArcCount > 0 ? `${activeArcCount} Active` : undefined}
+          badgeColor={colors.goldMid}
+          defaultOpen={activeArcCount > 0}
+        >
+          {arcEntries.length === 0
+            ? <Text style={styles.muted}>No major arc threads have started yet.</Text>
+            : arcEntries.map(([arcId, arc]) => {
+              const arcColor = arc.status === 'resolved' ? colors.accentGreen : arc.status === 'failed' ? colors.accentRed : colors.goldMid;
+              return (
+                <GlassCard key={arcId} variant="elevated" style={{ gap: 4 }}>
+                  <View style={styles.arcRow}>
+                    <Text style={styles.bodyStrong}>{ARC_LABELS[arcId] ?? arcId}</Text>
+                    <View style={[styles.arcBadge, { borderColor: arcColor + '50', backgroundColor: arcColor + '12' }]}>
+                      <Text style={[styles.arcStatus, { color: arcColor }]}>{arc.status.toUpperCase()}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.muted}>Stage {arc.stage} | Last updated W{arc.lastUpdatedWeek}</Text>
+                </GlassCard>
+              );
+            })
+          }
+        </CollapsibleCard>
+
+        {/* Last Week Summary */}
+        {manager.lastWeekSummary && (
+          <CollapsibleCard title="Last Week Summary" defaultOpen>
+            <Text style={[styles.body, { color: manager.lastWeekSummary.cashDelta >= 0 ? colors.accentGreen : colors.accentRed }]}>
+              Cash {signedMoney(manager.lastWeekSummary.cashDelta)}
+            </Text>
+            {manager.lastWeekSummary.events.map((event) => (
+              <Text key={event} style={styles.muted}>- {event}</Text>
+            ))}
+          </CollapsibleCard>
+        )}
+
+        {/* Genre Cycles */}
+        <CollapsibleCard title="Genre Cycles">
+          <Text style={[styles.muted, { color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }]}>Heating Up</Text>
+          {hotGenres.map((entry) => (
+            <View key={`hot-${entry.genre}`} style={styles.leaderRow}>
+              <Text style={styles.body}>{capitalize(entry.genre)}</Text>
+              <Text style={[styles.muted, { color: colors.accentGreen }]}>
+                {cycleStrengthLabel(entry.momentum)}
+              </Text>
+            </View>
+          ))}
+          <Text style={[styles.muted, { color: colors.accentRed, fontFamily: typography.fontBodySemiBold, marginTop: 4 }]}>Cooling Off</Text>
+          {coolGenres.map((entry) => (
+            <View key={`cool-${entry.genre}`} style={styles.leaderRow}>
+              <Text style={styles.body}>{capitalize(entry.genre)}</Text>
+              <Text style={[styles.muted, { color: colors.accentRed }]}>
+                {cycleStrengthLabel(entry.momentum)}
+              </Text>
+            </View>
+          ))}
+        </CollapsibleCard>
+
+        {/* Industry Heat Leaderboard */}
+        <CollapsibleCard title="Industry Leaderboard">
+          {leaderboard.map((entry, index) => (
+            <View key={entry.name} style={styles.leaderRow}>
+              <Text style={[styles.body, entry.isPlayer ? { color: colors.goldMid, fontFamily: typography.fontBodyBold } : null]}>
+                #{index + 1} {entry.name}
+              </Text>
+              <Text style={[styles.body, entry.isPlayer ? { color: colors.goldMid, fontFamily: typography.fontBodyBold } : null]}>
+                {entry.heat.toFixed(0)}
+              </Text>
+            </View>
+          ))}
+        </CollapsibleCard>
+
+        {/* Rival Relations */}
+        <CollapsibleCard title="Rival Relations">
+          {rivalRelations.map((rival) => {
+            const stance = manager.getRivalStance(rival);
+            return (
+              <View key={rival.id} style={styles.leaderRow}>
+                <Text style={styles.body}>{rival.name}</Text>
+                <Text style={[styles.muted, { color: stanceColor(stance) }]}>
+                  {stanceLabel(stance)}
+                </Text>
+              </View>
+            );
+          })}
+        </CollapsibleCard>
+
+        {/* Awards Pulse */}
+        <CollapsibleCard title="Awards Pulse">
+          <Text style={styles.body}>Next awards week: <Text style={{ color: colors.goldMid }}>W{nextAwardsWeek}</Text></Text>
+          {lastAwards ? (
+            <>
+              <Text style={styles.bodyStrong}>{lastAwards.headline}</Text>
+              {lastAwards.results.slice(0, 3).map((result) => (
+                <Text key={`${lastAwards.seasonYear}-${result.projectId}`} style={styles.muted}>
+                  {result.title}: {result.nominations} nom(s), {result.wins} win(s)
+                </Text>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.muted}>No awards seasons have resolved yet.</Text>
+          )}
+        </CollapsibleCard>
+
+        {/* Milestones */}
+        <CollapsibleCard
+          title="Milestones"
+          badge={milestones.length > 0 ? `${milestones.length}` : undefined}
+          badgeColor={colors.goldMid}
+        >
+          {milestones.length === 0
+            ? <Text style={styles.muted}>No milestones unlocked yet.</Text>
+            : milestones.map((milestone) => (
+              <View key={`${milestone.id}-${milestone.unlockedWeek}`} style={styles.leaderRow}>
+                <Text style={styles.bodyStrong}>[Milestone] {milestone.title}</Text>
+                <Text style={styles.muted}>W{milestone.unlockedWeek}</Text>
+              </View>
+            ))
+          }
+        </CollapsibleCard>
+
+        {/* Studio Chronicle */}
+        <CollapsibleCard title="Studio Chronicle">
+          {chronicle.length === 0
+            ? <Text style={styles.muted}>No defining moments yet.</Text>
+            : chronicle.map((entry) => (
+              <View key={entry.id} style={styles.chronicleEntry}>
+                <Text style={styles.chronicleWeek}>W{entry.week} {CHRONICLE_ICONS[entry.type] ?? '.'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[
+                    styles.chronicleHeadline,
+                    entry.impact === 'positive' ? { color: colors.accentGreen } :
+                      entry.impact === 'negative' ? { color: colors.accentRed } : null,
+                  ]}>
+                    {entry.headline}
+                  </Text>
+                  {entry.detail && <Text style={styles.muted}>{entry.detail}</Text>}
+                </View>
+              </View>
+            ))
+          }
+        </CollapsibleCard>
+
+        {/* Industry News */}
+        <CollapsibleCard title="Industry News">
+          {news.length === 0
+            ? <Text style={styles.muted}>No major rival movement yet.</Text>
+            : news.map((item) => (
+              <Text key={item.id} style={styles.muted}>W{item.week}: {item.headline}</Text>
+            ))
+          }
+        </CollapsibleCard>
+
+        {/* Actions */}
+        {confirmNewRun ? (
+          <GlassCard variant="red">
+            <SectionLabel label="Confirm New Run" />
+            <Text style={styles.body}>This resets your current studio and starts a fresh game.</Text>
+            <View style={styles.actionsRow}>
+              <PremiumButton
+                label="Confirm New Run"
+                onPress={() => {
+                  setConfirmNewRun(false);
+                  startNewRun();
+                }}
+                variant="danger"
+                size="sm"
+                style={styles.flexBtn}
+              />
+              <PremiumButton
+                label="Cancel"
+                onPress={() => setConfirmNewRun(false)}
+                variant="secondary"
+                size="sm"
+                style={styles.flexBtn}
+              />
+            </View>
+          </GlassCard>
+        ) : (
+          <PremiumButton
+            label="Start New Run"
+            onPress={() => setConfirmNewRun(true)}
+            variant="ghost"
+            size="sm"
+            fullWidth
+          />
+        )}
+
         <PremiumButton
-          label="Start New Run"
-          onPress={() => setConfirmNewRun(true)}
-          variant="ghost"
-          size="sm"
+          label="Run Optional Action (+Hype)"
+          onPress={runOptionalAction}
+          disabled={isGameOver}
+          variant="secondary"
+          size="md"
           fullWidth
         />
-      )}
+        <PremiumButton
+          label="Advance To Next Decision"
+          onPress={advanceToNextDecision}
+          disabled={!canEnd}
+          variant="secondary"
+          size="md"
+          fullWidth
+        />
+        <PremiumButton
+          label={isGameOver ? 'Game Over' : manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
+          onPress={endWeek}
+          disabled={!canEnd}
+          variant="primary"
+          size="lg"
+          fullWidth
+        />
 
-      <PremiumButton
-        label="Run Optional Action (+Hype)"
-        onPress={runOptionalAction}
-        disabled={isGameOver}
-        variant="secondary"
-        size="md"
-        fullWidth
-      />
-      <PremiumButton
-        label="Advance To Next Decision"
-        onPress={advanceToNextDecision}
-        disabled={!canEnd}
-        variant="secondary"
-        size="md"
-        fullWidth
-      />
-      <PremiumButton
-        label={isGameOver ? 'Game Over' : manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
-        onPress={endWeek}
-        disabled={!canEnd}
-        variant="primary"
-        size="lg"
-        fullWidth
-      />
+        {/* Release Reveal Modal */}
+        <ReleaseRevealModal
+          reveal={reveal}
+          isFinalReveal={isFinalReveal}
+          revealReport={revealReport}
+          dismissReleaseReveal={dismissReleaseReveal}
+        />
 
-      {/* Release Reveal Modal */}
-      <ReleaseRevealModal
-        reveal={reveal}
-        isFinalReveal={isFinalReveal}
-        revealReport={revealReport}
-        dismissReleaseReveal={dismissReleaseReveal}
-      />
-
-    </ScrollView>
+      </ScrollView>
     </View>
   );
 }

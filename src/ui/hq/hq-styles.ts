@@ -8,6 +8,15 @@ export const styles = StyleSheet.create({
 
   header: { gap: 3, marginBottom: spacing.sp1 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
+  stickyFooter: {
+    padding: spacing.sp4,
+    paddingBottom: spacing.sp4,
+    backgroundColor: colors.bgDeep,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    flexDirection: 'row',
+    gap: spacing.sp2,
+  },
   studioName: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
   weekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
 
