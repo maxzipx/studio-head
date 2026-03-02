@@ -45,7 +45,7 @@ function buildProjectBudgetPlan(
 ): ProjectBudgetPlan {
   const directorEstimate = estimateRoleMarketComp(manager, 'director', genre);
   const actorEstimate = estimateRoleMarketComp(manager, 'leadActor', genre);
-  const actressEstimate = estimateRoleMarketComp(manager, 'leadActor', genre);
+  const actressEstimate = estimateRoleMarketComp(manager, 'leadActress', genre) || estimateRoleMarketComp(manager, 'leadActor', genre);
   const castPlannedActor = Math.round(actorEstimate * castRequirements.actorCount);
   const castPlannedActress = Math.round(actressEstimate * castRequirements.actressCount);
   const castPlannedTotal = castPlannedActor + castPlannedActress;
@@ -63,6 +63,14 @@ function buildProjectBudgetPlan(
     castPlannedActor,
     castPlannedActress,
   };
+}
+
+function rollCastRequirementsForManager(manager: StudioManager): CastRequirements {
+  const totalRoll = manager.eventRng();
+  const total = totalRoll < 0.45 ? 1 : totalRoll < 0.9 ? 2 : 3;
+  const actorCount = Math.floor(manager.eventRng() * (total + 1));
+  const actressCount = total - actorCount;
+  return { actorCount, actressCount };
 }
 
 // ── Sequel subtitle generator ─────────────────────────────────────────────────
@@ -438,7 +446,7 @@ export function startSequelForManager(
   const budgetBase = PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[baseProject.genre];
   const budgetMultiplier = clamp(0.9 + eligibility.projectedMomentum / 180 - eligibility.projectedFatigue / 260, 0.75, 1.25);
   const ceiling = Math.round(budgetBase * budgetMultiplier);
-  const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
+  const castRequirements = rollCastRequirementsForManager(manager);
   const scriptQuality = clamp(
     baseProject.scriptQuality * 0.72 + (baseProject.criticalScore ?? 60) * 0.028 - eligibility.projectedFatigue * 0.01 + 0.45,
     5.5,

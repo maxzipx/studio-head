@@ -54,6 +54,7 @@ type AdvanceProject = {
   phase: string;
   directorId: string | null;
   castIds: string[];
+  castRequirements: { actorCount: number; actressCount: number };
   scriptQuality: number;
   greenlightApproved?: boolean;
   scheduledWeeksRemaining: number;
@@ -62,11 +63,27 @@ type AdvanceProject = {
   releaseWeek: number | null;
 };
 
-export function advanceBlockers(project: AdvanceProject, currentWeek: number, crisisCount: number): string[] {
+type CastStatus = { actorCount: number; actressCount: number; total: number };
+
+export function advanceBlockers(
+  project: AdvanceProject,
+  currentWeek: number,
+  crisisCount: number,
+  castStatus?: CastStatus
+): string[] {
   const blockers: string[] = [];
   if (project.phase === 'development') {
     if (!project.directorId) blockers.push('Director not attached');
-    if (project.castIds.length < 1) blockers.push('No actor attached');
+    if (castStatus) {
+      if (castStatus.actorCount < project.castRequirements.actorCount) {
+        blockers.push(`Need ${project.castRequirements.actorCount} actor(s) (${castStatus.actorCount} attached)`);
+      }
+      if (castStatus.actressCount < project.castRequirements.actressCount) {
+        blockers.push(`Need ${project.castRequirements.actressCount} actress(es) (${castStatus.actressCount} attached)`);
+      }
+    } else if (project.castIds.length < 1) {
+      blockers.push('No cast attached');
+    }
     if (project.scriptQuality < 6) blockers.push(`Script quality too low (${project.scriptQuality.toFixed(1)} / min 6.0)`);
     if (!project.greenlightApproved) blockers.push('Greenlight decision not approved');
   } else if (project.phase === 'preProduction' || project.phase === 'production' || project.phase === 'postProduction') {

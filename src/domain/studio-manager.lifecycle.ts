@@ -25,7 +25,12 @@ export function advanceProjectPhaseForManager(manager: StudioManager, projectId:
 
   if (project.phase === 'development') {
     if (!project.directorId) return { success: false, message: 'Attach a director before moving to pre-production.' };
-    if (project.castIds.length < 1) return { success: false, message: 'Attach at least one cast lead before moving forward.' };
+    if (!manager.meetsCastRequirements(project)) {
+      return {
+        success: false,
+        message: `Cast requirements unmet: need ${project.castRequirements.actorCount} actor(s) and ${project.castRequirements.actressCount} actress(es).`,
+      };
+    }
     if (project.scriptQuality < 6) return { success: false, message: 'Script quality is too low to greenlight.' };
     if (!project.greenlightApproved) return { success: false, message: 'Complete greenlight review before moving to pre-production.' };
     project.phase = 'preProduction';

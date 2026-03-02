@@ -374,7 +374,7 @@ export function finalizeTalentAttachmentForManager(
     talent.attachedProjectId = project.id;
     if (talent.role === 'director') {
         project.directorId = talent.id;
-    } else if (talent.role === 'leadActor' || talent.role === 'supportingActor') {
+    } else if (talent.role === 'leadActor' || talent.role === 'leadActress' || talent.role === 'supportingActor') {
         if (!project.castIds.includes(talent.id)) {
             project.castIds.push(talent.id);
         }

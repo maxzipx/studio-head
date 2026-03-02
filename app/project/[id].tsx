@@ -120,7 +120,10 @@ export default function ProjectDetailScreen() {
   const projectCrises = manager.pendingCrises.filter((c) => c.projectId === project.id);
   const projectDecisions = manager.decisionQueue.filter((d) => d.projectId === project.id);
   const offers = manager.getOffersForProject(project.id);
-  const blockers = project.phase !== 'released' ? advanceBlockers(project, manager.currentWeek, projectCrises.length) : [];
+  const castStatus = manager.getProjectCastStatus(project.id);
+  const blockers = project.phase !== 'released'
+    ? advanceBlockers(project, manager.currentWeek, projectCrises.length, castStatus ?? undefined)
+    : [];
   const canPush = project.phase !== 'released' && manager.cash >= ACTION_BALANCE.OPTIONAL_ACTION_COST;
   const genreDemand = manager.getGenreDemandMultiplier(project.genre);
   const canFestivalSubmit =
@@ -136,11 +139,15 @@ export default function ProjectDetailScreen() {
   const canApproveGreenlight =
     project.phase === 'development' &&
     !!project.directorId &&
-    project.castIds.length > 0 &&
+    manager.meetsCastRequirements(project) &&
     project.scriptQuality >= 6 &&
     !project.greenlightApproved &&
     manager.cash >= ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE;
-  const canSendBack = project.phase === 'development' && !!project.directorId && project.castIds.length > 0 && project.scriptQuality >= 6;
+  const canSendBack =
+    project.phase === 'development' &&
+    !!project.directorId &&
+    manager.meetsCastRequirements(project) &&
+    project.scriptQuality >= 6;
   const canPolishPass =
     project.phase === 'postProduction' &&
     manager.cash >= ACTION_BALANCE.POLISH_PASS_COST &&
@@ -429,6 +436,9 @@ export default function ProjectDetailScreen() {
           <Text style={{ color: cast.length > 0 ? colors.textPrimary : colors.accentRed }}>
             {cast.length > 0 ? cast.map((t) => t.name).join(', ') : 'None attached'}
           </Text>
+        </Text>
+        <Text style={styles.mutedText}>
+          Required cast: {project.castRequirements.actorCount} actor(s), {project.castRequirements.actressCount} actress(es)
         </Text>
       </GlassCard>
 

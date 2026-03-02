@@ -266,8 +266,45 @@ describe('StudioManager', () => {
     expect(manager.inboxNotifications[0]?.projectId).toBe(created!.id);
     expect(created!.budgetPlan.directorPlanned).toBeGreaterThan(0);
     expect(created!.budgetPlan.castPlannedTotal).toBeGreaterThan(0);
-    expect(created!.budgetPlan.castPlannedActor).toBeGreaterThan(0);
+    expect(created!.budgetPlan.castPlannedActor).toBeGreaterThanOrEqual(0);
     expect(created!.budgetPlan.castPlannedActress).toBeGreaterThanOrEqual(0);
+  });
+
+  it('randomizes cast requirements with mostly 1-2 slots and rare 3-slot casts', () => {
+    const rng = (() => {
+      let state = 17;
+      return () => {
+        state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+        return state / 4_294_967_296;
+      };
+    })();
+    const manager = new StudioManager({ crisisRng: rng, eventRng: rng, rivalRng: () => 1, negotiationRng: () => 1 });
+    manager.cash = 200_000_000;
+    manager.activeProjects = [];
+    manager.decisionQueue = [];
+
+    const totals: number[] = [];
+    let actressNeededCount = 0;
+    for (let i = 0; i < 60; i += 1) {
+      if (manager.scriptMarket.length === 0) {
+        (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+      }
+      const script = manager.scriptMarket[0];
+      const result = manager.acquireScript(script.id);
+      expect(result.success).toBe(true);
+      const project = manager.activeProjects.find((item) => item.id === result.projectId);
+      expect(project).toBeTruthy();
+      const total = project!.castRequirements.actorCount + project!.castRequirements.actressCount;
+      totals.push(total);
+      if (project!.castRequirements.actressCount > 0) actressNeededCount += 1;
+      manager.activeProjects = [];
+    }
+
+    const threes = totals.filter((count) => count === 3).length;
+    expect(totals.every((count) => count >= 1 && count <= 3)).toBe(true);
+    expect(actressNeededCount).toBeGreaterThan(0);
+    expect(threes).toBeGreaterThan(0);
+    expect(threes / totals.length).toBeLessThan(0.25);
   });
 
   it('updates cast/director committed spend inputs when deals are signed', () => {
@@ -290,6 +327,31 @@ describe('StudioManager', () => {
     expect(project!.castIds).toContain(lead!.id);
     expect(directorCommitted).toBeGreaterThan(0);
     expect(castCommitted).toBeGreaterThan(0);
+  });
+
+  it('enforces actor/actress cast requirements for greenlight readiness', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const director = manager.talentPool.find((item) => item.role === 'director');
+    const actor = manager.talentPool.find((item) => item.role === 'leadActor');
+    const actress = manager.talentPool.find((item) => item.role === 'leadActress');
+    expect(project).toBeTruthy();
+    expect(director).toBeTruthy();
+    expect(actor).toBeTruthy();
+    expect(actress).toBeTruthy();
+
+    project!.castRequirements = { actorCount: 0, actressCount: 1 };
+    project!.scriptQuality = 6.8;
+    manager.negotiateAndAttachTalent(project!.id, director!.id);
+    manager.negotiateAndAttachTalent(project!.id, actor!.id);
+
+    const blocked = manager.runGreenlightReview(project!.id, true);
+    expect(blocked.success).toBe(false);
+    expect(blocked.message.toLowerCase()).toContain('not ready');
+
+    manager.negotiateAndAttachTalent(project!.id, actress!.id);
+    const approved = manager.runGreenlightReview(project!.id, true);
+    expect(approved.success).toBe(true);
   });
 
   it('starts sequel development from an eligible released project and creates franchise tracking', () => {

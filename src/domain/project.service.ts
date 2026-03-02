@@ -19,6 +19,7 @@ export interface ProjectManagerAdapter {
     evaluateBankruptcy: () => void;
     adjustReputation: (delta: number, pillar: any) => void;
     releaseTalent: (projectId: string, context: 'released' | 'abandoned') => void;
+    meetsCastRequirements: (project: MovieProject) => boolean;
 }
 
 export function runGreenlightReviewForManager(manager: ProjectManagerAdapter, projectId: string, approve: boolean): { success: boolean; message: string } {
@@ -27,7 +28,7 @@ export function runGreenlightReviewForManager(manager: ProjectManagerAdapter, pr
     if (project.phase !== 'development') {
         return { success: false, message: 'Greenlight review is only available during development.' };
     }
-    if (!project.directorId || project.castIds.length < 1 || project.scriptQuality < 6) {
+    if (!project.directorId || !manager.meetsCastRequirements(project) || project.scriptQuality < 6) {
         return { success: false, message: 'Project is not ready for a greenlight review yet.' };
     }
 

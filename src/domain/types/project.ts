@@ -25,6 +25,7 @@ export type ReleaseWindow =
 export type TalentRole =
   | 'director'
   | 'leadActor'
+  | 'leadActress'
   | 'supportingActor'
   | 'cinematographer'
   | 'composer';

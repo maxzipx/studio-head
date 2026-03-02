@@ -82,7 +82,8 @@ export default function ScriptRoomScreen() {
   }));
   const developmentProjects = manager.activeProjects.filter((project) => project.phase === 'development');
   const availableDirectors = manager.getAvailableTalentForRole('director');
-  const availableLeads = manager.getAvailableTalentForRole('leadActor');
+  const availableActors = manager.getAvailableTalentForRole('leadActor');
+  const availableActresses = manager.getAvailableTalentForRole('leadActress');
   const ipMarket = manager.ownedIps.filter((ip) => !ip.usedProjectId && ip.expiresWeek >= manager.currentWeek);
   const majorIpCommitments = manager.getMajorIpCommitments();
   const [showHelp, setShowHelp] = useState(false);
@@ -100,7 +101,7 @@ export default function ScriptRoomScreen() {
         <View style={styles.card}>
           <Text style={styles.bodyStrong}>How to read this screen</Text>
           <Text style={styles.muted}>1) Buy scripts with strong score/ROI fit.</Text>
-          <Text style={styles.muted}>2) Attach a director and actor, then run greenlight from project detail.</Text>
+          <Text style={styles.muted}>2) Attach a director and satisfy actor/actress requirements before greenlight.</Text>
           <Text style={styles.muted}>3) Use negotiation rounds to target the highlighted pressure point.</Text>
         </View>
       ) : null}
@@ -279,6 +280,9 @@ export default function ScriptRoomScreen() {
                 <Text style={styles.body}>
                   Cast attached: {project.castIds.length} {castNames.length > 0 ? `(${castNames.join(', ')})` : ''}
                 </Text>
+                <Text style={styles.muted}>
+                  Required: {project.castRequirements.actorCount} actor(s), {project.castRequirements.actressCount} actress(es)
+                </Text>
                 {projection ? (
                   <Text style={styles.muted}>
                     Projection: Critic {projection.critical.toFixed(0)} | ROI {projection.roi.toFixed(2)}x
@@ -301,7 +305,22 @@ export default function ScriptRoomScreen() {
                 ))}
 
                 <Text style={styles.subHeader}>Actor</Text>
-                {availableLeads.map((talent) => (
+                {availableActors.map((talent) => (
+                  <View key={talent.id} style={styles.inlineActions}>
+                    <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
+                      <Text style={styles.talentText}>
+                        Open: {talent.name} | Star {talent.starPower.toFixed(1)} | {agencyLabel(talent.agentTier)}
+                      </Text>
+                      <Text style={styles.talentMeta}>Chance {pct(manager.getNegotiationChance(talent.id, project.id) ?? 0)}</Text>
+                    </Pressable>
+                    <Pressable style={styles.quickButton} onPress={() => attachTalent(project.id, talent.id)}>
+                      <Text style={styles.quickText}>Quick Close {pct(manager.getQuickCloseChance(talent.id) ?? 0)}</Text>
+                    </Pressable>
+                  </View>
+                ))}
+
+                <Text style={styles.subHeader}>Actress</Text>
+                {availableActresses.map((talent) => (
                   <View key={talent.id} style={styles.inlineActions}>
                     <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>
                       <Text style={styles.talentText}>

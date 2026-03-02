@@ -124,7 +124,7 @@ export default function SlateScreen() {
         {showHelp && (
           <GlassCard variant="elevated">
             <Text style={styles.helpTitle}>How the Slate Works</Text>
-            <Text style={styles.helpBody}>Projects move through pipeline phases automatically if they meet the requirements. Without a director, actor, and script quality {'>='} 6.0, projects are blocked in development.</Text>
+            <Text style={styles.helpBody}>Projects move through pipeline phases automatically if they meet requirements. Without a director, required actor/actress mix, and script quality {'>='} 6.0, projects are blocked in development.</Text>
             <Text style={styles.helpBody}>During production, they burn through your cash buffer weekly based on budget size. Run out of cash, and your studio goes bankrupt.</Text>
             <Text style={styles.helpBody}>In distribution, you will receive competing acquisition offers from rival distributors with guarantees, P&A, and rev-share. Releasing a film against crowded rival release weeks significantly hurts box office returns.</Text>
           </GlassCard>

@@ -830,7 +830,7 @@ export class StudioManager {
       return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
     }
     const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
-    const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
+    const castRequirements = this.rollCastRequirements();
     const project: MovieProject = {
       id: createId('project'),
       title: this.generateIpTitle(ip),
@@ -928,6 +928,51 @@ export class StudioManager {
     return values[middle] ?? values[0] ?? 0;
   }
 
+  private castCountsForProject(project: MovieProject): { actorCount: number; actressCount: number; total: number } {
+    let actorCount = 0;
+    let actressCount = 0;
+    for (const talentId of project.castIds) {
+      const talent = this.talentPool.find((item) => item.id === talentId);
+      if (!talent) continue;
+      if (talent.role === 'leadActress') {
+        actressCount += 1;
+      } else if (talent.role === 'leadActor' || talent.role === 'supportingActor') {
+        actorCount += 1;
+      }
+    }
+    return { actorCount, actressCount, total: actorCount + actressCount };
+  }
+
+  getProjectCastStatus(projectId: string): { actorCount: number; actressCount: number; total: number; requiredTotal: number } | null {
+    const project = this.activeProjects.find((item) => item.id === projectId);
+    if (!project) return null;
+    const current = this.castCountsForProject(project);
+    return {
+      ...current,
+      requiredTotal: project.castRequirements.actorCount + project.castRequirements.actressCount,
+    };
+  }
+
+  meetsCastRequirements(project: MovieProject): boolean {
+    const current = this.castCountsForProject(project);
+    const requiredActor = project.castRequirements.actorCount;
+    const requiredActress = project.castRequirements.actressCount;
+    const requiredTotal = requiredActor + requiredActress;
+    return (
+      current.actorCount >= requiredActor &&
+      current.actressCount >= requiredActress &&
+      current.total >= requiredTotal
+    );
+  }
+
+  private rollCastRequirements(): CastRequirements {
+    const totalRoll = this.eventRng();
+    const total = totalRoll < 0.45 ? 1 : totalRoll < 0.9 ? 2 : 3;
+    const actorCount = Math.floor(this.eventRng() * (total + 1));
+    const actressCount = total - actorCount;
+    return { actorCount, actressCount };
+  }
+
   private buildProjectBudgetPlan(
     genre: MovieGenre,
     ceiling: number,
@@ -935,7 +980,8 @@ export class StudioManager {
   ): ProjectBudgetPlan {
     const directorEstimate = this.estimateRoleMarketComp('director', genre);
     const actorEstimate = this.estimateRoleMarketComp('leadActor', genre);
-    const actressEstimate = this.estimateRoleMarketComp('leadActor', genre);
+    const actressEstimate =
+      this.estimateRoleMarketComp('leadActress', genre) || this.estimateRoleMarketComp('leadActor', genre);
     const castPlannedActor = Math.round(actorEstimate * castRequirements.actorCount);
     const castPlannedActress = Math.round(actressEstimate * castRequirements.actressCount);
     const castPlannedTotal = castPlannedActor + castPlannedActress;
@@ -1025,7 +1071,10 @@ export class StudioManager {
 
     const budget = initialBudgetForGenre(script.genre);
     const availableDirectors = this.getAvailableTalentForRole('director');
-    const availableLeads = this.getAvailableTalentForRole('leadActor');
+    const availableLeads = [
+      ...this.getAvailableTalentForRole('leadActor'),
+      ...this.getAvailableTalentForRole('leadActress'),
+    ];
     const bestDirector = [...availableDirectors].sort((a, b) => b.craftScore - a.craftScore)[0];
     const bestLead = [...availableLeads].sort((a, b) => b.starPower - a.starPower)[0];
     const bestDirectorFit = bestDirector?.genreFit[script.genre] ?? 0.6;
@@ -1252,7 +1301,7 @@ export class StudioManager {
     this.scriptMarket = this.scriptMarket.filter((item) => item.id !== scriptId);
 
     const ceiling = initialBudgetForGenre(pitch.genre);
-    const castRequirements: CastRequirements = { actorCount: 1, actressCount: 0 };
+    const castRequirements = this.rollCastRequirements();
     const project: MovieProject = {
       id: createId('project'),
       title: pitch.title,
@@ -1640,7 +1689,9 @@ export class StudioManager {
     roi: number;
   } {
     const director = this.talentPool.find((item) => item.id === project.directorId);
-    const lead = this.talentPool.find((item) => project.castIds.includes(item.id) && item.role === 'leadActor');
+    const lead = this.talentPool
+      .filter((item) => project.castIds.includes(item.id) && (item.role === 'leadActor' || item.role === 'leadActress'))
+      .sort((a, b) => b.starPower - a.starPower)[0];
     const franchiseModifiers = this.franchiseService.getFranchiseProjectionModifiers(project, releaseWeek);
     const baseCritical = projectedCriticalScore({
       scriptQuality: project.scriptQuality,
@@ -1907,7 +1958,8 @@ export class StudioManager {
     const director = project.directorId ? this.talentPool.find((talent) => talent.id === project.directorId) : null;
     const lead = project.castIds
       .map((talentId) => this.talentPool.find((talent) => talent.id === talentId))
-      .find((talent) => talent?.role === 'leadActor');
+      .filter((talent): talent is Talent => !!talent && (talent.role === 'leadActor' || talent.role === 'leadActress'))
+      .sort((a, b) => b.starPower - a.starPower)[0];
     const script = clamp((project.scriptQuality - 5.5) * 7, -18, 18);
     const direction = clamp(((director?.craftScore ?? 6) - 6) * 5, -14, 16);
     const starPower = clamp(((lead?.starPower ?? 5.5) - 5.5) * 6, -14, 18);
@@ -2587,7 +2639,7 @@ export class StudioManager {
 
   private trickleNewMarketEntrants(): void {
     const directors = this.talentPool.filter((t) => t.role === 'director');
-    const actors = this.talentPool.filter((t) => t.role === 'leadActor');
+    const actors = this.talentPool.filter((t) => t.role === 'leadActor' || t.role === 'leadActress');
 
     const visibleDirectors = directors.filter(
       (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
@@ -2639,7 +2691,7 @@ export class StudioManager {
       }
     }
 
-    const actors = this.talentPool.filter((t) => t.role === 'leadActor');
+    const actors = this.talentPool.filter((t) => t.role === 'leadActor' || t.role === 'leadActress');
     let actCount = 0;
     for (const a of actors) {
       if (actCount >= TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS) break;

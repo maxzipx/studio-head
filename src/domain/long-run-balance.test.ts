@@ -114,16 +114,25 @@ function operateProjects(manager: StudioManager): void {
           manager.negotiateAndAttachTalent(project.id, director.id);
         }
       }
-      if (project.castIds.length < 1) {
-        const lead = pickTalent(manager, 'leadActor', project.genre);
-        if (lead) {
-          manager.negotiateAndAttachTalent(project.id, lead.id);
+      const castStatus = manager.getProjectCastStatus(project.id);
+      if (castStatus) {
+        const needActors = Math.max(0, project.castRequirements.actorCount - castStatus.actorCount);
+        const needActresses = Math.max(0, project.castRequirements.actressCount - castStatus.actressCount);
+        for (let i = 0; i < needActors; i += 1) {
+          const actor = pickTalent(manager, 'leadActor', project.genre);
+          if (!actor) break;
+          manager.negotiateAndAttachTalent(project.id, actor.id);
+        }
+        for (let i = 0; i < needActresses; i += 1) {
+          const actress = pickTalent(manager, 'leadActress', project.genre);
+          if (!actress) break;
+          manager.negotiateAndAttachTalent(project.id, actress.id);
         }
       }
       if (
         !project.greenlightApproved &&
         project.directorId &&
-        project.castIds.length > 0 &&
+        manager.meetsCastRequirements(project) &&
         project.scriptQuality >= 6 &&
         manager.cash > 1_000_000
       ) {
@@ -179,7 +188,9 @@ function operateProjects(manager: StudioManager): void {
 function investInPipeline(manager: StudioManager): void {
   const activeNonReleased = manager.activeProjects.filter((project) => project.phase !== 'released');
   const availableDirectors = manager.talentPool.filter((talent) => talent.role === 'director' && talent.availability === 'available');
-  const availableLeads = manager.talentPool.filter((talent) => talent.role === 'leadActor' && talent.availability === 'available');
+  const availableLeads = manager.talentPool.filter(
+    (talent) => (talent.role === 'leadActor' || talent.role === 'leadActress') && talent.availability === 'available'
+  );
   const staffingConstrained = availableDirectors.length === 0 || availableLeads.length === 0;
   const maxPipeline = manager.cash >= 12_000_000 ? 2 : 1;
   if (activeNonReleased.length >= maxPipeline) return;
@@ -285,17 +296,17 @@ describe('long-run balance harness', () => {
 
     expect(summary).toMatchInlineSnapshot(`
       {
-        "avgPendingCrisesMean": 0.57,
-        "awardsNomMean": 54.88,
-        "awardsWinMean": 8.08,
-        "bankruptRate": 0,
-        "cashMax": 148457624,
-        "cashMedian": 58070315,
-        "cashMin": 5895101,
-        "heatMean": 98.96,
+        "avgPendingCrisesMean": 0.56,
+        "awardsNomMean": 51.54,
+        "awardsWinMean": 6.29,
+        "bankruptRate": 0.083,
+        "cashMax": 136395821,
+        "cashMedian": 58619836,
+        "cashMin": 0,
+        "heatMean": 98.83,
         "maxPendingCrises": 5,
-        "releasedMean": 23.88,
-        "releasedMin": 22,
+        "releasedMean": 22.54,
+        "releasedMin": 6,
       }
     `);
 

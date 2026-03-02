@@ -59,7 +59,8 @@ const TALENT_GENRES: MovieGenre[] = [
 ];
 
 const DIRECTOR_POOL_SIZE = 60;
-const LEAD_ACTOR_POOL_SIZE = 200;
+const LEAD_ACTOR_POOL_SIZE = 110;
+const LEAD_ACTRESS_POOL_SIZE = 110;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -182,7 +183,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
 
   const egoLevel = roundTo(
     clampNumber(
-      2 + seededUnit(seedIndex, 13 + worldSalt) * 7.4 + (role === 'leadActor' ? 0.45 : 0),
+      2 + seededUnit(seedIndex, 13 + worldSalt) * 7.4 + (role === 'leadActor' || role === 'leadActress' ? 0.45 : 0),
       1.8,
       9.8
     ),
@@ -245,6 +246,11 @@ export function createSeedTalentPool(worldSeed = 0): Talent[] {
 
   for (let i = 0; i < LEAD_ACTOR_POOL_SIZE; i += 1) {
     talentPool.push(buildTalentSeed(seedIndex, 'leadActor', normalizedSeed, namePool));
+    seedIndex += 1;
+  }
+
+  for (let i = 0; i < LEAD_ACTRESS_POOL_SIZE; i += 1) {
+    talentPool.push(buildTalentSeed(seedIndex, 'leadActress', normalizedSeed, namePool));
     seedIndex += 1;
   }
 

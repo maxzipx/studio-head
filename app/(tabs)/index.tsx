@@ -247,7 +247,7 @@ export default function HQScreen() {
             <SectionLabel label="Getting Started" />
             {[
               'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
-              'Projects need a Director + Actor + Script Quality >= 6.0 to advance to Pre-Production.',
+              'Projects need a Director plus the required Actor/Actress mix and Script Quality >= 6.0 to advance.',
               'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
               'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
             ].map((tip, i) => (

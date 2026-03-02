@@ -204,7 +204,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
 
     if (!isRecord(project.budgetPlan)) {
       const fallbackDirector = Math.round(project.budget.ceiling * 0.1);
-      const fallbackCastActor = Math.round(project.budget.ceiling * 0.15 * Math.max(1, project.castRequirements.actorCount));
+      const fallbackCastActor = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actorCount));
       const fallbackCastActress = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actressCount));
       project.budgetPlan = {
         directorPlanned: fallbackDirector,
@@ -215,7 +215,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     }
     if (!Number.isFinite(project.budgetPlan.directorPlanned)) project.budgetPlan.directorPlanned = Math.round(project.budget.ceiling * 0.1);
     if (!Number.isFinite(project.budgetPlan.castPlannedActor)) {
-      project.budgetPlan.castPlannedActor = Math.round(project.budget.ceiling * 0.15 * Math.max(1, project.castRequirements.actorCount));
+      project.budgetPlan.castPlannedActor = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actorCount));
     }
     if (!Number.isFinite(project.budgetPlan.castPlannedActress)) {
       project.budgetPlan.castPlannedActress = Math.round(project.budget.ceiling * 0.15 * Math.max(0, project.castRequirements.actressCount));

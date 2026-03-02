@@ -48,6 +48,7 @@ function phaseLabel(phase: string): string {
 
 function roleLabel(value: string): string {
   if (value === 'leadActor') return 'Actor';
+  if (value === 'leadActress') return 'Actress';
   if (value === 'supportingActor') return 'Supporting Actor';
   return value;
 }
@@ -162,10 +163,13 @@ export default function TalentScreen() {
 
   const marketDirectorCount = marketTalent.filter((t) => t.role === 'director').length;
   const marketActorCount = marketTalent.filter((t) => t.role === 'leadActor').length;
+  const marketActressCount = marketTalent.filter((t) => t.role === 'leadActress').length;
   const marketDirectors = marketTalent.filter((t) => t.role === 'director');
   const marketActors = marketTalent.filter((t) => t.role === 'leadActor');
+  const marketActresses = marketTalent.filter((t) => t.role === 'leadActress');
   const rosterDirectors = rosterTalent.filter((t) => t.role === 'director');
   const rosterActors = rosterTalent.filter((t) => t.role === 'leadActor');
+  const rosterActresses = rosterTalent.filter((t) => t.role === 'leadActress');
   const rivalLockedCount = manager.talentPool.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
   const coolingOffCount = manager.talentPool.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
 
@@ -251,6 +255,7 @@ export default function TalentScreen() {
             {[
               { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
               { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
+              { label: 'Actresses', value: marketActressCount, accent: colors.goldMid },
               { label: 'Deals', value: manager.playerNegotiations.length, accent: colors.goldMid },
               { label: 'Rivals', value: rivalLockedCount, accent: colors.accentRed },
               { label: 'Cooldown', value: coolingOffCount, accent: colors.textMuted },
@@ -302,6 +307,9 @@ export default function TalentScreen() {
                   .filter((v): v is string => !!v)
                   .join(', ')
                 : 'None attached'}
+            </Text>
+            <Text style={styles.muted}>
+              Required: {activeProject.castRequirements.actorCount} actor(s), {activeProject.castRequirements.actressCount} actress(es)
             </Text>
           </GlassCard>
         )}
@@ -436,6 +444,21 @@ export default function TalentScreen() {
             showCountdown
           />
         ))}
+        <View style={styles.roleHeaderActor}>
+          <Text style={styles.roleHeaderText}>ACTRESSES IN MARKET</Text>
+          <Text style={styles.roleHeaderCount}>{marketActresses.length}</Text>
+        </View>
+        {marketActresses.map((talent) => (
+          <TalentCard
+            key={talent.id}
+            talent={talent}
+            manager={manager}
+            activeProject={activeProject}
+            openNegotiationModal={openNegotiationModal}
+            attachTalent={attachTalent}
+            showCountdown
+          />
+        ))}
 
         {/*  Your Roster  */}
         {rosterTalent.length > 0 && (
@@ -454,6 +477,15 @@ export default function TalentScreen() {
               showCountdown={false}
             />)}
             {rosterActors.map((talent) => <TalentCard
+              key={talent.id}
+              talent={talent}
+              manager={manager}
+              activeProject={activeProject}
+              openNegotiationModal={openNegotiationModal}
+              attachTalent={attachTalent}
+              showCountdown={false}
+            />)}
+            {rosterActresses.map((talent) => <TalentCard
               key={talent.id}
               talent={talent}
               manager={manager}
