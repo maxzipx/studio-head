@@ -1,10 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
-import { GlassCard, PremiumButton, ProgressBar, SectionLabel, StarRating } from '@/src/ui/components';
+import { GlassCard, MetricsStrip, PremiumButton, ProgressBar, SectionLabel, StarRating } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 import type { StudioManager } from '@/src/domain/studio-manager';
 import type { MovieProject, Talent } from '@/src/domain/types';
@@ -190,237 +189,245 @@ export default function TalentScreen() {
   }, [developmentProjects, selectedProjectId]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={styles.screen}>
+      <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
+      <ScrollView contentContainerStyle={styles.content}>
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <LinearGradient
-          colors={[colors.goldDeep + '15', 'transparent']}
-          style={styles.headerGlow}
-          pointerEvents="none"
-        />
-        <Text style={styles.title}>Talent Market</Text>
-        <Text style={styles.subtitle}>Talent rotates weekly — negotiate before the window closes</Text>
-      </View>
+        {lastMessage ? (
+          <GlassCard variant="blue">
+            <Text style={styles.message}>{lastMessage}</Text>
+          </GlassCard>
+        ) : null}
 
-      {lastMessage ? (
-        <GlassCard variant="blue">
-          <Text style={styles.message}>{lastMessage}</Text>
-        </GlassCard>
-      ) : null}
-
-      {/* ── Help ── */}
-      <PremiumButton
-        label={showHelp ? 'Hide Help' : 'Show Help'}
-        onPress={() => setShowHelp((v) => !v)}
-        variant="ghost"
-        size="sm"
-      />
-      <View style={styles.topControls}>
+        {/* ── Help ── */}
         <PremiumButton
-          label={compactView ? 'Compact View' : 'Expanded View'}
-          onPress={() => setCompactView((v) => !v)}
-          variant={compactView ? 'primary' : 'secondary'}
+          label={showHelp ? 'Hide Help' : 'Show Help'}
+          onPress={() => setShowHelp((v) => !v)}
+          variant="ghost"
           size="sm"
-          style={styles.controlBtn}
         />
-        <PremiumButton
-          label={showOpsPanels ? 'Hide Ops Panels' : 'Show Ops Panels'}
-          onPress={() => setShowOpsPanels((v) => !v)}
-          variant="secondary"
-          size="sm"
-          style={styles.controlBtn}
-        />
-      </View>
-      {showHelp && (
-        <GlassCard variant="elevated">
-          <Text style={styles.helpTitle}>How the Market Works</Text>
-          <Text style={styles.helpBody}>A rotating pool of talent appears each week. Lower-tier talent stays 6 weeks; elite talent stays only 3 weeks. New faces trickle in every turn to replace expired windows.</Text>
-          <Text style={styles.helpBody}>Higher-star talent only appears once your studio heat or talent reputation reaches their threshold. Build your rep to unlock elite talent.</Text>
-          <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest. Trust and loyalty influence future negotiations.</Text>
-          <Text style={styles.helpBody}>
-            <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
-            {' = audience draw and launch heat. '}
-            <Text style={{ color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
-            {' = execution quality and critic stability.'}
-          </Text>
-        </GlassCard>
-      )}
-
-      {/* ── Market Snapshot ── */}
-      <GlassCard>
-        <SectionLabel label="Market Snapshot" />
-        <View style={styles.snapshotRow}>
-          {[
-            { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
-            { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
-            { label: 'Negotiations', value: manager.playerNegotiations.length, accent: colors.goldMid },
-            { label: 'Rival Lock', value: rivalLockedCount, accent: colors.accentRed },
-            { label: 'Cooling Off', value: coolingOffCount, accent: colors.textMuted },
-          ].map(({ label, value, accent }) => (
-            <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
-              <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
-              <Text style={styles.snapshotLabel}>{label}</Text>
-            </GlassCard>
-          ))}
+        <View style={styles.topControls}>
+          <PremiumButton
+            label={compactView ? 'Compact View' : 'Expanded View'}
+            onPress={() => setCompactView((v) => !v)}
+            variant={compactView ? 'primary' : 'secondary'}
+            size="sm"
+            style={styles.controlBtn}
+          />
+          <PremiumButton
+            label={showOpsPanels ? 'Hide Ops Panels' : 'Show Ops Panels'}
+            onPress={() => setShowOpsPanels((v) => !v)}
+            variant="secondary"
+            size="sm"
+            style={styles.controlBtn}
+          />
         </View>
-      </GlassCard>
+        {showHelp && (
+          <GlassCard variant="elevated">
+            <Text style={styles.helpTitle}>How the Market Works</Text>
+            <Text style={styles.helpBody}>A rotating pool of talent appears each week. Lower-tier talent stays 6 weeks; elite talent stays only 3 weeks. New faces trickle in every turn to replace expired windows.</Text>
+            <Text style={styles.helpBody}>Higher-star talent only appears once your studio heat or talent reputation reaches their threshold. Build your rep to unlock elite talent.</Text>
+            <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest. Trust and loyalty influence future negotiations.</Text>
+            <Text style={styles.helpBody}>
+              <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodySemiBold }}>Star</Text>
+              {' = audience draw and launch heat. '}
+              <Text style={{ color: colors.accentGreen, fontFamily: typography.fontBodySemiBold }}>Craft</Text>
+              {' = execution quality and critic stability.'}
+            </Text>
+          </GlassCard>
+        )}
 
-      {/* ── Development Targets ── */}
-      <GlassCard>
-        <SectionLabel label="Development Targets" />
-        {developmentProjects.length === 0
-          ? <Text style={styles.empty}>No development-phase project available for attachment right now.</Text>
-          : <View style={styles.targetRow}>
-            {developmentProjects.map((project) => (
-              <PremiumButton
-                key={project.id}
-                label={`${project.title} (${capitalized(project.genre)})`}
-                onPress={() => setSelectedProjectId(project.id)}
-                variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
-                size="sm"
-              />
+        {/* ── Market Snapshot ── */}
+        <GlassCard>
+          <SectionLabel label="Market Snapshot" />
+          <View style={styles.snapshotRow}>
+            {[
+              { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
+              { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
+              { label: 'Negotiations', value: manager.playerNegotiations.length, accent: colors.goldMid },
+              { label: 'Rival Lock', value: rivalLockedCount, accent: colors.accentRed },
+              { label: 'Cooling Off', value: coolingOffCount, accent: colors.textMuted },
+            ].map(({ label, value, accent }) => (
+              <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
+                <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
+                <Text style={styles.snapshotLabel}>{label}</Text>
+              </GlassCard>
             ))}
           </View>
-        }
-      </GlassCard>
-
-      {/* ── Active Target ── */}
-      {activeProject && (
-        <GlassCard variant="gold">
-          <SectionLabel label="Active Target" />
-          <Text style={styles.activeTitle}>{activeProject.title}</Text>
-          <Text style={styles.body}>{capitalized(activeProject.genre)} · {phaseLabel(activeProject.phase)}</Text>
-          <Text style={styles.muted}>
-            Director:{' '}
-            {activeProject.directorId
-              ? manager.talentPool.find((t) => t.id === activeProject.directorId)?.name ?? 'Unknown'
-              : 'Unattached'}
-          </Text>
-          <Text style={styles.muted}>
-            Cast:{' '}
-            {activeProject.castIds.length > 0
-              ? activeProject.castIds
-                .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
-                .filter((v): v is string => !!v)
-                .join(', ')
-              : 'None attached'}
-          </Text>
         </GlassCard>
-      )}
 
-      {showOpsPanels && (
-        <>
-          {/* ── Project Ledger ── */}
-          <GlassCard>
-            <SectionLabel label="Project Ledger" />
-            {projectLedger.length === 0
-              ? <Text style={styles.empty}>No active projects.</Text>
-              : projectLedger.map((project) => {
-                const director = project.directorId
-                  ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
-                  : 'Unattached';
-                const cast = project.castIds
+        {/* ── Development Targets ── */}
+        <GlassCard>
+          <SectionLabel label="Development Targets" />
+          {developmentProjects.length === 0
+            ? <Text style={styles.empty}>No development-phase project available for attachment right now.</Text>
+            : <View style={styles.targetRow}>
+              {developmentProjects.map((project) => (
+                <PremiumButton
+                  key={project.id}
+                  label={`${project.title} (${capitalized(project.genre)})`}
+                  onPress={() => setSelectedProjectId(project.id)}
+                  variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
+                  size="sm"
+                />
+              ))}
+            </View>
+          }
+        </GlassCard>
+
+        {/* ── Active Target ── */}
+        {activeProject && (
+          <GlassCard variant="gold">
+            <SectionLabel label="Active Target" />
+            <Text style={styles.activeTitle}>{activeProject.title}</Text>
+            <Text style={styles.body}>{capitalized(activeProject.genre)} · {phaseLabel(activeProject.phase)}</Text>
+            <Text style={styles.muted}>
+              Director:{' '}
+              {activeProject.directorId
+                ? manager.talentPool.find((t) => t.id === activeProject.directorId)?.name ?? 'Unknown'
+                : 'Unattached'}
+            </Text>
+            <Text style={styles.muted}>
+              Cast:{' '}
+              {activeProject.castIds.length > 0
+                ? activeProject.castIds
                   .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
-                  .filter((v): v is string => !!v);
-                return (
-                  <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
-                    <Text style={styles.subTitle}>{project.title}</Text>
-                    <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
-                    <Text style={styles.muted}>Director: {director}</Text>
-                    {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
-                  </GlassCard>
-                );
-              })
-            }
+                  .filter((v): v is string => !!v)
+                  .join(', ')
+                : 'None attached'}
+            </Text>
           </GlassCard>
+        )}
 
-          {/* ── Open Negotiations ── */}
-          <GlassCard>
-            <SectionLabel label="Open Negotiations" />
-            {manager.playerNegotiations.length === 0
-              ? <Text style={styles.empty}>No open negotiations.</Text>
-              : manager.playerNegotiations.map((entry) => {
-                const talent = manager.talentPool.find((t) => t.id === entry.talentId);
-                const project = manager.activeProjects.find((p) => p.id === entry.projectId);
-                const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
-                const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
-                return (
-                  <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
-                    <View style={styles.negHeader}>
-                      <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
-                      {chance !== null && (
-                        <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
-                          <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
-                            {pct(chance)} · {chanceLabel(chance)}
+        {showOpsPanels && (
+          <>
+            {/* ── Project Ledger ── */}
+            <GlassCard>
+              <SectionLabel label="Project Ledger" />
+              {projectLedger.length === 0
+                ? <Text style={styles.empty}>No active projects.</Text>
+                : projectLedger.map((project) => {
+                  const director = project.directorId
+                    ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
+                    : 'Unattached';
+                  const cast = project.castIds
+                    .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
+                    .filter((v): v is string => !!v);
+                  return (
+                    <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
+                      <Text style={styles.subTitle}>{project.title}</Text>
+                      <Text style={styles.muted}>{capitalized(project.genre)} · {phaseLabel(project.phase)}</Text>
+                      <Text style={styles.muted}>Director: {director}</Text>
+                      {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
+                    </GlassCard>
+                  );
+                })
+              }
+            </GlassCard>
+
+            {/* ── Open Negotiations ── */}
+            <GlassCard>
+              <SectionLabel label="Open Negotiations" />
+              {manager.playerNegotiations.length === 0
+                ? <Text style={styles.empty}>No open negotiations.</Text>
+                : manager.playerNegotiations.map((entry) => {
+                  const talent = manager.talentPool.find((t) => t.id === entry.talentId);
+                  const project = manager.activeProjects.find((p) => p.id === entry.projectId);
+                  const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
+                  const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
+                  return (
+                    <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
+                      <View style={styles.negHeader}>
+                        <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
+                        {chance !== null && (
+                          <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
+                            <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
+                              {pct(chance)} · {chanceLabel(chance)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.muted}>
+                        {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
+                      </Text>
+
+                      {snapshot && (
+                        <>
+                          <Text style={styles.muted}>
+                            Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
                           </Text>
-                        </View>
+                          <View style={styles.offerRow}>
+                            <GlassCard variant="default" style={styles.offerCol}>
+                              <Text style={styles.offerLabel}>YOUR OFFER</Text>
+                              <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
+                              <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
+                            </GlassCard>
+                            <GlassCard variant="default" style={styles.offerCol}>
+                              <Text style={styles.offerLabel}>THEIR ASK</Text>
+                              <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
+                              <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
+                            </GlassCard>
+                          </View>
+                          <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
+                          <Text style={styles.muted}>
+                            Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
+                          </Text>
+                          <View style={styles.actions}>
+                            {[
+                              { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
+                              { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
+                              { label: '+Perks', action: 'sweetenPerks', pressure: 'perks' },
+                              { label: 'Hold', action: 'holdFirm', pressure: null },
+                            ].map(({ label, action, pressure }) => (
+                              <PremiumButton
+                                key={action}
+                                label={label}
+                                onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as any)}
+                                variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
+                                size="sm"
+                                style={styles.negBtn}
+                              />
+                            ))}
+                          </View>
+                        </>
                       )}
-                    </View>
-                    <Text style={styles.muted}>
-                      {project?.title} · opened W{entry.openedWeek} · resolves on End Turn
-                    </Text>
+                    </GlassCard>
+                  );
+                })
+              }
+            </GlassCard>
+          </>
+        )}
 
-                    {snapshot && (
-                      <>
-                        <Text style={styles.muted}>
-                          Rounds {snapshot.rounds}/4 · Pressure: {capitalized(snapshot.pressurePoint)}
-                        </Text>
-                        <View style={styles.offerRow}>
-                          <GlassCard variant="default" style={styles.offerCol}>
-                            <Text style={styles.offerLabel}>YOUR OFFER</Text>
-                            <Text style={styles.offerVal}>{snapshot.salaryMultiplier.toFixed(2)}× Salary</Text>
-                            <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
-                          </GlassCard>
-                          <GlassCard variant="default" style={styles.offerCol}>
-                            <Text style={styles.offerLabel}>THEIR ASK</Text>
-                            <Text style={styles.offerVal}>{snapshot.demandSalaryMultiplier.toFixed(2)}× Salary</Text>
-                            <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
-                          </GlassCard>
-                        </View>
-                        <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
-                        <Text style={styles.muted}>
-                          Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
-                        </Text>
-                        <View style={styles.actions}>
-                          {[
-                            { label: '+Salary', action: 'sweetenSalary', pressure: 'salary' },
-                            { label: '+Backend', action: 'sweetenBackend', pressure: 'backend' },
-                            { label: '+Perks', action: 'sweetenPerks', pressure: 'perks' },
-                            { label: 'Hold', action: 'holdFirm', pressure: null },
-                          ].map(({ label, action, pressure }) => (
-                            <PremiumButton
-                              key={action}
-                              label={label}
-                              onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as any)}
-                              variant={pressure === snapshot.pressurePoint ? 'primary' : 'secondary'}
-                              size="sm"
-                              style={styles.negBtn}
-                            />
-                          ))}
-                        </View>
-                      </>
-                    )}
-                  </GlassCard>
-                );
-              })
-            }
-          </GlassCard>
-        </>
-      )}
+        {/* ── Directors In Market ── */}
+        <View style={styles.roleHeaderDirector}>
+          <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
+          <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
+        </View>
+        {marketTalent.length === 0
+          ? (
+            <GlassCard variant="elevated">
+              <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
+            </GlassCard>
+          )
+          : marketDirectors.map((talent) => <TalentCard
+            key={talent.id}
+            talent={talent}
+            manager={manager}
+            activeProject={activeProject}
+            startNegotiation={startNegotiation}
+            attachTalent={attachTalent}
+            showCountdown
+            compact={compactView}
+          />)
+        }
 
-      {/* ── Directors In Market ── */}
-      <View style={styles.roleHeaderDirector}>
-        <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
-        <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
-      </View>
-      {marketTalent.length === 0
-        ? (
-          <GlassCard variant="elevated">
-            <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
-          </GlassCard>
-        )
-        : marketDirectors.map((talent) => <TalentCard
+        {/* ── Actors In Market ── */}
+        <View style={styles.roleHeaderActor}>
+          <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
+          <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
+        </View>
+        {marketActors.map((talent) => <TalentCard
           key={talent.id}
           talent={talent}
           manager={manager}
@@ -429,55 +436,39 @@ export default function TalentScreen() {
           attachTalent={attachTalent}
           showCountdown
           compact={compactView}
-        />)
-      }
+        />)}
 
-      {/* ── Actors In Market ── */}
-      <View style={styles.roleHeaderActor}>
-        <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
-        <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
-      </View>
-      {marketActors.map((talent) => <TalentCard
-        key={talent.id}
-        talent={talent}
-        manager={manager}
-        activeProject={activeProject}
-        startNegotiation={startNegotiation}
-        attachTalent={attachTalent}
-        showCountdown
-        compact={compactView}
-      />)}
-
-      {/* ── Your Roster ── */}
-      {rosterTalent.length > 0 && (
-        <>
-          <View style={styles.roleHeaderRoster}>
-            <Text style={styles.roleHeaderText}>YOUR ROSTER</Text>
-            <Text style={styles.roleHeaderCount}>{rosterTalent.length}</Text>
-          </View>
-          {rosterDirectors.map((talent) => <TalentCard
-            key={talent.id}
-            talent={talent}
-            manager={manager}
-            activeProject={activeProject}
-            startNegotiation={startNegotiation}
-            attachTalent={attachTalent}
-            showCountdown={false}
-            compact={compactView}
-          />)}
-          {rosterActors.map((talent) => <TalentCard
-            key={talent.id}
-            talent={talent}
-            manager={manager}
-            activeProject={activeProject}
-            startNegotiation={startNegotiation}
-            attachTalent={attachTalent}
-            showCountdown={false}
-            compact={compactView}
-          />)}
-        </>
-      )}
-    </ScrollView>
+        {/* ── Your Roster ── */}
+        {rosterTalent.length > 0 && (
+          <>
+            <View style={styles.roleHeaderRoster}>
+              <Text style={styles.roleHeaderText}>YOUR ROSTER</Text>
+              <Text style={styles.roleHeaderCount}>{rosterTalent.length}</Text>
+            </View>
+            {rosterDirectors.map((talent) => <TalentCard
+              key={talent.id}
+              talent={talent}
+              manager={manager}
+              activeProject={activeProject}
+              startNegotiation={startNegotiation}
+              attachTalent={attachTalent}
+              showCountdown={false}
+              compact={compactView}
+            />)}
+            {rosterActors.map((talent) => <TalentCard
+              key={talent.id}
+              talent={talent}
+              manager={manager}
+              activeProject={activeProject}
+              startNegotiation={startNegotiation}
+              attachTalent={attachTalent}
+              showCountdown={false}
+              compact={compactView}
+            />)}
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 

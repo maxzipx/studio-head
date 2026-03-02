@@ -24,7 +24,7 @@ function heatColor(heat: number): string {
 function MetricColumn({
   value,
   label,
-  valueColor = colors.textInverse,
+  valueColor = colors.textPrimary,
 }: {
   value: string;
   label: string;
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: typography.fontBodySemiBold,
     fontSize: typography.sizeMD,
-    color: colors.textInverse,
+    color: colors.textPrimary,
     letterSpacing: typography.trackingNormal,
     lineHeight: 19,
   },
