@@ -170,8 +170,6 @@ export default function TalentScreen() {
     ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
     : null;
 
-  const projectLedger = manager.activeProjects.filter((p) => p.phase !== 'released');
-
   // Market: available talents with an active window, sorted directors first then by starPower desc
   const marketTalent: Talent[] = manager.talentPool
     .filter((t) => t.marketWindowExpiresWeek !== null && t.availability === 'available')
@@ -326,30 +324,6 @@ export default function TalentScreen() {
           </GlassCard>
         )}
 
-        
-            {/*  Project Ledger  */}
-            <GlassCard>
-              <SectionLabel label="Project Ledger" />
-              {projectLedger.length === 0
-                ? <Text style={styles.empty}>No active projects.</Text>
-                : projectLedger.map((project) => {
-                  const director = project.directorId
-                    ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
-                    : 'Unattached';
-                  const cast = project.castIds
-                    .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
-                    .filter((v): v is string => !!v);
-                  return (
-                    <GlassCard key={project.id} variant="elevated" style={{ gap: 4 }}>
-                      <Text style={styles.subTitle}>{project.title}</Text>
-                      <Text style={styles.muted}>{capitalized(project.genre)} - {phaseLabel(project.phase)}</Text>
-                      <Text style={styles.muted}>Director: {director}</Text>
-                      {cast.length > 0 && <Text style={styles.muted}>Cast: {cast.join(', ')}</Text>}
-                    </GlassCard>
-                  );
-                })
-              }
-            </GlassCard>
         {/* Open Negotiations */}
         <GlassCard>
           <SectionLabel label="Open Negotiations" />
@@ -860,7 +834,7 @@ const styles = StyleSheet.create({
   memoryLine: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
 
   actions: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
-  negBtn: { flex: 1, minWidth: 70 },
+  negBtn: { flexGrow: 1, flexBasis: '23%', minWidth: 88 },
   flexBtn: { flex: 1 },
 
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
