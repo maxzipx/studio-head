@@ -4,14 +4,15 @@ import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp4, gap: spacing.sp3, paddingBottom: 120 },
+  content: { padding: spacing.sp4, gap: spacing.sp3, paddingBottom: spacing.sp4 },
 
   header: { gap: 3, marginBottom: spacing.sp1 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
   stickyFooter: {
-    padding: spacing.sp4,
-    paddingBottom: spacing.sp4,
-    backgroundColor: colors.bgDeep,
+    paddingHorizontal: spacing.sp4,
+    paddingTop: spacing.sp2,
+    paddingBottom: spacing.sp3,
+    backgroundColor: colors.bgSurface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     flexDirection: 'row',

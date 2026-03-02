@@ -214,9 +214,9 @@ export default function HQScreen() {
   const canEnd = manager.canEndWeek && !isGameOver;
 
   return (
-    <View style={[styles.screen, { paddingBottom: 0 }]}>
+    <View style={styles.screen}>
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]}>
+      <ScrollView contentContainerStyle={styles.content}>
 
         {/* Header */}
         <View style={styles.header}>
@@ -463,7 +463,7 @@ export default function HQScreen() {
               Generates +{optionalActionHype} Hype and allocates +{money(optionalActionMarketing)} extra marketing spend to all active projects.
             </Text>
             <PremiumButton
-              label="Run Optional Action"
+              label={`Run Optional Action (+${optionalActionHype} Hype)`}
               onPress={runOptionalAction}
               disabled={isGameOver}
               variant="secondary"
@@ -792,21 +792,15 @@ export default function HQScreen() {
           />
         )}
 
-        <PremiumButton
-          label="Run Optional Action (+Hype)"
-          onPress={runOptionalAction}
-          disabled={isGameOver}
-          variant="secondary"
-          size="md"
-          fullWidth
-        />
+      </ScrollView>
+      <View style={styles.stickyFooter}>
         <PremiumButton
           label="Advance To Next Decision"
           onPress={advanceToNextDecision}
           disabled={!canEnd}
           variant="secondary"
           size="md"
-          fullWidth
+          style={styles.flexBtn}
         />
         <PremiumButton
           label={isGameOver ? 'Game Over' : manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
@@ -814,18 +808,17 @@ export default function HQScreen() {
           disabled={!canEnd}
           variant="primary"
           size="lg"
-          fullWidth
+          style={styles.flexBtn}
         />
+      </View>
 
-        {/* Release Reveal Modal */}
-        <ReleaseRevealModal
-          reveal={reveal}
-          isFinalReveal={isFinalReveal}
-          revealReport={revealReport}
-          dismissReleaseReveal={dismissReleaseReveal}
-        />
-
-      </ScrollView>
+      {/* Release Reveal Modal */}
+      <ReleaseRevealModal
+        reveal={reveal}
+        isFinalReveal={isFinalReveal}
+        revealReport={revealReport}
+        dismissReleaseReveal={dismissReleaseReveal}
+      />
     </View>
   );
 }
