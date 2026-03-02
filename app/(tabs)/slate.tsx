@@ -132,7 +132,7 @@ export default function SlateScreen() {
             {[
               { label: 'In Flight', value: inFlight.length + distribution.length },
               { label: 'Scripts', value: manager.scriptMarket.length },
-              { label: 'Distribution', value: distribution.length },
+              { label: 'Distrib.', value: distribution.length },
             ].map(({ label, value }) => (
               <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
                 <MetricTile value={value} label={label} size="sm" centered />
