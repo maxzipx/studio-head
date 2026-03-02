@@ -1279,18 +1279,26 @@ export class StudioManager {
     return walkAwayDistributionForManager(this, projectId);
   }
 
-  resolveCrisis(crisisId: string, optionId: string): void {
+  resolveCrisis(crisisId: string, optionId: string): { success: boolean; message: string } {
     const crisis = this.pendingCrises.find((item) => item.id === crisisId);
-    if (!crisis) return;
+    if (!crisis) {
+      return { success: false, message: 'Crisis no longer active. Refresh inbox.' };
+    }
     const option = crisis.options.find((item) => item.id === optionId);
-    if (!option) return;
+    if (!option) {
+      return { success: false, message: 'Selected crisis option is no longer valid.' };
+    }
 
     const project = this.activeProjects.find((item) => item.id === crisis.projectId);
     if (project) {
       if (crisis.kind === 'talentPoached') {
         this.resolveTalentPoachCrisis(project, option);
         this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
-        return;
+        const remaining = this.pendingCrises.length;
+        return {
+          success: true,
+          message: remaining === 0 ? 'Crisis resolved. End Turn unlocked.' : `Crisis resolved. ${remaining} blocking crisis${remaining === 1 ? '' : 'es'} remaining.`,
+        };
       }
       if (crisis.kind === 'releaseConflict') {
         if (typeof option.releaseWeekShift === 'number' && project.releaseWeek) {
@@ -1299,7 +1307,11 @@ export class StudioManager {
         project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
         this.adjustCash(option.cashDelta);
         this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
-        return;
+        const remaining = this.pendingCrises.length;
+        return {
+          success: true,
+          message: remaining === 0 ? 'Crisis resolved. End Turn unlocked.' : `Crisis resolved. ${remaining} blocking crisis${remaining === 1 ? '' : 'es'} remaining.`,
+        };
       }
       project.scheduledWeeksRemaining = Math.max(0, project.scheduledWeeksRemaining + option.scheduleDelta);
       project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
@@ -1309,6 +1321,11 @@ export class StudioManager {
     this.adjustCash(option.cashDelta);
     this.evaluateBankruptcy();
     this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
+    const remaining = this.pendingCrises.length;
+    return {
+      success: true,
+      message: remaining === 0 ? 'Crisis resolved. End Turn unlocked.' : `Crisis resolved. ${remaining} blocking crisis${remaining === 1 ? '' : 'es'} remaining.`,
+    };
   }
 
   resolveDecision(decisionId: string, optionId: string): void {

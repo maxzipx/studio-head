@@ -65,12 +65,22 @@ describe('StudioManager', () => {
     manager.endWeek();
 
     const crisis = manager.pendingCrises[0];
-    manager.resolveCrisis(crisis.id, crisis.options[0].id);
+    const result = manager.resolveCrisis(crisis.id, crisis.options[0].id);
 
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Crisis resolved');
     expect(manager.pendingCrises.length).toBe(0);
 
     const summary = manager.endWeek();
     expect(summary.week).toBe(manager.currentWeek);
+  });
+
+  it('returns a clear failure result when resolving a stale crisis', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const result = manager.resolveCrisis('missing-crisis', 'missing-option');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('no longer active');
   });
 
   it('applies decision option effects and removes decision item', () => {

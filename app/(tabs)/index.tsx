@@ -330,43 +330,44 @@ export default function HQScreen() {
           <Text style={[styles.muted, { color: colors.textSecondary }]}>Legacy Score: {manager.legacyScore}</Text>
         </GlassCard>
 
-        {/* Blocking Crises (always visible - urgent) */}
-        {manager.pendingCrises.length > 0 && (
-          <GlassCard variant="red">
-            <SectionLabel label={`Blocking Crises (${manager.pendingCrises.length})`} />
-            {manager.pendingCrises.map((crisis) => (
-              <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
-                <Text style={styles.muted}>
-                  Affects: {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
-                </Text>
-                <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
-                <Text style={styles.body}>{crisis.body}</Text>
-                <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
-                <View style={styles.optionGroup}>
-                  {crisis.options.map((option) => (
-                    <Pressable
-                      key={option.id}
-                      style={[styles.optionBtn, { borderColor: colors.borderRed }]}
-                      onPress={() => resolveCrisis(crisis.id, option.id)}
-                    >
-                      <Text style={styles.optionTitle}>{option.label}</Text>
-                      <Text style={styles.optionBody}>
-                        {option.preview} ({signedMoney(option.cashDelta)}, schedule {option.scheduleDelta >= 0 ? '+' : ''}{option.scheduleDelta}w)
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </GlassCard>
-            ))}
-          </GlassCard>
-        )}
-
-        {/* Decision Inbox (always visible) */}
+        {/* Decision Inbox (always visible, crises first) */}
         <GlassCard style={{ gap: spacing.sp2 }}>
           <SectionLabel label="Decision Inbox" />
-          {manager.decisionQueue.length === 0
-            ? <Text style={styles.muted}>No active decisions right now.</Text>
-            : manager.decisionQueue.map((item) => (
+          {manager.pendingCrises.length > 0 && (
+            <Text style={[styles.muted, { color: colors.accentRed }]}>
+              {manager.pendingCrises.length} blocking crisis{manager.pendingCrises.length === 1 ? '' : 'es'} must be resolved before End Turn.
+            </Text>
+          )}
+          {manager.pendingCrises.map((crisis) => (
+            <GlassCard key={crisis.id} variant="elevated" accentBorder={colors.accentRed} style={{ gap: spacing.sp2 }}>
+              <View style={styles.inboxHeader}>
+                <Text style={styles.muted}>
+                  {manager.activeProjects.find((p) => p.id === crisis.projectId)?.title ?? 'Unknown Project'}
+                </Text>
+                <View style={[styles.expiryPill, { borderColor: colors.borderRed }]}>
+                  <Text style={[styles.expiryText, { color: colors.accentRed }]}>CRISIS</Text>
+                </View>
+              </View>
+              <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
+              <Text style={styles.body}>{crisis.body}</Text>
+              <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
+              <View style={styles.optionGroup}>
+                {crisis.options.map((option) => (
+                  <Pressable
+                    key={option.id}
+                    style={[styles.optionBtn, { borderColor: colors.borderRed }]}
+                    onPress={() => resolveCrisis(crisis.id, option.id)}
+                  >
+                    <Text style={styles.optionTitle}>{option.label}</Text>
+                    <Text style={styles.optionBody}>
+                      {option.preview} ({signedMoney(option.cashDelta)}, schedule {option.scheduleDelta >= 0 ? '+' : ''}{option.scheduleDelta}w)
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </GlassCard>
+          ))}
+          {manager.decisionQueue.map((item) => (
               <GlassCard key={item.id} variant="elevated" accentBorder={colors.goldMid} style={{ gap: spacing.sp2 }}>
                 <View style={styles.inboxHeader}>
                   <Text style={styles.muted}>
@@ -395,8 +396,10 @@ export default function HQScreen() {
                   ))}
                 </View>
               </GlassCard>
-            ))
-          }
+            ))}
+          {manager.pendingCrises.length === 0 && manager.decisionQueue.length === 0
+            ? <Text style={styles.muted}>Inbox clear. No active crises or decisions.</Text>
+            : null}
         </GlassCard>
 
         {/* COLLAPSIBLE SECTIONS */}

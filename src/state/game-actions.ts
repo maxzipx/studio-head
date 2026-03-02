@@ -37,8 +37,8 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     },
     resolveCrisis: (crisisId: string, optionId: string) => {
       runWhenHydrated(() => {
-        manager.resolveCrisis(crisisId, optionId);
-        saveAndTick('Crisis resolved.');
+        const result = manager.resolveCrisis(crisisId, optionId);
+        saveAndTick(result.message);
       });
     },
     resolveDecision: (decisionId: string, optionId: string) => {
