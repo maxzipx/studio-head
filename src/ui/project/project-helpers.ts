@@ -66,7 +66,7 @@ export function advanceBlockers(project: AdvanceProject, currentWeek: number, cr
   const blockers: string[] = [];
   if (project.phase === 'development') {
     if (!project.directorId) blockers.push('Director not attached');
-    if (project.castIds.length < 1) blockers.push('No lead actor attached');
+    if (project.castIds.length < 1) blockers.push('No actor attached');
     if (project.scriptQuality < 6) blockers.push(`Script quality too low (${project.scriptQuality.toFixed(1)} / min 6.0)`);
     if (!project.greenlightApproved) blockers.push('Greenlight decision not approved');
   } else if (project.phase === 'preProduction' || project.phase === 'production' || project.phase === 'postProduction') {

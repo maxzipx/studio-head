@@ -100,7 +100,7 @@ export default function ScriptRoomScreen() {
         <View style={styles.card}>
           <Text style={styles.bodyStrong}>How to read this screen</Text>
           <Text style={styles.muted}>1) Buy scripts with strong score/ROI fit.</Text>
-          <Text style={styles.muted}>2) Attach a director and lead actor, then run greenlight from project detail.</Text>
+          <Text style={styles.muted}>2) Attach a director and actor, then run greenlight from project detail.</Text>
           <Text style={styles.muted}>3) Use negotiation rounds to target the highlighted pressure point.</Text>
         </View>
       ) : null}
@@ -300,7 +300,7 @@ export default function ScriptRoomScreen() {
                   </View>
                 ))}
 
-                <Text style={styles.subHeader}>Lead Actor</Text>
+                <Text style={styles.subHeader}>Actor</Text>
                 {availableLeads.map((talent) => (
                   <View key={talent.id} style={styles.inlineActions}>
                     <Pressable style={styles.talentButton} onPress={() => startNegotiation(project.id, talent.id)}>

@@ -424,7 +424,7 @@ export function buildOperationalCrisisForManager(manager: any, project: MoviePro
           ]
         : [
             {
-              title: 'Lead Actor Scheduling Conflict',
+              title: 'Actor Scheduling Conflict',
               body: 'A hard conflict puts next week shooting at risk.',
               severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
               options: [
