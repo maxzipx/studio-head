@@ -154,6 +154,21 @@ export default function HQScreen() {
     Math.max(0, manager.marketingTeamLevel - 1) * ACTION_BALANCE.MARKETING_TEAM_BUDGET_BONUS_PER_LEVEL;
   const trackingConfidenceLo = Math.round(Math.min(0.9, Math.max(0.6, 0.57 + manager.marketingTeamLevel * 0.075)) * 100);
   const trackingConfidenceHi = Math.round(Math.min(0.9, Math.max(0.6, 0.58 + manager.marketingTeamLevel * 0.08)) * 100);
+  const specializationPivotCost = manager.specializationCommittedWeek === null ? 0 : 650_000;
+  const executivePoachCost = manager.executiveNetworkLevel >= 3 ? null : 900_000 * (manager.executiveNetworkLevel + 1);
+  const activePartner = manager.getActiveExclusivePartner();
+  const partnerWeeksRemaining = manager.exclusivePartnerUntilWeek
+    ? Math.max(0, manager.exclusivePartnerUntilWeek - manager.currentWeek)
+    : 0;
+  const developmentUpgradeCost = manager.departmentLevels.development >= 4 ? null : 420_000 * (manager.departmentLevels.development + 1);
+  const productionUpgradeCost = manager.departmentLevels.production >= 4 ? null : 420_000 * (manager.departmentLevels.production + 1);
+  const distributionUpgradeCost = manager.departmentLevels.distribution >= 4 ? null : 420_000 * (manager.departmentLevels.distribution + 1);
+  const specializationEffects: Record<'balanced' | 'blockbuster' | 'prestige' | 'indie', string> = {
+    balanced: 'No bias: stable openings, stable burn, neutral awards profile.',
+    blockbuster: '+Opening pull, -critic ceiling, +burn pressure, stronger distribution leverage.',
+    prestige: '+Critics and awards upside, lower opening pop, slight burn increase.',
+    indie: 'Lower burn profile, modest critical upside, lighter commercial leverage.',
+  };
   const isGameOver    = manager.isBankrupt;
   const hasLowCashWarning       = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.WARNING_WEEKS;
   const hasUrgentLowCashWarning = manager.consecutiveLowCashWeeks >= BANKRUPTCY_RULES.URGENT_WEEKS;
@@ -457,7 +472,9 @@ export default function HQScreen() {
           <PremiumButton label="Rename Studio" onPress={() => renameStudio(studioNameDraft)} variant="secondary" size="sm" />
 
           <SectionLabel label="Specialization" style={{ marginTop: spacing.sp1 }} />
-          <Text style={styles.muted}>Choose one focus. Pivoting later costs cash and partner trust.</Text>
+          <Text style={styles.muted}>
+            Choose one focus. Pivoting later costs {money(specializationPivotCost)} and reduces Talent/Distributor reputation.
+          </Text>
           <View style={styles.actionsRow}>
             {SPECIALIZATION_OPTIONS.map((option) => (
               <PremiumButton
@@ -467,44 +484,80 @@ export default function HQScreen() {
                 disabled={isGameOver}
                 variant={manager.studioSpecialization === option.key ? 'primary' : 'secondary'}
                 size="sm"
-                style={styles.flexBtn}
+                style={styles.choiceBtn}
               />
             ))}
           </View>
+          <Text style={styles.muted}>
+            Active effect: {specializationEffects[manager.studioSpecialization]}
+          </Text>
 
           <SectionLabel label="Departments" style={{ marginTop: spacing.sp1 }} />
           <Text style={styles.muted}>
             Development L{manager.departmentLevels.development} | Production L{manager.departmentLevels.production} | Distribution L{manager.departmentLevels.distribution}
           </Text>
+          <Text style={styles.muted}>Development: -$15K greenlight fee and +0.08 script sprint quality per level.</Text>
+          <Text style={styles.muted}>Production: about 3% lower weekly burn per level.</Text>
+          <Text style={styles.muted}>Distribution: +1.5% leverage per level for stronger deal/counter terms.</Text>
           <View style={styles.actionsRow}>
-            <PremiumButton label="Invest Dev"  onPress={() => investDepartment('development')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-            <PremiumButton label="Invest Prod" onPress={() => investDepartment('production')}  disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
-            <PremiumButton label="Invest Dist" onPress={() => investDepartment('distribution')} disabled={isGameOver} variant="secondary" size="sm" style={styles.flexBtn} />
+            <PremiumButton
+              label={developmentUpgradeCost === null ? 'Dev Maxed' : `Invest Dev (${money(developmentUpgradeCost)})`}
+              onPress={() => investDepartment('development')}
+              disabled={isGameOver || developmentUpgradeCost === null || manager.cash < developmentUpgradeCost}
+              variant="secondary"
+              size="sm"
+              style={styles.choiceBtn}
+            />
+            <PremiumButton
+              label={productionUpgradeCost === null ? 'Prod Maxed' : `Invest Prod (${money(productionUpgradeCost)})`}
+              onPress={() => investDepartment('production')}
+              disabled={isGameOver || productionUpgradeCost === null || manager.cash < productionUpgradeCost}
+              variant="secondary"
+              size="sm"
+              style={styles.choiceBtn}
+            />
+            <PremiumButton
+              label={distributionUpgradeCost === null ? 'Dist Maxed' : `Invest Dist (${money(distributionUpgradeCost)})`}
+              onPress={() => investDepartment('distribution')}
+              disabled={isGameOver || distributionUpgradeCost === null || manager.cash < distributionUpgradeCost}
+              variant="secondary"
+              size="sm"
+              style={styles.choiceBtn}
+            />
           </View>
         </View>
 
         {/* Strategic Levers */}
         <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
           <SectionLabel label="Strategic Levers" />
-          <Text style={styles.muted}>Lock in a distribution partner for favourable deal terms. Poach executive talent for network bonuses.</Text>
+          <Text style={styles.muted}>These are long-tail strategy actions with immediate costs and ongoing effects.</Text>
+          <Text style={styles.muted}>Exclusive partner effect: +16% MG, +2% share, +8% P&A on matching offers (off-partner offers weaken).</Text>
+          <Text style={styles.muted}>Executive network effect: improves distribution counter leverage and talent negotiation leverage.</Text>
           <Text style={styles.body}>
-            Partner: <Text style={{ color: colors.goldMid }}>{manager.getActiveExclusivePartner() ?? 'None'}</Text>
-            {manager.exclusivePartnerUntilWeek ? ` (to W${manager.exclusivePartnerUntilWeek})` : ''}
+            Partner: <Text style={{ color: colors.goldMid }}>{activePartner ?? 'None'}</Text>
+            {activePartner && manager.exclusivePartnerUntilWeek ? ` (${partnerWeeksRemaining}w remaining)` : ''}
           </Text>
           <View style={styles.actionsRow}>
             {PARTNER_OPTIONS.map((partner) => (
               <PremiumButton
                 key={partner}
-                label={partner.split(' ')[0]}
+                label={`${partner.split(' ')[0]} (${money(480_000)})`}
                 onPress={() => signExclusivePartner(partner)}
-                disabled={isGameOver}
-                variant="secondary"
+                disabled={isGameOver || manager.cash < 480_000 || activePartner === partner}
+                variant={activePartner === partner ? 'primary' : 'secondary'}
                 size="sm"
-                style={styles.flexBtn}
+                style={styles.choiceBtn}
               />
             ))}
           </View>
-          <PremiumButton label="Poach Executive Team" onPress={poachExecutiveTeam} disabled={isGameOver} variant="gold-outline" size="sm" />
+          <Text style={styles.muted}>Executive network level: L{manager.executiveNetworkLevel} / 3</Text>
+          <PremiumButton
+            label={executivePoachCost === null ? 'Executive Network Maxed' : `Poach Executive Team (${money(executivePoachCost)})`}
+            onPress={poachExecutiveTeam}
+            disabled={isGameOver || executivePoachCost === null || manager.cash < executivePoachCost}
+            variant="gold-outline"
+            size="sm"
+          />
         </View>
 
         {/* Turn Length */}

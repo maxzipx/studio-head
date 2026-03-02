@@ -46,6 +46,7 @@ export const styles = StyleSheet.create({
   capRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
   actionsRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp2 },
   flexBtn: { flex: 1 },
+  choiceBtn: { flexBasis: '48%', flexGrow: 0 },
 
   input: {
     borderRadius: radius.r2,
