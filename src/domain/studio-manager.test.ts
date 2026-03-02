@@ -1365,6 +1365,29 @@ describe('StudioManager', () => {
     expect(visibleLeadTotal).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
   });
 
+  it('seeds expanded actor pools with unique first and last names', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+    const directors = manager.talentPool.filter((talent) => talent.role === 'director');
+    const actors = manager.talentPool.filter((talent) => talent.role === 'leadActor');
+    const actresses = manager.talentPool.filter((talent) => talent.role === 'leadActress');
+
+    expect(directors.length).toBe(60);
+    expect(actors.length).toBe(135);
+    expect(actresses.length).toBe(135);
+
+    const names = manager.talentPool.map((talent) => {
+      const [first, ...rest] = talent.name.trim().split(/\s+/);
+      return { first, last: rest.join(' ') };
+    });
+    const firstNames = names.map((entry) => entry.first);
+    const lastNames = names.map((entry) => entry.last);
+
+    expect(firstNames.every((value) => value.length > 0)).toBe(true);
+    expect(lastNames.every((value) => value.length > 0)).toBe(true);
+    expect(new Set(firstNames).size).toBe(firstNames.length);
+    expect(new Set(lastNames).size).toBe(lastNames.length);
+  });
+
   it('biases script market refill toward currently hot genres', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
     manager.scriptMarket = [];

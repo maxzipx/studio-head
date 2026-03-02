@@ -35,16 +35,30 @@ function createInitialRivalMemory(
   };
 }
 
-const TALENT_FIRST_NAMES = [
-  'Avery', 'Blake', 'Cameron', 'Devon', 'Emerson', 'Finley', 'Gray', 'Harper',
-  'Indigo', 'Jordan', 'Kai', 'Logan', 'Morgan', 'Nico', 'Oakley', 'Parker',
-  'Quinn', 'Reese', 'Sawyer', 'Taylor', 'Umber', 'Val', 'Winter', 'Zephyr',
+const TALENT_FIRST_PREFIXES = [
+  'Ari', 'Bren', 'Cami', 'Dari', 'Emi', 'Fina', 'Gala', 'Hali',
+  'Ira', 'Jora', 'Kari', 'Lumi', 'Mira', 'Nori', 'Olia', 'Pera',
+  'Quina', 'Risa', 'Sola', 'Tavi', 'Uli', 'Vera', 'Wina', 'Xena',
+  'Yara', 'Zori', 'Alia', 'Bria', 'Cora', 'Dela',
 ];
 
-const TALENT_LAST_NAMES = [
-  'Arden', 'Beck', 'Calloway', 'Dalton', 'Ellis', 'Frost', 'Grady', 'Hale',
-  'Irving', 'Jett', 'Keaton', 'Lane', 'Marlow', 'Nash', 'Onyx', 'Pryce',
-  'Quill', 'Rowe', 'Sterling', 'Thorne',
+const TALENT_FIRST_SUFFIXES = [
+  'na', 'ra', 'len', 'dell', 'vin', 'ya', 'nor', 'sel',
+  'lia', 'rin', 'vyn', 'tel', 'mon', 'ria', 'zen', 'kal',
+  'beth', 'lyn', 'vora', 'den',
+];
+
+const TALENT_LAST_PREFIXES = [
+  'Ard', 'Beck', 'Call', 'Dalt', 'Ell', 'Frost', 'Grad', 'Hale',
+  'Irv', 'Jett', 'Keat', 'Lane', 'Marl', 'Nash', 'Onyx', 'Pryce',
+  'Quill', 'Row', 'Sterl', 'Thorn', 'Brant', 'Crow', 'Dray', 'Ever',
+  'Flint', 'Grove', 'Hawk', 'Kent', 'Lox', 'Morn',
+];
+
+const TALENT_LAST_SUFFIXES = [
+  'en', 'ford', 'well', 'ley', 'son', 'ridge', 'stone', 'worth',
+  'mont', 'hart', 'burn', 'field', 'croft', 'brook', 'vale', 'more',
+  'shaw', 'wick', 'crest', 'holm',
 ];
 
 const TALENT_GENRES: MovieGenre[] = [
@@ -59,8 +73,8 @@ const TALENT_GENRES: MovieGenre[] = [
 ];
 
 const DIRECTOR_POOL_SIZE = 60;
-const LEAD_ACTOR_POOL_SIZE = 110;
-const LEAD_ACTRESS_POOL_SIZE = 110;
+const LEAD_ACTOR_POOL_SIZE = 135;
+const LEAD_ACTRESS_POOL_SIZE = 135;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -88,29 +102,51 @@ function createSeededRng(seed: number): () => number {
   };
 }
 
-function buildShuffledNamePool(worldSeed: number): string[] {
-  const names: string[] = [];
-  for (const first of TALENT_FIRST_NAMES) {
-    for (const last of TALENT_LAST_NAMES) {
-      names.push(`${first} ${last}`);
+function shuffleSeeded(values: string[], seed: number): string[] {
+  const copy = [...values];
+  if (seed === 0) return copy;
+  const rng = createSeededRng(seed);
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const temp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = temp;
+  }
+  return copy;
+}
+
+function buildNamePartPool(prefixes: string[], suffixes: string[]): string[] {
+  const parts = new Set<string>();
+  for (const prefix of prefixes) {
+    for (const suffix of suffixes) {
+      parts.add(`${prefix}${suffix}`);
     }
   }
-  if (worldSeed === 0) return names;
+  return [...parts];
+}
 
-  const rng = createSeededRng(worldSeed);
-  for (let i = names.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    const temp = names[i];
-    names[i] = names[j];
-    names[j] = temp;
+function buildUniqueTalentNamePool(worldSeed: number, totalCount: number): string[] {
+  const firstPool = shuffleSeeded(
+    buildNamePartPool(TALENT_FIRST_PREFIXES, TALENT_FIRST_SUFFIXES),
+    worldSeed + 17
+  );
+  const lastPool = shuffleSeeded(
+    buildNamePartPool(TALENT_LAST_PREFIXES, TALENT_LAST_SUFFIXES),
+    worldSeed + 53
+  );
+  if (firstPool.length < totalCount || lastPool.length < totalCount) {
+    throw new Error(`Talent name pool exhausted for count ${totalCount}.`);
+  }
+  const names: string[] = [];
+  for (let i = 0; i < totalCount; i += 1) {
+    names.push(`${firstPool[i]} ${lastPool[i]}`);
   }
   return names;
 }
 
 function buildTalentName(index: number, namePool: string[]): string {
   if (index < namePool.length) return namePool[index];
-  const fallbackBase = namePool[index % namePool.length] ?? `Talent ${index + 1}`;
-  return `${fallbackBase} ${Math.floor(index / Math.max(1, namePool.length)) + 2}`;
+  return `Talent${index + 1} Alias${index + 1}`;
 }
 
 function pickDistinctGenres(seedIndex: number, seedOffset: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
@@ -235,7 +271,8 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
 
 export function createSeedTalentPool(worldSeed = 0): Talent[] {
   const normalizedSeed = Number.isFinite(worldSeed) ? Math.max(0, Math.floor(Math.abs(worldSeed))) : 0;
-  const namePool = buildShuffledNamePool(normalizedSeed);
+  const totalTalentCount = DIRECTOR_POOL_SIZE + LEAD_ACTOR_POOL_SIZE + LEAD_ACTRESS_POOL_SIZE;
+  const namePool = buildUniqueTalentNamePool(normalizedSeed, totalTalentCount);
   const talentPool: Talent[] = [];
   let seedIndex = 0;
 
