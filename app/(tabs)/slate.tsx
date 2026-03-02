@@ -132,10 +132,17 @@ export default function SlateScreen() {
             {[
               { label: 'In Flight', value: inFlight.length + distribution.length },
               { label: 'Scripts', value: manager.scriptMarket.length },
-              { label: 'Distro', value: distribution.length },
+              { label: 'Distribution', value: distribution.length },
             ].map(({ label, value }) => (
               <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
-                <MetricTile value={value} label={label} size="sm" centered />
+                <MetricTile
+                  value={value}
+                  label={label}
+                  size="sm"
+                  centered
+                  labelStyle={styles.snapshotMetricLabel}
+                  labelNumberOfLines={1}
+                />
               </GlassCard>
             ))}
           </View>
@@ -412,6 +419,7 @@ const styles = StyleSheet.create({
 
   snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
   snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2, flexShrink: 1 },
+  snapshotMetricLabel: { letterSpacing: typography.trackingNormal, textTransform: 'none' },
 
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary, flex: 1, marginRight: spacing.sp2 },

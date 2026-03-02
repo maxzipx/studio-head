@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, typography } from '../tokens';
 
 export type MetricSize = 'sm' | 'md' | 'lg';
@@ -12,6 +12,8 @@ interface MetricTileProps {
   trend?:   MetricTrend;
   accent?:  string;   // override value color
   style?:   ViewStyle;
+  labelStyle?: TextStyle;
+  labelNumberOfLines?: number;
   centered?: boolean;
 }
 
@@ -22,6 +24,8 @@ export function MetricTile({
   trend,
   accent,
   style,
+  labelStyle,
+  labelNumberOfLines,
   centered = false,
 }: MetricTileProps) {
   const cfg = sizeConfig[size];
@@ -33,7 +37,14 @@ export function MetricTile({
         {value}
       </Text>
       <View style={styles.labelRow}>
-        <Text style={[styles.label, { fontSize: cfg.labelFontSize }]}>{label}</Text>
+        <Text
+          style={[styles.label, { fontSize: cfg.labelFontSize }, labelStyle]}
+          numberOfLines={labelNumberOfLines}
+          adjustsFontSizeToFit={labelNumberOfLines === 1}
+          minimumFontScale={0.85}
+        >
+          {label}
+        </Text>
         {trend && trend !== 'flat' && (
           <Text style={[styles.trend, { color: trend === 'up' ? colors.accentGreen : colors.accentRed }]}>
             {trend === 'up' ? ' ▲' : ' ▼'}
