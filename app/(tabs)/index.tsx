@@ -218,6 +218,7 @@ export default function HQScreen() {
   };
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
   const [confirmNewRun, setConfirmNewRun] = useState(false);
+  const [showHqHelp, setShowHqHelp] = useState(false);
 
   useEffect(() => {
     setStudioNameDraft(manager.studioName);
@@ -241,8 +242,8 @@ export default function HQScreen() {
           <Text style={styles.weekLine}>Week {manager.currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
         </View>
 
-        {/* Getting Started - always at top when visible */}
-        {!manager.firstSessionComplete && (
+        {/* Getting Started / HQ Help */}
+        {manager.currentWeek <= 1 ? (
           <GlassCard variant="blue">
             <SectionLabel label="Getting Started" />
             {[
@@ -254,6 +255,24 @@ export default function HQScreen() {
               <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>- {tip}</Text>
             ))}
           </GlassCard>
+        ) : (
+          <>
+            <PremiumButton
+              label={showHqHelp ? 'Hide HQ Help' : 'HQ Help'}
+              onPress={() => setShowHqHelp((value) => !value)}
+              variant="ghost"
+              size="sm"
+            />
+            {showHqHelp ? (
+              <GlassCard variant="elevated">
+                <SectionLabel label="HQ Help" />
+                <Text style={styles.body}>Use End Turn to progress pipeline phases and market cycles.</Text>
+                <Text style={styles.body}>Studio identity changes commit on End Turn; keep cash reserved for pivots.</Text>
+                <Text style={styles.body}>Before greenlight, attach a director and satisfy each project's actor/actress requirements.</Text>
+                <Text style={styles.body}>Monitor Inbox each week. Crises block advancement until resolved.</Text>
+              </GlassCard>
+            ) : null}
+          </>
         )}
 
         {lastMessage ? (
