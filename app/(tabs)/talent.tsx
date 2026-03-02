@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, UIManager, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -187,6 +187,17 @@ export default function TalentScreen() {
     }
   }, [developmentProjects, selectedProjectId]);
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+  }, []);
+
+  const toggleOpsPanels = (value: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowOpsPanels(value);
+  };
+
   return (
     <View style={styles.screen}>
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
@@ -205,15 +216,6 @@ export default function TalentScreen() {
           variant="ghost"
           size="sm"
         />
-        <View style={styles.displayRow}>
-          <Text style={styles.displayLabel}>Show advanced ops panels</Text>
-          <Switch
-            value={showOpsPanels}
-            onValueChange={setShowOpsPanels}
-            trackColor={{ false: colors.borderDefault, true: colors.ctaBlue + '70' }}
-            thumbColor={showOpsPanels ? colors.ctaBlue : colors.bgSurface}
-          />
-        </View>
         {showHelp && (
           <GlassCard variant="elevated">
             <Text style={styles.helpTitle}>How the Market Works</Text>
@@ -290,6 +292,16 @@ export default function TalentScreen() {
             </Text>
           </GlassCard>
         )}
+
+        <View style={styles.displayRow}>
+          <Text style={styles.displayLabel}>Advanced ops panels</Text>
+          <Switch
+            value={showOpsPanels}
+            onValueChange={toggleOpsPanels}
+            trackColor={{ false: colors.borderDefault, true: colors.ctaBlue + '70' }}
+            thumbColor={showOpsPanels ? colors.ctaBlue : colors.bgSurface}
+          />
+        </View>
 
         {showOpsPanels && (
           <>

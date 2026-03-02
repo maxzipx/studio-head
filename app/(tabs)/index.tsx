@@ -795,20 +795,20 @@ export default function HQScreen() {
       </ScrollView>
       <View style={styles.stickyFooter}>
         <PremiumButton
-          label="Advance To Next Decision"
+          label="Next Decision"
           onPress={advanceToNextDecision}
           disabled={!canEnd}
           variant="secondary"
-          size="md"
-          style={styles.flexBtn}
+          size="sm"
+          style={styles.footerBtn}
         />
         <PremiumButton
           label={isGameOver ? 'Game Over' : manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
           onPress={endWeek}
           disabled={!canEnd}
           variant="primary"
-          size="lg"
-          style={styles.flexBtn}
+          size="sm"
+          style={styles.footerBtn}
         />
       </View>
 

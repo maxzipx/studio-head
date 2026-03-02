@@ -10,13 +10,13 @@ export const styles = StyleSheet.create({
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
   stickyFooter: {
     paddingHorizontal: spacing.sp4,
-    paddingTop: spacing.sp2,
-    paddingBottom: spacing.sp3,
+    paddingTop: spacing.sp1,
+    paddingBottom: spacing.sp2,
     backgroundColor: colors.bgSurface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     flexDirection: 'row',
-    gap: spacing.sp2,
+    gap: spacing.sp1,
   },
   studioName: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
   weekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
@@ -56,6 +56,7 @@ export const styles = StyleSheet.create({
   capRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
   actionsRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp2 },
   flexBtn: { flex: 1 },
+  footerBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 10 },
   choiceBtn: { flexBasis: '48%', flexGrow: 0 },
 
   input: {
