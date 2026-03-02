@@ -99,6 +99,8 @@ export interface Talent {
   agentTier: AgentTier;
   studioRelationship: number;
   relationshipMemory: TalentRelationshipMemory;
+  /** Week number at which this talent's market window closes (null = not currently in market) */
+  marketWindowExpiresWeek: number | null;
 }
 
 export interface ScriptPitch {

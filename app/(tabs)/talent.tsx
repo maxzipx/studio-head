@@ -6,6 +6,8 @@ import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { GlassCard, PremiumButton, ProgressBar, SectionLabel, StarRating } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
+import type { StudioManager } from '@/src/domain/studio-manager';
+import type { MovieProject, Talent } from '@/src/domain/types';
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -117,7 +119,7 @@ export default function TalentScreen() {
             .join(',');
           return (
             `${t.id}:${t.role}:${t.availability}:${t.attachedProjectId ?? 'none'}:${t.unavailableUntilWeek ?? -1}:` +
-            `${t.starPower}:${t.craftScore}:${t.egoLevel}:${t.agentTier}:${t.reputation}:${t.studioRelationship}:${trust}:${loyalty}:` +
+            `${t.marketWindowExpiresWeek ?? -1}:${t.starPower}:${t.craftScore}:${t.egoLevel}:${t.agentTier}:${t.reputation}:${t.studioRelationship}:${trust}:${loyalty}:` +
             `${memoryTail}:${Object.entries(t.genreFit).map(([genre, fit]) => `${genre}:${fit}`).join(',')}`
           );
         })
@@ -139,22 +141,39 @@ export default function TalentScreen() {
       talentChanceContext: `${mgr.reputation.talent}:${mgr.executiveNetworkLevel}:${mgr.studioSpecialization}`,
     };
   }));
+
   const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
   const developmentProjectIds = developmentProjects.map((p) => p.id).join('|');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);
   const [showHelp, setShowHelp] = useState(false);
+
   const activeProject = selectedProjectId
     ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
     : null;
+
   const projectLedger = manager.activeProjects.filter((p) => p.phase !== 'released');
-  const talentRoster = [...manager.talentPool].sort((a, b) => {
-    if (a.availability !== b.availability) return a.availability === 'available' ? -1 : 1;
-    if (a.role !== b.role) return a.role.localeCompare(b.role);
-    return b.starPower - a.starPower;
-  });
-  const availableTalentCount = talentRoster.filter((t) => t.availability === 'available').length;
-  const rivalLockedCount = talentRoster.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
-  const coolingOffCount = talentRoster.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
+
+  // Market: available talents with an active window, sorted directors first then by starPower desc
+  const marketTalent: Talent[] = manager.talentPool
+    .filter((t) => t.marketWindowExpiresWeek !== null && t.availability === 'available')
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'director' ? -1 : 1;
+      return b.starPower - a.starPower;
+    });
+
+  // Roster: talents attached to your projects or in negotiation
+  const negotiatingIds = new Set(manager.playerNegotiations.map((n) => n.talentId));
+  const rosterTalent: Talent[] = manager.talentPool
+    .filter((t) => t.attachedProjectId !== null || negotiatingIds.has(t.id))
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'director' ? -1 : 1;
+      return b.starPower - a.starPower;
+    });
+
+  const marketDirectorCount = marketTalent.filter((t) => t.role === 'director').length;
+  const marketActorCount = marketTalent.filter((t) => t.role === 'leadActor').length;
+  const rivalLockedCount = manager.talentPool.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
+  const coolingOffCount = manager.talentPool.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
 
   useEffect(() => {
     const stillValid = !!selectedProjectId && developmentProjects.some((p) => p.id === selectedProjectId);
@@ -176,7 +195,7 @@ export default function TalentScreen() {
           pointerEvents="none"
         />
         <Text style={styles.title}>Talent Market</Text>
-        <Text style={styles.subtitle}>Shared market with rival lock status and negotiation controls</Text>
+        <Text style={styles.subtitle}>Talent rotates weekly — negotiate before the window closes</Text>
       </View>
 
       {lastMessage ? (
@@ -194,9 +213,10 @@ export default function TalentScreen() {
       />
       {showHelp && (
         <GlassCard variant="elevated">
-          <Text style={styles.helpTitle}>Negotiation Notes</Text>
-          <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest.</Text>
-          <Text style={styles.helpBody}>Trust and loyalty influence future negotiations. Repeated hardline rounds create lockouts.</Text>
+          <Text style={styles.helpTitle}>How the Market Works</Text>
+          <Text style={styles.helpBody}>A rotating pool of talent appears each week. Lower-tier talent stays 6 weeks; elite talent stays only 3 weeks. New faces trickle in every turn to replace expired windows.</Text>
+          <Text style={styles.helpBody}>Higher-star talent only appears once your studio heat or talent reputation reaches their threshold. Build your rep to unlock elite talent.</Text>
+          <Text style={styles.helpBody}>Push the highlighted pressure point first to raise close chance fastest. Trust and loyalty influence future negotiations.</Text>
         </GlassCard>
       )}
 
@@ -216,7 +236,8 @@ export default function TalentScreen() {
         <SectionLabel label="Market Snapshot" />
         <View style={styles.snapshotRow}>
           {[
-            { label: 'Available', value: availableTalentCount, accent: colors.accentGreen },
+            { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
+            { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
             { label: 'Negotiations', value: manager.playerNegotiations.length, accent: colors.goldMid },
             { label: 'Rival Lock', value: rivalLockedCount, accent: colors.accentRed },
             { label: 'Cooling Off', value: coolingOffCount, accent: colors.textMuted },
@@ -368,140 +389,197 @@ export default function TalentScreen() {
         }
       </GlassCard>
 
-      {/* ── Talent Roster ── */}
-      <SectionLabel label="Talent Roster" style={{ marginTop: spacing.sp2 }} />
-      {talentRoster.map((talent) => {
-        const rival = manager.rivals.find((r) => r.lockedTalentIds.includes(talent.id));
-        const attachedProject =
-          talent.attachedProjectId && manager.activeProjects.find((p) => p.id === talent.attachedProjectId);
-        const isAvailable = talent.availability === 'available';
-        const status = isAvailable
-          ? 'Available'
-          : rival
-            ? `${rival.name} · returns W${talent.unavailableUntilWeek ?? '-'}`
-            : `In Production`;
-        const trustLevel = manager.getTalentTrustLevel(talent);
-        const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
-        const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
-        const outlook = manager.getTalentNegotiationOutlook(talent);
-        const targetChance = activeProject ? manager.getNegotiationChance(talent.id, activeProject.id) : null;
-        const recentMemory = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
-        const trustColor = trustLevelColor(trustLevel);
-
-        return (
-          <GlassCard
-            key={talent.id}
-            variant={!isAvailable ? 'elevated' : 'default'}
-            style={{ gap: spacing.sp2, opacity: !isAvailable ? 0.75 : 1 }}
-          >
-            {/* Row 1: Name + availability */}
-            <View style={styles.talentHeader}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.talentName}>{talent.name}</Text>
-                <Text style={styles.talentRole}>{roleLabel(talent.role)} · {agencyLabel(talent.agentTier)}</Text>
-              </View>
-              <View style={[styles.availBadge, {
-                borderColor: isAvailable ? colors.accentGreen + '60' : colors.textMuted + '40',
-                backgroundColor: isAvailable ? colors.accentGreen + '14' : 'transparent',
-              }]}>
-                <Text style={[styles.availText, { color: isAvailable ? colors.accentGreen : colors.textMuted }]}>
-                  {isAvailable ? 'Available' : 'Locked'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Row 2: Star rating + craft bar */}
-            <View style={styles.statsRow}>
-              <View style={styles.statBlock}>
-                <Text style={styles.statLabel}>STAR POWER</Text>
-                <StarRating value={talent.starPower} size="md" />
-                <Text style={[styles.statNum, { color: colors.goldMid }]}>{talent.starPower.toFixed(1)}</Text>
-              </View>
-              <View style={styles.statBlock}>
-                <Text style={styles.statLabel}>CRAFT</Text>
-                <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={6} animated />
-                <Text style={[styles.statNum, { color: colors.accentGreen }]}>{talent.craftScore.toFixed(1)}</Text>
-              </View>
-            </View>
-
-            {/* Row 3: Trust / loyalty */}
-            <View style={styles.trustRow}>
-              <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
-                <Text style={[styles.trustText, { color: trustColor }]}>
-                  {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
-                </Text>
-              </View>
-              <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
-                <Text style={[styles.riskText, { color: refusalRiskColor(outlook.refusalRisk) }]}>
-                  {outlook.refusalRisk === 'critical' ? 'High Risk' : outlook.refusalRisk === 'elevated' ? 'Med Risk' : 'Low Risk'}
-                </Text>
-              </View>
-              {outlook.blocked && outlook.lockoutUntilWeek && (
-                <Text style={styles.muted}>Cooling off until W{outlook.lockoutUntilWeek}</Text>
-              )}
-            </View>
-
-            {outlook.reason && (
-              <Text style={[styles.alert, { color: '#F5D089' }]}>{outlook.reason}</Text>
-            )}
-
-            {activeProject && (
-              <Text style={styles.muted}>
-                Fit to <Text style={{ color: colors.textPrimary }}>{activeProject.title}</Text>:{' '}
-                {pct(talent.genreFit[activeProject.genre] ?? 0.5)}
-                {targetChance !== null && ` · Close ${pct(targetChance)}`}
-              </Text>
-            )}
-
-            {attachedProject && (
-              <Text style={styles.muted}>Attached: {attachedProject.title}</Text>
-            )}
-
-            {/* Recent memory */}
-            {recentMemory.length > 0 && (
-              <View style={{ gap: 3 }}>
-                <SectionLabel label="Recent Memory" />
-                {recentMemory.map((entry, i) => (
-                  <Text key={`${talent.id}-${entry.week}-${i}`} style={styles.memoryLine}>
-                    W{entry.week}: {interactionLabel(entry.kind)}{' '}
-                    <Text style={{ color: entry.trustDelta >= 0 ? colors.accentGreen : colors.accentRed }}>
-                      ({entry.trustDelta >= 0 ? '+' : ''}{entry.trustDelta}T)
-                    </Text>
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            {/* Status line */}
-            {!isAvailable && (
-              <Text style={styles.muted}>{status}</Text>
-            )}
-
-            {/* Actions */}
-            {activeProject && isAvailable && (
-              <View style={styles.actions}>
-                <PremiumButton
-                  label={`Negotiate · ${pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}`}
-                  onPress={() => startNegotiation(activeProject.id, talent.id)}
-                  disabled={outlook.blocked}
-                  variant="gold-outline"
-                  size="sm"
-                  style={styles.flexBtn}
-                />
-                <PremiumButton
-                  label={`Quick Close · ${pct(manager.getQuickCloseChance(talent.id) ?? 0)}`}
-                  onPress={() => attachTalent(activeProject.id, talent.id)}
-                  disabled={outlook.blocked}
-                  variant="primary"
-                  size="sm"
-                  style={styles.flexBtn}
-                />
-              </View>
-            )}
+      {/* ── In Market ── */}
+      <SectionLabel label="In Market" style={{ marginTop: spacing.sp2 }} />
+      {marketTalent.length === 0
+        ? (
+          <GlassCard variant="elevated">
+            <Text style={styles.empty}>Market is initializing — advance a turn to populate talent windows.</Text>
           </GlassCard>
-        );
-      })}
+        )
+        : marketTalent.map((talent) => <TalentCard
+          key={talent.id}
+          talent={talent}
+          manager={manager}
+          activeProject={activeProject}
+          startNegotiation={startNegotiation}
+          attachTalent={attachTalent}
+          showCountdown
+        />)
+      }
+
+      {/* ── Your Roster ── */}
+      {rosterTalent.length > 0 && (
+        <>
+          <SectionLabel label="Your Roster" style={{ marginTop: spacing.sp2 }} />
+          {rosterTalent.map((talent) => <TalentCard
+            key={talent.id}
+            talent={talent}
+            manager={manager}
+            activeProject={activeProject}
+            startNegotiation={startNegotiation}
+            attachTalent={attachTalent}
+            showCountdown={false}
+          />)}
+        </>
+      )}
     </ScrollView>
+  );
+}
+
+interface TalentCardProps {
+  talent: Talent;
+  manager: StudioManager;
+  activeProject: MovieProject | null;
+  startNegotiation: (projectId: string, talentId: string) => void;
+  attachTalent: (projectId: string, talentId: string) => void;
+  showCountdown: boolean;
+}
+
+function TalentCard({ talent, manager, activeProject, startNegotiation, attachTalent, showCountdown }: TalentCardProps) {
+  const isAvailable = talent.availability === 'available';
+  const rival = manager.rivals.find((r) => r.lockedTalentIds.includes(talent.id));
+  const attachedProject =
+    talent.attachedProjectId && manager.activeProjects.find((p) => p.id === talent.attachedProjectId);
+  const trustLevel = manager.getTalentTrustLevel(talent);
+  const trust = talent.relationshipMemory?.trust ?? Math.round(talent.studioRelationship * 100);
+  const loyalty = talent.relationshipMemory?.loyalty ?? Math.round(talent.studioRelationship * 100);
+  const outlook = manager.getTalentNegotiationOutlook(talent);
+  const targetChance = activeProject ? manager.getNegotiationChance(talent.id, activeProject.id) : null;
+  const recentMemory = [...(talent.relationshipMemory?.interactionHistory ?? [])].slice(-3).reverse();
+  const trustColor = trustLevelColor(trustLevel);
+
+  const weeksLeft =
+    showCountdown && talent.marketWindowExpiresWeek !== null
+      ? Math.max(0, talent.marketWindowExpiresWeek - manager.currentWeek)
+      : null;
+
+  const windowUrgent = weeksLeft !== null && weeksLeft <= 1;
+  const windowWarning = weeksLeft !== null && weeksLeft === 2;
+
+  return (
+    <GlassCard
+      variant={!isAvailable ? 'elevated' : 'default'}
+      style={{ gap: spacing.sp2, opacity: !isAvailable ? 0.82 : 1 }}
+    >
+      {/* Row 1: Name + window countdown */}
+      <View style={styles.talentHeader}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.talentName}>{talent.name}</Text>
+          <Text style={styles.talentRole}>{roleLabel(talent.role)} · {agencyLabel(talent.agentTier)}</Text>
+        </View>
+        <View style={styles.badgeGroup}>
+          {weeksLeft !== null && (
+            <View style={[styles.windowChip, {
+              borderColor: windowUrgent ? colors.accentRed + '70' : windowWarning ? colors.goldMid + '70' : colors.borderDefault,
+              backgroundColor: windowUrgent ? colors.accentRed + '10' : windowWarning ? colors.goldMid + '10' : colors.bgElevated,
+            }]}>
+              <Text style={[styles.windowText, {
+                color: windowUrgent ? colors.accentRed : windowWarning ? colors.goldMid : colors.textMuted,
+              }]}>
+                {weeksLeft === 0 ? 'Expires' : `${weeksLeft}w left`}
+              </Text>
+            </View>
+          )}
+          {!isAvailable && (
+            <View style={[styles.availBadge, { borderColor: colors.textMuted + '40', backgroundColor: 'transparent' }]}>
+              <Text style={[styles.availText, { color: colors.textMuted }]}>
+                {rival ? `${rival.name}` : attachedProject ? 'On Set' : 'Locked'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Row 2: Star rating + craft bar */}
+      <View style={styles.statsRow}>
+        <View style={styles.statBlock}>
+          <Text style={styles.statLabel}>STAR POWER</Text>
+          <StarRating value={talent.starPower} size="md" />
+          <Text style={[styles.statNum, { color: colors.goldMid }]}>{talent.starPower.toFixed(1)}</Text>
+        </View>
+        <View style={styles.statBlock}>
+          <Text style={styles.statLabel}>CRAFT</Text>
+          <ProgressBar value={(talent.craftScore / 10) * 100} color={colors.accentGreen} height={6} animated />
+          <Text style={[styles.statNum, { color: colors.accentGreen }]}>{talent.craftScore.toFixed(1)}</Text>
+        </View>
+      </View>
+
+      {/* Row 3: Trust / loyalty */}
+      <View style={styles.trustRow}>
+        <View style={[styles.trustBadge, { borderColor: trustColor + '50', backgroundColor: trustColor + '10' }]}>
+          <Text style={[styles.trustText, { color: trustColor }]}>
+            {trustLevelLabel(trustLevel)} · T{trust.toFixed(0)} L{loyalty.toFixed(0)}
+          </Text>
+        </View>
+        <View style={[styles.riskBadge, { borderColor: refusalRiskColor(outlook.refusalRisk) + '50' }]}>
+          <Text style={[styles.riskText, { color: refusalRiskColor(outlook.refusalRisk) }]}>
+            {outlook.refusalRisk === 'critical' ? 'High Risk' : outlook.refusalRisk === 'elevated' ? 'Med Risk' : 'Low Risk'}
+          </Text>
+        </View>
+        {outlook.blocked && outlook.lockoutUntilWeek && (
+          <Text style={styles.muted}>Cooling off until W{outlook.lockoutUntilWeek}</Text>
+        )}
+      </View>
+
+      {outlook.reason && (
+        <Text style={[styles.alert, { color: '#F5D089' }]}>{outlook.reason}</Text>
+      )}
+
+      {activeProject && (
+        <Text style={styles.muted}>
+          Fit to <Text style={{ color: colors.textPrimary }}>{activeProject.title}</Text>:{' '}
+          {pct(talent.genreFit[activeProject.genre] ?? 0.5)}
+          {targetChance !== null && ` · Close ${pct(targetChance)}`}
+        </Text>
+      )}
+
+      {attachedProject && (
+        <Text style={styles.muted}>Attached: {attachedProject.title}</Text>
+      )}
+
+      {/* Recent memory */}
+      {recentMemory.length > 0 && (
+        <View style={{ gap: 3 }}>
+          <SectionLabel label="Recent Memory" />
+          {recentMemory.map((entry, i) => (
+            <Text key={`${talent.id}-${entry.week}-${i}`} style={styles.memoryLine}>
+              W{entry.week}: {interactionLabel(entry.kind)}{' '}
+              <Text style={{ color: entry.trustDelta >= 0 ? colors.accentGreen : colors.accentRed }}>
+                ({entry.trustDelta >= 0 ? '+' : ''}{entry.trustDelta}T)
+              </Text>
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* Rival / cooling status line */}
+      {!isAvailable && rival && (
+        <Text style={styles.muted}>{rival.name} · returns W{talent.unavailableUntilWeek ?? '-'}</Text>
+      )}
+
+      {/* Actions */}
+      {activeProject && isAvailable && (
+        <View style={styles.actions}>
+          <PremiumButton
+            label={`Negotiate · ${pct(manager.getNegotiationChance(talent.id, activeProject.id) ?? 0)}`}
+            onPress={() => startNegotiation(activeProject.id, talent.id)}
+            disabled={outlook.blocked}
+            variant="gold-outline"
+            size="sm"
+            style={styles.flexBtn}
+          />
+          <PremiumButton
+            label={`Quick Close · ${pct(manager.getQuickCloseChance(talent.id) ?? 0)}`}
+            onPress={() => attachTalent(activeProject.id, talent.id)}
+            disabled={outlook.blocked}
+            variant="primary"
+            size="sm"
+            style={styles.flexBtn}
+          />
+        </View>
+      )}
+    </GlassCard>
   );
 }
 
@@ -522,10 +600,10 @@ const styles = StyleSheet.create({
   signal: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS },
 
   helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
-  helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18 },
+  helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
 
-  snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
-  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2 },
+  snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
+  snapshotTile: { minWidth: 56, alignItems: 'center', paddingVertical: spacing.sp2 },
   snapshotValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeLG, letterSpacing: typography.trackingTight },
   snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
 
@@ -547,6 +625,9 @@ const styles = StyleSheet.create({
   talentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sp2 },
   talentName: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary },
   talentRole: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  badgeGroup: { flexDirection: 'row', gap: spacing.sp1, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' },
+  windowChip: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
+  windowText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4 },
   availBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 8 },
   availText: { fontFamily: typography.fontBodySemiBold, fontSize: 10, letterSpacing: 0.4 },
 

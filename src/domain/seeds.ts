@@ -228,6 +228,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
     agentTier: pickAgentTier(starPower, reputation, seedIndex, worldSeed),
     studioRelationship,
     relationshipMemory: createInitialRelationship(studioRelationship),
+    marketWindowExpiresWeek: null,
   };
 }
 

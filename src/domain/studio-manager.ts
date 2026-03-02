@@ -8,6 +8,7 @@ import {
   SESSION_RULES,
   STUDIO_STARTING,
   STUDIO_TIER_REQUIREMENTS,
+  TALENT_MARKET_RULES,
   TURN_RULES,
 } from './balance-constants';
 import { createId } from './id';
@@ -262,6 +263,10 @@ export class StudioManager {
   exclusiveDistributionPartner: string | null = null;
   exclusivePartnerUntilWeek: number | null = null;
   executiveNetworkLevel = 0;
+  marketInitialized = false;
+  lastMarketBurstWeek = 0;
+  marketDirectorIdx = 0;
+  marketActorIdx = 0;
 
   get studioHeat(): number {
     return Math.round(
@@ -1365,6 +1370,7 @@ export class StudioManager {
     this.tickGenreCycles(events);
     this.resolveFestivalCircuit(events);
     this.updateTalentAvailability();
+    this.refreshTalentMarket();
     this.tickDecisionExpiry(events);
     this.tickScriptMarketExpiry(events);
     this.refillScriptMarket(events);
@@ -2387,6 +2393,125 @@ export class StudioManager {
         }
       }
     }
+  }
+
+  private marketWindowDuration(starPower: number): number {
+    if (starPower >= TALENT_MARKET_RULES.THRESHOLD_HIGH) return TALENT_MARKET_RULES.WINDOW_HIGH_WEEKS;
+    if (starPower >= TALENT_MARKET_RULES.THRESHOLD_MID) return TALENT_MARKET_RULES.WINDOW_MID_WEEKS;
+    return TALENT_MARKET_RULES.WINDOW_LOW_WEEKS;
+  }
+
+  private isTalentMarketEligible(talent: Talent): boolean {
+    if (talent.availability !== 'available') return false;
+    if (talent.marketWindowExpiresWeek !== null) return false;
+    const sp = talent.starPower;
+    const heat = this.studioHeat;
+    const talentRep = this.reputation.talent;
+    if (sp >= TALENT_MARKET_RULES.THRESHOLD_LEGEND) {
+      return heat >= TALENT_MARKET_RULES.GATE_LEGEND_HEAT && talentRep >= TALENT_MARKET_RULES.GATE_LEGEND_TALENT_REP;
+    }
+    if (sp >= TALENT_MARKET_RULES.THRESHOLD_ELITE) {
+      return heat >= TALENT_MARKET_RULES.GATE_ELITE_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_ELITE_TALENT_REP;
+    }
+    if (sp >= TALENT_MARKET_RULES.THRESHOLD_HIGH) {
+      return heat >= TALENT_MARKET_RULES.GATE_HIGH_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_HIGH_TALENT_REP;
+    }
+    if (sp >= TALENT_MARKET_RULES.THRESHOLD_MID) {
+      return heat >= TALENT_MARKET_RULES.GATE_MID_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_MID_TALENT_REP;
+    }
+    return true;
+  }
+
+  private addTalentToMarket(talent: Talent): void {
+    talent.marketWindowExpiresWeek = this.currentWeek + this.marketWindowDuration(talent.starPower);
+  }
+
+  private ageOutExpiredMarketWindows(): void {
+    for (const talent of this.talentPool) {
+      if (
+        talent.marketWindowExpiresWeek !== null &&
+        talent.marketWindowExpiresWeek <= this.currentWeek &&
+        talent.availability === 'available'
+      ) {
+        talent.marketWindowExpiresWeek = null;
+      }
+    }
+  }
+
+  private trickleNewMarketEntrants(): void {
+    const directors = this.talentPool.filter((t) => t.role === 'director');
+    const actors = this.talentPool.filter((t) => t.role === 'leadActor');
+
+    const visibleDirectors = directors.filter(
+      (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
+    ).length;
+    const visibleActors = actors.filter(
+      (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
+    ).length;
+
+    let dirToAdd = Math.min(
+      Math.max(0, TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS - visibleDirectors),
+      TALENT_MARKET_RULES.WEEKLY_DIRECTOR_TRICKLE
+    );
+    let attempts = 0;
+    while (dirToAdd > 0 && attempts < directors.length) {
+      const candidate = directors[this.marketDirectorIdx % directors.length];
+      this.marketDirectorIdx++;
+      attempts++;
+      if (candidate && this.isTalentMarketEligible(candidate)) {
+        this.addTalentToMarket(candidate);
+        dirToAdd--;
+      }
+    }
+
+    let actToAdd = Math.min(
+      Math.max(0, TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS - visibleActors),
+      TALENT_MARKET_RULES.WEEKLY_ACTOR_TRICKLE
+    );
+    attempts = 0;
+    while (actToAdd > 0 && attempts < actors.length) {
+      const candidate = actors[this.marketActorIdx % actors.length];
+      this.marketActorIdx++;
+      attempts++;
+      if (candidate && this.isTalentMarketEligible(candidate)) {
+        this.addTalentToMarket(candidate);
+        actToAdd--;
+      }
+    }
+  }
+
+  private populateInitialMarket(): void {
+    const directors = this.talentPool.filter((t) => t.role === 'director');
+    let dirCount = 0;
+    for (const d of directors) {
+      if (dirCount >= TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS) break;
+      if (this.isTalentMarketEligible(d)) {
+        this.addTalentToMarket(d);
+        this.marketDirectorIdx++;
+        dirCount++;
+      }
+    }
+
+    const actors = this.talentPool.filter((t) => t.role === 'leadActor');
+    let actCount = 0;
+    for (const a of actors) {
+      if (actCount >= TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS) break;
+      if (this.isTalentMarketEligible(a)) {
+        this.addTalentToMarket(a);
+        this.marketActorIdx++;
+        actCount++;
+      }
+    }
+  }
+
+  private refreshTalentMarket(): void {
+    if (!this.marketInitialized) {
+      this.marketInitialized = true;
+      this.populateInitialMarket();
+      return;
+    }
+    this.ageOutExpiredMarketWindows();
+    this.trickleNewMarketEntrants();
   }
 
   private rivalHeatBias(personality: RivalStudio['personality']): number {

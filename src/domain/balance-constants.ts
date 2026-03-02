@@ -92,6 +92,29 @@ export const TALENT_NEGOTIATION_RULES = {
   CHANCE_PENALTY_GRUDGE_DIVISOR: 340,
 } as const;
 
+export const TALENT_MARKET_RULES = {
+  // Maximum talents visible in the market at once
+  MAX_VISIBLE_DIRECTORS: 6,
+  MAX_VISIBLE_ACTORS: 16,
+  // Talents added per weekly trickle
+  WEEKLY_DIRECTOR_TRICKLE: 1,
+  WEEKLY_ACTOR_TRICKLE: 2,
+  // Market window duration (weeks) by starPower tier
+  WINDOW_LOW_WEEKS: 6,   // starPower < 7.0  (≤ 3.5 display stars)
+  WINDOW_MID_WEEKS: 5,   // starPower 7.0–8.49 (3.5–4.25 stars)
+  WINDOW_HIGH_WEEKS: 3,  // starPower ≥ 8.5   (≥ 4.25 stars)
+  // starPower thresholds for tier classification
+  THRESHOLD_MID: 7.0,
+  THRESHOLD_HIGH: 8.5,
+  THRESHOLD_ELITE: 9.0,
+  THRESHOLD_LEGEND: 9.5,
+  // Minimum studio heat OR talent-rep required to unlock each tier (OR logic, except LEGEND uses AND)
+  GATE_MID_HEAT: 35,          GATE_MID_TALENT_REP: 50,
+  GATE_HIGH_HEAT: 50,         GATE_HIGH_TALENT_REP: 60,
+  GATE_ELITE_HEAT: 65,        GATE_ELITE_TALENT_REP: 72,
+  GATE_LEGEND_HEAT: 80,       GATE_LEGEND_TALENT_REP: 80,
+} as const;
+
 export const GENRE_CYCLE_RULES = {
   DEMAND_MIN: 0.68,
   DEMAND_MAX: 1.4,
