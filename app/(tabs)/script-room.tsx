@@ -97,7 +97,7 @@ export default function ScriptRoomScreen() {
       {showHelp ? (
         <View style={styles.card}>
           <Text style={styles.bodyStrong}>How to read this screen</Text>
-          <Text style={styles.muted}>1) Buy scripts with strong score/ROI fit.</Text>
+          <Text style={styles.muted}>1) Balance script grade and asking price before you commit.</Text>
           <Text style={styles.muted}>2) Attach a director and satisfy actor/actress requirements before greenlight.</Text>
           <Text style={styles.muted}>3) Use negotiation rounds to target the highlighted pressure point.</Text>
         </View>
@@ -236,10 +236,10 @@ export default function ScriptRoomScreen() {
                 return (
                   <View style={styles.subCard}>
                     <Text style={styles.bodyStrong}>
-                      {recommendationLabel(evalResult.recommendation)} | Score {evalResult.score.toFixed(0)}
+                      {recommendationLabel(evalResult.recommendation)} | Review Score {evalResult.score.toFixed(0)}
                     </Text>
                     <Text style={styles.muted}>
-                      Est ROI {evalResult.expectedROI.toFixed(2)}x | Talent fit {pct(evalResult.fitScore)} | Risk {evalResult.riskLabel}
+                      Script Grade {evalResult.qualityScore.toFixed(0)} | Value {evalResult.valueScore.toFixed(0)} | Affordability {evalResult.affordabilityScore.toFixed(0)} | Risk {evalResult.riskLabel}
                     </Text>
                   </View>
                 );

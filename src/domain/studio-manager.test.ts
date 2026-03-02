@@ -1407,6 +1407,25 @@ describe('StudioManager', () => {
     expect(manager.scriptMarket.length).toBeLessThanOrEqual(4);
   });
 
+  it('evaluates scripts independent of current talent pool state', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42, negotiationRng: () => 0.5, rivalRng: () => 0.5 });
+    const script = manager.scriptMarket[0];
+    expect(script).toBeTruthy();
+
+    const baseline = manager.evaluateScriptPitch(script!.id);
+    expect(baseline).toBeTruthy();
+
+    for (const talent of manager.talentPool) {
+      talent.starPower = talent.role === 'director' ? 9.9 : 3.8;
+      talent.craftScore = talent.role === 'director' ? 4 : 9.9;
+      talent.availability = 'unavailable';
+      talent.marketWindowExpiresWeek = null;
+    }
+
+    const afterMutation = manager.evaluateScriptPitch(script!.id);
+    expect(afterMutation).toEqual(baseline);
+  });
+
   it('starts with a constrained visible talent market window', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const visibleTalent = manager.talentPool.filter(

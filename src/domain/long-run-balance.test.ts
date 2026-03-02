@@ -203,10 +203,9 @@ function investInPipeline(manager: StudioManager): void {
   const pick = rankedScripts[0];
   if (!pick) return;
   const affordability = pick.script.askingPrice / Math.max(1, manager.cash);
-  if (pick.eval.score < 66) return;
-  if (pick.eval.expectedROI < 1.18) return;
-  if (affordability > 0.05) return;
-  if (manager.cash < pick.script.askingPrice + 10_000_000) return;
+  if (pick.eval.recommendation === 'pass') return;
+  if (affordability > 0.09) return;
+  if (manager.cash < pick.script.askingPrice + 6_000_000) return;
   manager.acquireScript(pick.script.id);
 }
 
@@ -296,16 +295,16 @@ describe('long-run balance harness', () => {
 
     expect(summary).toMatchInlineSnapshot(`
       {
-        "avgPendingCrisesMean": 0.57,
-        "awardsNomMean": 50.67,
-        "awardsWinMean": 6.13,
-        "bankruptRate": 0.125,
-        "cashMax": 130449804,
-        "cashMedian": 44608976,
+        "avgPendingCrisesMean": 0.54,
+        "awardsNomMean": 36.33,
+        "awardsWinMean": 4.58,
+        "bankruptRate": 0.75,
+        "cashMax": 79553629,
+        "cashMedian": 0,
         "cashMin": 0,
-        "heatMean": 98.38,
+        "heatMean": 91.08,
         "maxPendingCrises": 5,
-        "releasedMean": 21.83,
+        "releasedMean": 16.17,
         "releasedMin": 4,
       }
     `);

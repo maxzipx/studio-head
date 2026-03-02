@@ -1064,65 +1064,37 @@ export class StudioManager {
   evaluateScriptPitch(scriptId: string): {
     score: number;
     recommendation: 'strongBuy' | 'conditional' | 'pass';
-    expectedROI: number;
-    fitScore: number;
+    qualityScore: number;
+    valueScore: number;
+    affordabilityScore: number;
     riskLabel: 'low' | 'medium' | 'high';
   } | null {
     const script = this.scriptMarket.find((item) => item.id === scriptId);
     if (!script) return null;
 
-    const budget = initialBudgetForGenre(script.genre);
-    const availableDirectors = this.getAvailableTalentForRole('director');
-    const availableLeads = [
-      ...this.getAvailableTalentForRole('leadActor'),
-      ...this.getAvailableTalentForRole('leadActress'),
-    ];
-    const bestDirector = [...availableDirectors].sort((a, b) => b.craftScore - a.craftScore)[0];
-    const bestLead = [...availableLeads].sort((a, b) => b.starPower - a.starPower)[0];
-    const bestDirectorFit = bestDirector?.genreFit[script.genre] ?? 0.6;
-    const bestLeadFit = bestLead?.genreFit[script.genre] ?? 0.6;
-    const fitScore = clamp((bestDirectorFit + bestLeadFit) / 2, 0, 1);
-
-    const critical = projectedCriticalScore({
-      scriptQuality: script.scriptQuality,
-      directorCraft: bestDirector?.craftScore ?? 6,
-      leadActorCraft: bestLead?.craftScore ?? 6,
-      productionSpend: budget * 0.8,
-      conceptStrength: script.conceptStrength,
-      editorialCutChoice: 5,
-      crisisPenalty: 0,
-      chemistryPenalty: 0,
-    });
-    const opening = projectedOpeningWeekendRange({
-      genre: script.genre,
-      hypeScore: 12,
-      starPower: bestLead?.starPower ?? 5.5,
-      marketingBudget: budget * 0.12,
-      totalBudget: budget,
-      seasonalMultiplier: this.getGenreDemandMultiplier(script.genre),
-    });
-    const expectedROI = projectedROI({
-      openingWeekend: opening.midpoint,
-      criticalScore: critical,
-      audienceScore: clamp(critical + 4, 0, 100),
-      genre: script.genre,
-      totalCost: budget * 1.12,
-    });
-
     const affordability = script.askingPrice / Math.max(1, this.cash);
-    const score = clamp(
-      (critical / 100) * 40 + clamp(expectedROI / 2.4, 0, 1) * 35 + fitScore * 20 + (1 - clamp(affordability, 0, 1)) * 5,
+    const qualityScore = clamp(
+      ((script.scriptQuality / 10) * 0.62 + (script.conceptStrength / 10) * 0.38) * 100,
       0,
       100
     );
+    const affordabilityScore = clamp((1 - affordability / 0.18) * 100, 0, 100);
+    const valueScore = clamp(qualityScore * 0.74 + affordabilityScore * 0.26, 0, 100);
+    const score = valueScore;
     const recommendation = score >= 70 ? 'strongBuy' : score >= 55 ? 'conditional' : 'pass';
-    const riskLabel = affordability > 0.15 || expectedROI < 1 ? 'high' : affordability > 0.08 || expectedROI < 1.4 ? 'medium' : 'low';
+    const riskLabel =
+      affordability > 0.15 || qualityScore < 58
+        ? 'high'
+        : affordability > 0.08 || qualityScore < 70
+          ? 'medium'
+          : 'low';
 
     return {
       score,
       recommendation,
-      expectedROI,
-      fitScore,
+      qualityScore,
+      valueScore,
+      affordabilityScore,
       riskLabel,
     };
   }

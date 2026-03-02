@@ -20,10 +20,6 @@ function money(amount: number): string {
   return `$${Math.round(abs).toLocaleString()}`;
 }
 
-function pct(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
 function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
   if (value === 'strongBuy') return 'Strong Buy';
   if (value === 'conditional') return 'Conditional';
@@ -180,10 +176,10 @@ export default function SlateScreen() {
                     />
                     {evalResult && (
                       <MetricTile
-                        value={evalResult.expectedROI.toFixed(2) + '×'}
-                        label="Proj ROI"
+                        value={evalResult.valueScore.toFixed(0)}
+                        label="Value"
                         size="sm"
-                        accent={evalResult.expectedROI >= 2 ? colors.accentGreen : evalResult.expectedROI < 1 ? colors.accentRed : colors.goldMid}
+                        accent={evalResult.valueScore >= 70 ? colors.accentGreen : evalResult.valueScore < 55 ? colors.accentRed : colors.goldMid}
                       />
                     )}
                   </View>
@@ -199,7 +195,7 @@ export default function SlateScreen() {
                         </Text>
                       </View>
                       <Text style={styles.metaText}>
-                        Score {evalResult.score.toFixed(0)} · Fit {pct(evalResult.fitScore)} · Risk {evalResult.riskLabel}
+                        Score {evalResult.score.toFixed(0)} · Grade {evalResult.qualityScore.toFixed(0)} · Afford {evalResult.affordabilityScore.toFixed(0)} · Risk {evalResult.riskLabel}
                       </Text>
                     </View>
                   )}
@@ -454,3 +450,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp1, flexWrap: 'wrap' },
   flexBtn: { flex: 1 },
 });
+
