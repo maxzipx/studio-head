@@ -140,6 +140,8 @@ export default function TalentScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const [negotiationModalTalentId, setNegotiationModalTalentId] = useState<string | null>(null);
   const [negotiationDraftAction, setNegotiationDraftAction] = useState<NegotiationAction>('holdFirm');
+  // Draft lever selections for open negotiations — keyed by "projectId:talentId"
+  const [draftNegActions, setDraftNegActions] = useState<Record<string, NegotiationAction>>({});
 
   const activeProject = selectedProjectId
     ? developmentProjects.find((p) => p.id === selectedProjectId) ?? null
@@ -375,30 +377,70 @@ export default function TalentScreen() {
                       Rounds exhausted. End Turn to resolve this negotiation.
                     </Text>
                   )}
-                  <View style={styles.actions}>
-                    {[
-                      { label: 'Salary+', action: 'sweetenSalary', pressure: 'salary' },
-                      { label: 'Backend+', action: 'sweetenBackend', pressure: 'backend' },
-                      { label: 'Perks+', action: 'sweetenPerks', pressure: 'perks' },
-                      { label: 'Hold', action: 'holdFirm', pressure: null },
-                    ].map(({ label, action, pressure }) => (
-                      <PremiumButton
-                        key={action}
-                        label={label}
-                        onPress={() => adjustNegotiation(entry.projectId, entry.talentId, action as NegotiationAction)}
-                        variant={pressure !== null && pressure === snapshot?.pressurePoint ? 'primary' : 'secondary'}
-                        size="sm"
-                        disabled={outOfRounds}
-                        style={styles.negBtn}
-                      />
-                    ))}
-                  </View>
-                  <PremiumButton
-                    label="Drop Negotiation"
-                    onPress={() => dismissNegotiation(entry.projectId, entry.talentId)}
-                    variant="ghost"
-                    size="sm"
-                  />
+                  {(() => {
+                    const draftKey = `${entry.projectId}:${entry.talentId}`;
+                    const selectedAction = draftNegActions[draftKey] ?? null;
+                    return (
+                      <>
+                        <View style={styles.actions}>
+                          {[
+                            { label: 'Salary+', action: 'sweetenSalary' },
+                            { label: 'Backend+', action: 'sweetenBackend' },
+                            { label: 'Perks+', action: 'sweetenPerks' },
+                            { label: 'Hold', action: 'holdFirm' },
+                          ].map(({ label, action }) => (
+                            <PremiumButton
+                              key={action}
+                              label={label}
+                              onPress={() =>
+                                setDraftNegActions((prev) => ({
+                                  ...prev,
+                                  [draftKey]: action as NegotiationAction,
+                                }))
+                              }
+                              variant={selectedAction === action ? 'primary' : 'secondary'}
+                              size="sm"
+                              disabled={outOfRounds}
+                              style={styles.negBtn}
+                            />
+                          ))}
+                        </View>
+                        <View style={styles.offerRow}>
+                          <PremiumButton
+                            label="Drop Negotiation"
+                            onPress={() => {
+                              dismissNegotiation(entry.projectId, entry.talentId);
+                              setDraftNegActions((prev) => {
+                                const next = { ...prev };
+                                delete next[draftKey];
+                                return next;
+                              });
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            style={styles.flexBtn}
+                          />
+                          <PremiumButton
+                            label="Submit Round"
+                            onPress={() => {
+                              if (selectedAction) {
+                                adjustNegotiation(entry.projectId, entry.talentId, selectedAction);
+                                setDraftNegActions((prev) => {
+                                  const next = { ...prev };
+                                  delete next[draftKey];
+                                  return next;
+                                });
+                              }
+                            }}
+                            variant="primary"
+                            size="sm"
+                            disabled={outOfRounds || !selectedAction}
+                            style={styles.flexBtn}
+                          />
+                        </View>
+                      </>
+                    );
+                  })()}
                 </GlassCard>
               );
             })
