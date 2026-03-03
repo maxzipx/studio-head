@@ -152,10 +152,9 @@ export default function TalentScreen() {
       return b.starPower - a.starPower;
     });
 
-  // Roster: talents attached to your projects or in negotiation
-  const negotiatingIds = new Set(manager.playerNegotiations.map((n) => n.talentId));
+  // Roster: talents attached to your projects (negotiating talents show in Open Negotiations)
   const rosterTalent: Talent[] = manager.talentPool
-    .filter((t) => t.attachedProjectId !== null || negotiatingIds.has(t.id))
+    .filter((t) => t.attachedProjectId !== null)
     .sort((a, b) => {
       if (a.role !== b.role) return a.role === 'director' ? -1 : 1;
       return b.starPower - a.starPower;

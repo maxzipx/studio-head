@@ -5,7 +5,7 @@ import type { GameActions } from './game-types';
 interface BuildGameActionsInput {
   manager: StudioManager;
   runWhenHydrated: (action: () => void, options?: { allowWhenBankrupt?: boolean }) => void;
-  saveAndTick: (message?: string) => void;
+  saveAndTick: (message?: string, options?: { clearMessage?: boolean }) => void;
 }
 
 export function buildGameActions(input: BuildGameActionsInput): GameActions {
@@ -19,7 +19,8 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         const advanced = summary.week - startWeek;
         const paused = summary.hasPendingCrises && advanced < manager.turnLengthWeeks;
         saveAndTick(
-          `Turn advanced ${advanced} week${advanced === 1 ? '' : 's'}.${paused ? ' Paused by a blocking crisis.' : ''}`
+          `Turn advanced ${advanced} week${advanced === 1 ? '' : 's'}.${paused ? ' Paused by a blocking crisis.' : ''}`,
+          { clearMessage: true }
         );
       });
     },

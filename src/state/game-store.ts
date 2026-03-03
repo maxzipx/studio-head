@@ -63,14 +63,14 @@ export const createGameStore = () => {
             })();
         };
 
-        const _saveAndTick = (message?: string) => {
+        const _saveAndTick = (message?: string, options?: { clearMessage?: boolean }) => {
             const state = get();
             const currentManager = state.manager;
             const bankruptcySuffix = currentManager.isBankrupt
                 ? ` Game over: ${currentManager.bankruptcyReason ?? 'Studio is bankrupt.'}`
                 : '';
 
-            let nextMessage = state.lastMessage;
+            let nextMessage = options?.clearMessage ? null : state.lastMessage;
 
             if (message) {
                 nextMessage = state.hasSaveFailure

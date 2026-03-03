@@ -295,7 +295,11 @@ export function adjustTalentNegotiationForManager(
   normalized.lastComputedChance = evaluation.chance;
   normalized.lastResponse = manager.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
 
-  Object.assign(negotiation, normalized);
+  manager.playerNegotiations = manager.playerNegotiations.map((item: any) =>
+    item.talentId === negotiation.talentId && item.projectId === negotiation.projectId
+      ? normalized
+      : item
+  );
   return {
     success: true,
     message: `${talent.name} negotiation round ${normalized.rounds}: ${normalized.lastResponse} Close chance ${Math.round(
@@ -469,11 +473,15 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       continue;
     }
     if (talent.availability !== 'inNegotiation') {
+      const isPoached = manager.pendingCrises.some((c: any) => c.kind === 'talentPoached' && c.options.some((o: any) => o.talentId === talent.id));
       const canRepair =
         talent.attachedProjectId === null &&
         (talent.availability === 'available' || talent.availability === 'inTalks');
       if (canRepair) {
         talent.availability = 'inNegotiation';
+      } else if (isPoached) {
+        // Leave the negotiation in the array so if the player chooses to counter-offer in the crisis, it can resume.
+        continue;
       } else {
         resolved.add(negotiation);
         continue;
@@ -530,7 +538,12 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
         normalized.lastComputedChance = evaluation.chance;
         talent.availability = 'inNegotiation';
         normalized.lastResponse = `${talent.name}'s reps countered. Talks remain open; adjust one lever and try again next turn.`;
-        Object.assign(negotiation, normalized);
+
+        manager.playerNegotiations = manager.playerNegotiations.map((item: any) =>
+          item.talentId === negotiation.talentId && item.projectId === negotiation.projectId
+            ? normalized
+            : item
+        );
         events.push(`${talent.name} countered on ${project.title}; negotiation remains open.`);
         continue;
       }
