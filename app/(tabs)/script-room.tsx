@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -39,7 +39,7 @@ function scriptTierLabel(value: string | undefined): string | null {
 }
 
 export default function ScriptRoomScreen() {
-  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage } = useGameStore(useShallow((state) => {
+  const { manager, acquireScript, passScript, startNegotiation, adjustNegotiation, attachTalent, acquireIpRights, developFromIp, lastMessage, scriptMarketSignature } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
@@ -90,6 +90,26 @@ export default function ScriptRoomScreen() {
   const ipMarket = manager.ownedIps.filter((ip) => !ip.usedProjectId && ip.expiresWeek >= manager.currentWeek);
   const majorIpCommitments = manager.getMajorIpCommitments();
   const [showHelp, setShowHelp] = useState(false);
+  const [hiddenAcquiredScriptIds, setHiddenAcquiredScriptIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setHiddenAcquiredScriptIds((current) => current.filter((id) => manager.scriptMarket.some((script) => script.id === id)));
+  }, [manager, scriptMarketSignature]);
+
+  const visibleScriptMarket = manager.scriptMarket.filter((script) => !hiddenAcquiredScriptIds.includes(script.id));
+
+  const handleAcquireScript = (scriptId: string, title: string) => {
+    acquireScript(scriptId);
+    const acquired = !manager.scriptMarket.some((script) => script.id === scriptId);
+
+    if (!acquired) {
+      Alert.alert('Could not acquire script', 'Unable to acquire this script. Check funds, capacity, or contract locks.');
+      return;
+    }
+
+    setHiddenAcquiredScriptIds((current) => (current.includes(scriptId) ? current : [...current, scriptId]));
+    Alert.alert('Script acquired', `"${title}" has been added to your slate.`);
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -222,10 +242,10 @@ export default function ScriptRoomScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Market Offers</Text>
-        {manager.scriptMarket.length === 0 ? (
+        {visibleScriptMarket.length === 0 ? (
           <Text style={styles.muted}>No open script offers this week.</Text>
         ) : (
-          manager.scriptMarket.map((script) => (
+          visibleScriptMarket.map((script) => (
             <View key={script.id} style={styles.card}>
               <View style={styles.row}>
                 <Text style={styles.cardTitle}>{script.title}</Text>
@@ -248,17 +268,15 @@ export default function ScriptRoomScreen() {
                 if (!evalResult) return null;
                 return (
                   <View style={styles.subCard}>
-                    <Text style={styles.bodyStrong}>
-                      {recommendationLabel(evalResult.recommendation)} | Review Score {evalResult.score.toFixed(0)}
-                    </Text>
+                    <Text style={styles.bodyStrong}>{recommendationLabel(evalResult.recommendation)}</Text>
                     <Text style={styles.muted}>
-                      Script Grade {evalResult.qualityScore.toFixed(0)} | Value {evalResult.valueScore.toFixed(0)} | Affordability {evalResult.affordabilityScore.toFixed(0)} | Risk {evalResult.riskLabel}
+                      Script Grade {evalResult.valueScore.toFixed(0)} | Script Quality {evalResult.qualityScore.toFixed(0)} | Risk {evalResult.riskLabel}
                     </Text>
                   </View>
                 );
               })()}
               <View style={styles.actions}>
-                <Pressable style={styles.actionButton} onPress={() => acquireScript(script.id)}>
+                <Pressable style={styles.actionButton} onPress={() => handleAcquireScript(script.id, script.title)}>
                   <Text style={styles.actionText}>Acquire</Text>
                 </Pressable>
                 <Pressable style={styles.actionButton} onPress={() => passScript(script.id)}>
