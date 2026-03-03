@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -91,6 +91,15 @@ export default function ScriptRoomScreen() {
   const majorIpCommitments = manager.getMajorIpCommitments();
   const [showHelp, setShowHelp] = useState(false);
   const [hiddenAcquiredScriptIds, setHiddenAcquiredScriptIds] = useState<string[]>([]);
+  const [acquisitionPopup, setAcquisitionPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     setHiddenAcquiredScriptIds((current) => current.filter((id) => manager.scriptMarket.some((script) => script.id === id)));
@@ -98,21 +107,45 @@ export default function ScriptRoomScreen() {
 
   const visibleScriptMarket = manager.scriptMarket.filter((script) => !hiddenAcquiredScriptIds.includes(script.id));
 
+  const openAcquisitionPopup = (title: string, message: string) => {
+    setAcquisitionPopup({ visible: true, title, message });
+  };
+
   const handleAcquireScript = (scriptId: string, title: string) => {
+    const wasListed = manager.scriptMarket.some((script) => script.id === scriptId);
+    const beforeCount = manager.scriptMarket.length;
     acquireScript(scriptId);
-    const acquired = !manager.scriptMarket.some((script) => script.id === scriptId);
+    const stillListed = manager.scriptMarket.some((script) => script.id === scriptId);
+    const acquired = wasListed && !stillListed && manager.scriptMarket.length < beforeCount;
 
     if (!acquired) {
-      Alert.alert('Could not acquire script', 'Unable to acquire this script. Check funds, capacity, or contract locks.');
+      openAcquisitionPopup('Could not acquire script', 'Check funds, capacity, or contract locks and try again.');
       return;
     }
 
     setHiddenAcquiredScriptIds((current) => (current.includes(scriptId) ? current : [...current, scriptId]));
-    Alert.alert('Script acquired', `"${title}" has been added to your slate.`);
+    openAcquisitionPopup('Script acquired', `"${title}" has been added to your slate.`);
   };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={acquisitionPopup.visible}
+        onRequestClose={() => setAcquisitionPopup((current) => ({ ...current, visible: false }))}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{acquisitionPopup.title}</Text>
+            <Text style={styles.modalBody}>{acquisitionPopup.message}</Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setAcquisitionPopup((current) => ({ ...current, visible: false }))}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <Text style={styles.title}>Script Room</Text>
       <Text style={styles.subtitle}>Acquire projects, evaluate projections, and open negotiations</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
@@ -440,6 +473,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: tokens.bgSurface,
+    borderColor: tokens.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 10,
+  },
+  modalTitle: {
+    color: tokens.textPrimary,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalBody: {
+    color: tokens.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: tokens.accentGreen,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  modalButtonText: {
+    color: '#001220',
+    fontWeight: '700',
+    fontSize: 12,
   },
   bargainBadge: {
     color: tokens.textPrimary,

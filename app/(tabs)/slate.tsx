@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
@@ -63,6 +63,7 @@ export default function SlateScreen() {
     counterOffer,
     walkAwayOffer,
     lastMessage,
+    scriptsSignature,
   } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
@@ -81,15 +82,50 @@ export default function SlateScreen() {
       rivalsSignature: buildSlateRivalsSignature(mgr.rivals),
     };
   }));
+  const [hiddenAcquiredScriptIds, setHiddenAcquiredScriptIds] = useState<string[]>([]);
+  const [acquisitionPopup, setAcquisitionPopup] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   const projects = manager.activeProjects;
   const inFlight = projects.filter((p) => p.phase !== 'released' && p.phase !== 'distribution');
   const distribution = projects.filter((p) => p.phase === 'distribution');
+  const visibleScriptMarket = manager.scriptMarket.filter((script) => !hiddenAcquiredScriptIds.includes(script.id));
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
       rival: rival.name, week: film.releaseWeek, genre: film.genre, title: film.title,
     }))
   );
+
+  useEffect(() => {
+    setHiddenAcquiredScriptIds((current) => current.filter((id) => manager.scriptMarket.some((script) => script.id === id)));
+  }, [manager, scriptsSignature]);
+
+  const openAcquisitionPopup = (title: string, message: string) => {
+    setAcquisitionPopup({ visible: true, title, message });
+  };
+
+  const handleAcquireScript = (scriptId: string, title: string) => {
+    const wasListed = manager.scriptMarket.some((script) => script.id === scriptId);
+    const beforeCount = manager.scriptMarket.length;
+    acquireScript(scriptId);
+    const stillListed = manager.scriptMarket.some((script) => script.id === scriptId);
+    const acquired = wasListed && !stillListed && manager.scriptMarket.length < beforeCount;
+
+    if (!acquired) {
+      openAcquisitionPopup('Could not acquire script', 'Check funds, capacity, or contract locks and try again.');
+      return;
+    }
+
+    setHiddenAcquiredScriptIds((current) => (current.includes(scriptId) ? current : [...current, scriptId]));
+    openAcquisitionPopup('Script acquired', `"${title}" has been added to your slate.`);
+  };
 
   function pressureForWeek(week: number | null): { label: string; color: string } {
     if (!week) return { label: 'Unknown', color: colors.textMuted };
@@ -101,6 +137,24 @@ export default function SlateScreen() {
 
   return (
     <View style={styles.screen}>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={acquisitionPopup.visible}
+        onRequestClose={() => setAcquisitionPopup((current) => ({ ...current, visible: false }))}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{acquisitionPopup.title}</Text>
+            <Text style={styles.modalBody}>{acquisitionPopup.message}</Text>
+            <PremiumButton
+              label="OK"
+              onPress={() => setAcquisitionPopup((current) => ({ ...current, visible: false }))}
+              variant="primary"
+              size="sm"
+            />
+          </View>
+        </View>
+      </Modal>
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
       <ScrollView contentContainerStyle={styles.content}>
 
@@ -152,9 +206,9 @@ export default function SlateScreen() {
         {/* ── Script Room ── */}
         <View style={styles.section}>
           <SectionLabel label="Script Room" />
-          {manager.scriptMarket.length === 0
+          {visibleScriptMarket.length === 0
             ? <Text style={styles.empty}>No active script offers this week.</Text>
-            : manager.scriptMarket.map((script) => {
+            : visibleScriptMarket.map((script) => {
               const evalResult = manager.evaluateScriptPitch(script.id);
               return (
                 <GlassCard key={script.id} style={{ gap: spacing.sp2 }}>
@@ -177,7 +231,7 @@ export default function SlateScreen() {
                     {evalResult && (
                       <MetricTile
                         value={evalResult.valueScore.toFixed(0)}
-                        label="Value"
+                        label="Script Grade"
                         size="sm"
                         accent={evalResult.valueScore >= 70 ? colors.accentGreen : evalResult.valueScore < 55 ? colors.accentRed : colors.goldMid}
                       />
@@ -195,13 +249,13 @@ export default function SlateScreen() {
                         </Text>
                       </View>
                       <Text style={styles.metaText}>
-                        Score {evalResult.score.toFixed(0)} · Grade {evalResult.qualityScore.toFixed(0)} · Afford {evalResult.affordabilityScore.toFixed(0)} · Risk {evalResult.riskLabel}
+                        Script Quality {evalResult.qualityScore.toFixed(0)} · Risk {evalResult.riskLabel}
                       </Text>
                     </View>
                   )}
 
                   <View style={styles.actions}>
-                    <PremiumButton label="Acquire" onPress={() => acquireScript(script.id)} variant="primary" size="sm" style={styles.flexBtn} />
+                    <PremiumButton label="Acquire" onPress={() => handleAcquireScript(script.id, script.title)} variant="primary" size="sm" style={styles.flexBtn} />
                     <PremiumButton label="Pass" onPress={() => passScript(script.id)} variant="ghost" size="sm" style={styles.flexBtn} />
                   </View>
                 </GlassCard>
@@ -446,6 +500,34 @@ const styles = StyleSheet.create({
   pressureLabel: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, textTransform: 'uppercase', letterSpacing: 0.6 },
   releaseWeekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary },
   offerPartner: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.sp4,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: radius.r4,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    backgroundColor: colors.bgSurface,
+    padding: spacing.sp3,
+    gap: spacing.sp2,
+  },
+  modalTitle: {
+    fontFamily: typography.fontBodyBold,
+    fontSize: typography.sizeMD,
+    color: colors.textPrimary,
+  },
+  modalBody: {
+    fontFamily: typography.fontBody,
+    fontSize: typography.sizeSM,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
 
   actions: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp1, flexWrap: 'wrap' },
   flexBtn: { flex: 1 },
