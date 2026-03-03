@@ -121,6 +121,7 @@ export default function TalentScreen() {
     const mgr = state.manager;
     return {
       manager: mgr,
+      tick: state.tick,
       startNegotiation: state.startNegotiation,
       adjustNegotiation: state.adjustNegotiation,
       dismissNegotiation: state.dismissNegotiation,

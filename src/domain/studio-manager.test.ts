@@ -857,6 +857,52 @@ describe('StudioManager', () => {
     }
   });
 
+  it('retains counter-offer negotiation after endTurn (not just endWeek)', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      negotiationRng: () => 0.99,
+      eventRng: () => 1,
+      rivalRng: () => 1,
+    });
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+    expect(manager.playerNegotiations.length).toBe(1);
+
+    const summary = manager.endTurn();
+    const hasCounter = summary.events.some((e) => e.includes('countered'));
+    expect(hasCounter).toBe(true);
+    expect(manager.playerNegotiations.length).toBeGreaterThan(0);
+    expect(manager.playerNegotiations.some((e) => e.talentId === lead!.id)).toBe(true);
+    expect(lead!.availability).toBe('inNegotiation');
+  });
+
+  it('retains counter-offer negotiation after endTurn with turnLengthWeeks=2', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      negotiationRng: () => 0.99,
+      eventRng: () => 1,
+      rivalRng: () => 1,
+    });
+    (manager as any).turnLengthWeeks = 2;
+    const project = manager.activeProjects.find((item) => item.phase === 'development');
+    const lead = manager.talentPool.find((item) => item.role === 'leadActor');
+    expect(project).toBeTruthy();
+    expect(lead).toBeTruthy();
+
+    const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
+    expect(opened.success).toBe(true);
+
+    const summary = manager.endTurn();
+    // After 2 weeks of processing, negotiation should still be open (counter on both passes)
+    expect(manager.playerNegotiations.some((e) => e.talentId === lead!.id)).toBe(true);
+    expect(lead!.availability).toBe('inNegotiation');
+  });
+
   it('applies quick-close attempt cost and cooldown on decline', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.99 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
