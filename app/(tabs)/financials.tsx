@@ -21,6 +21,56 @@ function roiToOutcome(roi: number): OutcomeType {
   return 'bomb';
 }
 
+type ProjectOutlookTag = 'smashHit' | 'hit' | 'breakEven' | 'softLoss' | 'flop';
+
+type ProjectOutlookConfig = {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+};
+
+const projectOutlookConfig: Record<ProjectOutlookTag, ProjectOutlookConfig> = {
+  smashHit: {
+    label: 'SMASH HIT',
+    color: colors.accentGreen,
+    bg: 'rgba(52,211,153,0.15)',
+    border: colors.accentGreen,
+  },
+  hit: {
+    label: 'HIT',
+    color: colors.ctaBlue,
+    bg: 'rgba(59,130,246,0.15)',
+    border: colors.ctaBlue,
+  },
+  breakEven: {
+    label: 'BREAK EVEN',
+    color: colors.goldMid,
+    bg: 'rgba(234,179,8,0.15)',
+    border: colors.goldMid,
+  },
+  softLoss: {
+    label: 'SOFT LOSS',
+    color: colors.accentRed,
+    bg: 'rgba(248,113,113,0.15)',
+    border: colors.accentRed,
+  },
+  flop: {
+    label: 'FLOP',
+    color: colors.accentRedDeep,
+    bg: 'rgba(220,38,38,0.15)',
+    border: colors.accentRedDeep,
+  },
+};
+
+function roiToProjectOutlook(roi: number): ProjectOutlookTag {
+  if (roi >= 3.0) return 'smashHit';
+  if (roi >= 2.0) return 'hit';
+  if (roi >= 1.0) return 'breakEven';
+  if (roi >= 0.8) return 'softLoss';
+  return 'flop';
+}
+
 export default function FinancialsScreen() {
   // Subscribe specifically to the financials slice. 
   // This component will only re-render when these derived values change.
@@ -154,27 +204,34 @@ export default function FinancialsScreen() {
         />
       </GlassCard>
 
-      {/* ── Project ROI Matrix ── */}
+      {/* ── Studio Forecast ── */}
       {projects.length > 0 && (
         <GlassCard>
-          <SectionLabel label="Project ROI Matrix" />
-          {projects.map((project) => (
-            <View key={project.id} style={styles.roiRow}>
-              <View style={styles.roiLeft}>
-                <Text style={styles.roiTitle}>{project.title}</Text>
-                <Text style={styles.roiPhase}>{project.phase}</Text>
+          <SectionLabel label="Studio Forecast" />
+          {projects.map((project) => {
+            const outlook = roiToProjectOutlook(project.projectedROI);
+            const outlookCfg = projectOutlookConfig[outlook];
+            return (
+              <View key={project.id} style={styles.roiRow}>
+                <View style={styles.roiLeft}>
+                  <Text style={styles.roiTitle}>{project.title}</Text>
+                  <Text style={styles.roiPhase}>{project.phase}</Text>
+                </View>
+                <View style={styles.roiRight}>
+                  <View
+                    style={[
+                      styles.outlookChip,
+                      { backgroundColor: outlookCfg.bg, borderColor: outlookCfg.border },
+                    ]}
+                  >
+                    <Text style={[styles.outlookLabel, { color: outlookCfg.color }]}>
+                      {outlookCfg.label}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.roiRight}>
-                <OutcomeBadge outcome={roiToOutcome(project.projectedROI)} size="sm" />
-                <Text style={[
-                  styles.roiValue,
-                  { color: project.projectedROI >= 2 ? colors.accentGreen : project.projectedROI < 1 ? colors.accentRed : colors.textPrimary }
-                ]}>
-                  {project.projectedROI.toFixed(2)}×
-                </Text>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </GlassCard>
       )}
 
@@ -247,7 +304,17 @@ const styles = StyleSheet.create({
   roiRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
   roiTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
   roiPhase: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, textTransform: 'capitalize' },
-  roiValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM },
+  outlookChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  outlookLabel: {
+    fontFamily: typography.fontBodyBold,
+    fontSize: typography.sizeXS,
+    letterSpacing: typography.trackingWide,
+  },
 
   // Release Revenue
   releaseRow: { gap: spacing.sp2, marginTop: spacing.sp1 },
@@ -258,3 +325,4 @@ const styles = StyleSheet.create({
   empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
   noteText: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted, lineHeight: 18 },
 });
+
