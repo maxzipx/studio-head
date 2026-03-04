@@ -122,7 +122,7 @@ describe('StudioManager', () => {
   });
 
   it('allows progression after resolving crisis', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.0 });
+    const manager = new StudioManager({ crisisRng: () => 0.0, rivalRng: () => 0.99 });
     manager.endWeek();
 
     const crisis = manager.pendingCrises[0];
@@ -1134,7 +1134,7 @@ describe('StudioManager', () => {
   });
 
   it('does not spam duplicate event titles in same queue', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.1 });
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.1, rivalRng: () => 0.99 });
 
     manager.endWeek();
     manager.endWeek();
@@ -1146,7 +1146,7 @@ describe('StudioManager', () => {
   });
 
   it('respects flag-gated events before and after prerequisite flag is set', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 0.99 });
     (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
       {
         id: 'gated',
@@ -1219,7 +1219,7 @@ describe('StudioManager', () => {
   });
 
   it('respects arc-gated events before and after prerequisite stage is reached', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0 });
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 0.99 });
     (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
       {
         id: 'arc-gated',
@@ -1662,7 +1662,7 @@ describe('StudioManager', () => {
   });
 
   it('resolves release run over weeks and finalizes heat impact', () => {
-    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0 });
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0, rivalRng: () => 0.99 });
     const project = manager.activeProjects.find((item) => item.phase === 'development');
     const director = manager.talentPool.find((item) => item.role === 'director');
     const lead = manager.talentPool.find((item) => item.role === 'leadActor');

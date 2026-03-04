@@ -1,6 +1,7 @@
-import type { IndustryNewsItem, MovieGenre, MovieProject, RivalFilm, RivalStudio, Talent } from './types';
+import type { CrisisEvent, IndustryNewsItem, MovieGenre, MovieProject, RivalFilm, RivalStudio, Talent } from './types';
 import { createId } from './id';
 import type { StudioManager } from './studio-manager';
+import { RIVAL_CRISIS_RULES } from './balance-constants';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -480,6 +481,175 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
         });
       }
     }
+  }
+}
+
+// ── Rival Crisis Injection ──────────────────────────────────────────────────
+
+function buildRivalSignatureCrisis(
+  manager: StudioManager,
+  rival: RivalStudio,
+  profile: ReturnType<typeof getRivalBehaviorProfileForManager>,
+): CrisisEvent | null {
+  if (profile.conflictPush < 0.35) return null;
+
+  // Find the player's most visible project to target
+  const target = manager.activeProjects
+    .filter((p) => p.phase !== 'released')
+    .sort((a, b) => b.hypeScore - a.hypeScore)[0];
+  if (!target) return null;
+
+  // Find attached star talent for personalization
+  const attachedIds = new Set([target.directorId, ...target.castIds].filter(Boolean));
+  const star = manager.talentPool
+    .filter((t: Talent) => t.status === 'active' && attachedIds.has(t.id))
+    .sort((a: Talent, b: Talent) => b.starPower - a.starPower)[0] ?? null;
+
+  const crisisTemplates: Record<RivalStudio['personality'], {
+    title: string; body: string; severity: CrisisEvent['severity'];
+    options: CrisisEvent['options'];
+  }> = {
+    blockbusterFactory: {
+      title: `${rival.name}: Release Collision`,
+      body: `${rival.name} is fast-tracking a tentpole to collide with ${target.title}'s release window.`,
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'), label: 'Shift Release Window',
+          preview: 'Move your date by 2 weeks to dodge the collision.',
+          cashDelta: -120_000, scheduleDelta: 0, hypeDelta: -3, releaseWeekShift: 2,
+        },
+        {
+          id: createId('c-opt'), label: 'Hold Your Date',
+          preview: 'Stand firm—risk splitting the audience.',
+          cashDelta: 0, scheduleDelta: 0, hypeDelta: -6,
+        },
+      ],
+    },
+    prestigeHunter: {
+      title: `${rival.name}: Awards Sabotage`,
+      body: `${rival.name} leaked negative test screening data about ${target.title} to undercut your awards positioning.`,
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'), label: 'Counter with Press Offensive',
+          preview: '-$280K to push positive coverage.',
+          cashDelta: -280_000, scheduleDelta: 0, hypeDelta: 2,
+        },
+        {
+          id: createId('c-opt'), label: 'Ignore the Noise',
+          preview: 'Save cash but absorb the narrative hit.',
+          cashDelta: 0, scheduleDelta: 0, hypeDelta: -4,
+        },
+      ],
+    },
+    genreSpecialist: {
+      title: `${rival.name}: Talent Raid`,
+      body: star
+        ? `${rival.name} offered ${star.name} a direct franchise deal to walk away from ${target.title}.`
+        : `${rival.name} is aggressively recruiting crew away from ${target.title}.`,
+      severity: star ? 'red' : 'orange',
+      options: star ? [
+        {
+          id: createId('c-opt'), label: 'Match the Offer',
+          preview: `-$${Math.round((star.salary.base * 0.3) / 1000)}K retention bonus.`,
+          cashDelta: -Math.round(star.salary.base * 0.3), scheduleDelta: 0, hypeDelta: 0,
+          kind: 'talentCounter' as const, talentId: star.id,
+        },
+        {
+          id: createId('c-opt'), label: 'Let Them Walk',
+          preview: `Lose ${star.name} but save cash.`,
+          cashDelta: 0, scheduleDelta: 1, hypeDelta: -5,
+          kind: 'talentWalk' as const, talentId: star.id,
+        },
+      ] : [
+        {
+          id: createId('c-opt'), label: 'Offer Crew Retention Bonuses',
+          preview: '-$180K to lock your team.',
+          cashDelta: -180_000, scheduleDelta: 0, hypeDelta: 0,
+        },
+        {
+          id: createId('c-opt'), label: 'Accept Turnover',
+          preview: 'Save cash, risk schedule slip.',
+          cashDelta: 0, scheduleDelta: 1, hypeDelta: -2,
+        },
+      ],
+    },
+    streamingFirst: {
+      title: `${rival.name}: Distribution Disruption`,
+      body: `${rival.name} signed an exclusive streaming window that undercuts the theatrical run for ${target.title}.`,
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'), label: 'Buy Premium Placement',
+          preview: '-$350K for enhanced theatrical exposure.',
+          cashDelta: -350_000, scheduleDelta: 0, hypeDelta: 3,
+        },
+        {
+          id: createId('c-opt'), label: 'Accept Reduced Window',
+          preview: 'Lower theatrical ceiling but save cash.',
+          cashDelta: 0, scheduleDelta: 0, hypeDelta: -4,
+        },
+      ],
+    },
+    scrappyUpstart: {
+      title: `${rival.name}: Guerrilla Marketing`,
+      body: `${rival.name} is counter-programming ${target.title} with a viral social campaign.`,
+      severity: 'yellow',
+      options: [
+        {
+          id: createId('c-opt'), label: 'Outspend the Campaign',
+          preview: '-$200K to boost your own visibility.',
+          cashDelta: -200_000, scheduleDelta: 0, hypeDelta: 2,
+        },
+        {
+          id: createId('c-opt'), label: 'Ignore It',
+          preview: 'Save cash, take the hype hit.',
+          cashDelta: 0, scheduleDelta: 0, hypeDelta: -3,
+        },
+      ],
+    },
+  };
+
+  const template = crisisTemplates[rival.personality];
+  return {
+    id: createId('crisis'),
+    projectId: target.id,
+    kind: 'releaseConflict',
+    title: template.title,
+    severity: template.severity,
+    body: template.body,
+    options: template.options,
+  };
+}
+
+export function processRivalSignatureCrisesForManager(manager: StudioManager, events: string[]): void {
+  let injectedThisTurn = 0;
+
+  // Sort rivals by conflictPush descending — most aggressive goes first
+  const profiles = manager.rivals.map((rival) => ({
+    rival,
+    profile: getRivalBehaviorProfileForManager(manager, rival),
+  }));
+  profiles.sort((a, b) => b.profile.conflictPush - a.profile.conflictPush);
+
+  for (const { rival, profile } of profiles) {
+    if (injectedThisTurn >= RIVAL_CRISIS_RULES.MAX_INJECTED_PER_TURN) break;
+    if (profile.conflictPush < 0.35) continue;
+    if (manager.rivalRng() > profile.conflictPush * 0.5) continue;
+
+    // Cooldown check via story flag
+    const cooldownFlag = `rival_crisis_cooldown_${rival.id}`;
+    const lastCrisisWeek = manager.storyFlags[cooldownFlag] ?? 0;
+    if (lastCrisisWeek > 0 && manager.currentWeek - lastCrisisWeek < RIVAL_CRISIS_RULES.SIGNATURE_CRISIS_COOLDOWN_WEEKS) continue;
+
+    const crisis = buildRivalSignatureCrisis(manager, rival, profile);
+    if (!crisis) continue;
+
+    manager.injectCrisis(crisis);
+    manager.storyFlags[cooldownFlag] = manager.currentWeek;
+    injectedThisTurn++;
+    events.push(`${rival.name} escalated: ${crisis.title}.`);
   }
 }
 

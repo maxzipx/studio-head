@@ -102,6 +102,14 @@ export const TIER_RANK: Record<StudioTier, number> = {
   globalPowerhouse: 4,
 };
 
+export function isTierMet(current: StudioTier, required: StudioTier): boolean {
+  return TIER_RANK[current] >= TIER_RANK[required];
+}
+
+export function isTierExceeded(current: StudioTier, ceiling: StudioTier): boolean {
+  return TIER_RANK[current] > TIER_RANK[ceiling];
+}
+
 export const MILESTONE_LABELS: Record<MilestoneRecord['id'], { title: string; description: string }> = {
   firstHit: {
     title: 'First Hit',

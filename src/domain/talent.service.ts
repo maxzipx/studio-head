@@ -1,12 +1,15 @@
 import type {
     Talent,
+    TalentRole,
+    MovieGenre,
     MovieProject,
     PlayerNegotiation,
     TalentInteractionKind,
     TalentTrustLevel,
 } from './types';
 import { clamp, AGENT_DIFFICULTY } from './studio-manager.constants';
-import { TALENT_NEGOTIATION_RULES, MEMORY_RULES } from './balance-constants';
+import { TALENT_NEGOTIATION_RULES, MEMORY_RULES, TALENT_LIFECYCLE } from './balance-constants';
+import { createId } from './id';
 
 export interface TalentManagerAdapter {
     currentWeek: number;
@@ -197,6 +200,7 @@ export function setNegotiationCooldownForManager(manager: TalentManagerAdapter, 
 
 export function updateTalentAvailabilityForManager(manager: TalentManagerAdapter): void {
     for (const talent of manager.talentPool) {
+        if (talent.status !== 'active') continue;
         if (talent.availability !== 'unavailable') continue;
         if (!talent.unavailableUntilWeek) continue;
         if (manager.currentWeek < talent.unavailableUntilWeek) continue;
@@ -446,4 +450,205 @@ export function composeNegotiationSignalForManager(
         return `${talentName} declined: package support and perks were below ask.`;
     }
     return `${talentName} declined final terms after mixed signals from reps.`;
+}
+
+// ---------------------------------------------------------------------------
+// Talent Lifecycle: Aging, Replenishment & Progression
+// ---------------------------------------------------------------------------
+
+export interface TalentLifecycleAdapter {
+    currentWeek: number;
+    talentPool: Talent[];
+    eventRng(): number;
+}
+
+const SEED_ROLES: { role: TalentRole; ratio: number }[] = [
+    { role: 'director', ratio: 0.18 },
+    { role: 'leadActor', ratio: 0.41 },
+    { role: 'leadActress', ratio: 0.41 },
+];
+
+const TALENT_GENRES: MovieGenre[] = [
+    'action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary',
+];
+
+function pickRandomGenreFit(rng: () => number): Partial<Record<MovieGenre, number>> {
+    const shuffled = [...TALENT_GENRES].sort(() => rng() - 0.5);
+    return {
+        [shuffled[0]]: clamp(0.72 + rng() * 0.26, 0.72, 0.98),
+        [shuffled[1]]: clamp(0.55 + rng() * 0.35, 0.55, 0.9),
+        [shuffled[2]]: clamp(0.45 + rng() * 0.37, 0.45, 0.82),
+        [shuffled[3]]: clamp(0.35 + rng() * 0.4, 0.35, 0.75),
+    };
+}
+
+function pickAgentTierFromStats(starPower: number, reputation: number): Talent['agentTier'] {
+    const score = starPower * 6 + reputation * 0.52;
+    if (score >= 105) return 'aea';
+    if (score >= 94) return 'wma';
+    if (score >= 84) return 'tca';
+    return 'independent';
+}
+
+export function getTalentAge(talent: Talent, currentWeek: number): number {
+    return Math.floor((currentWeek - talent.birthWeek) / 52);
+}
+
+export function generateNewTalentBatch(
+    manager: TalentLifecycleAdapter,
+    batchSize: number = TALENT_LIFECYCLE.REPLENISHMENT_BATCH_SIZE,
+): Talent[] {
+    const activeCounts: Record<TalentRole, number> = {
+        director: 0, leadActor: 0, leadActress: 0,
+        supportingActor: 0, cinematographer: 0, composer: 0,
+    };
+    for (const t of manager.talentPool) {
+        if (t.status === 'active') activeCounts[t.role]++;
+    }
+
+    const totalActive = activeCounts.director + activeCounts.leadActor + activeCounts.leadActress;
+    const batch: Talent[] = [];
+
+    for (let i = 0; i < batchSize; i++) {
+        // Pick role biased toward underrepresented
+        let chosenRole: TalentRole = 'leadActor';
+        let worstDeficit = Infinity;
+        for (const { role, ratio } of SEED_ROLES) {
+            const expected = ratio * totalActive;
+            const deficit = activeCounts[role] - expected;
+            if (deficit < worstDeficit) {
+                worstDeficit = deficit;
+                chosenRole = role;
+            }
+        }
+
+        const rng = manager.eventRng;
+        const age = TALENT_LIFECYCLE.REPLENISHMENT_MIN_AGE +
+            Math.floor(rng() * (TALENT_LIFECYCLE.REPLENISHMENT_MAX_AGE - TALENT_LIFECYCLE.REPLENISHMENT_MIN_AGE + 1));
+        const starPower = clamp(2.0 + rng() * 3.0, 2.0, 5.0);
+        const craftScore = clamp(3.0 + rng() * 3.0, 3.0, 6.0);
+        const egoLevel = clamp(1.5 + rng() * 4.0, 1.5, 5.5);
+        const reputation = Math.round(clamp(35 + rng() * 25, 35, 60));
+        const studioRelationship = clamp(0.1 + rng() * 0.3, 0.1, 0.4);
+        const baseSalary = Math.round((350_000 + starPower * 120_000 + rng() * 200_000) / 10_000) * 10_000;
+
+        const talent: Talent = {
+            id: createId('talent'),
+            name: `New Talent ${manager.currentWeek}-${i}`,
+            role: chosenRole,
+            starPower: Math.round(starPower * 10) / 10,
+            craftScore: Math.round(craftScore * 10) / 10,
+            genreFit: pickRandomGenreFit(rng),
+            egoLevel: Math.round(egoLevel * 10) / 10,
+            salary: {
+                base: baseSalary,
+                backendPoints: clamp(0.5 + starPower * 0.15 + rng() * 0.5, 0.5, 2.5),
+                perksCost: Math.round((30_000 + egoLevel * 25_000 + rng() * 50_000) / 10_000) * 10_000,
+            },
+            availability: 'available',
+            unavailableUntilWeek: null,
+            attachedProjectId: null,
+            reputation,
+            agentTier: pickAgentTierFromStats(starPower, reputation),
+            studioRelationship,
+            relationshipMemory: {
+                trust: Math.round(clamp(35 + studioRelationship * 45, 0, 100)),
+                loyalty: Math.round(clamp(30 + studioRelationship * 40, 0, 100)),
+                interactionHistory: [],
+            },
+            marketWindowExpiresWeek: null,
+            birthWeek: manager.currentWeek - age * 52,
+            status: 'active',
+            retiredWeek: null,
+        };
+
+        batch.push(talent);
+        activeCounts[chosenRole]++;
+    }
+
+    return batch;
+}
+
+export function applyFilmCreditBoost(talent: Talent, isHit: boolean): void {
+    if (!isHit || talent.status !== 'active') return;
+    talent.starPower = clamp(
+        Math.round((talent.starPower + TALENT_LIFECYCLE.HIT_STAR_BOOST) * 10) / 10,
+        0,
+        9.9,
+    );
+    talent.craftScore = clamp(
+        Math.round((talent.craftScore + TALENT_LIFECYCLE.HIT_CRAFT_BOOST) * 10) / 10,
+        0,
+        TALENT_LIFECYCLE.CRAFT_CAP,
+    );
+    talent.agentTier = pickAgentTierFromStats(talent.starPower, talent.reputation);
+}
+
+export function processTalentAgingForManager(
+    manager: TalentLifecycleAdapter,
+    events: string[],
+): void {
+    let retiredCount = 0;
+
+    for (const talent of manager.talentPool) {
+        if (talent.status !== 'active') continue;
+
+        const age = getTalentAge(talent, manager.currentWeek);
+
+        // Stat drift: starPower decay after peak age
+        if (age > TALENT_LIFECYCLE.STAR_POWER_DECAY_START_AGE) {
+            const yearsOverPeak = age - TALENT_LIFECYCLE.STAR_POWER_DECAY_START_AGE;
+            const decay = TALENT_LIFECYCLE.STAR_POWER_DECAY_PER_YEAR * (yearsOverPeak / 10);
+            talent.starPower = clamp(
+                Math.round((talent.starPower - decay) * 10) / 10,
+                1.0,
+                9.9,
+            );
+        }
+
+        // Craft grows with experience
+        talent.craftScore = clamp(
+            Math.round((talent.craftScore + TALENT_LIFECYCLE.CRAFT_GROWTH_PER_YEAR) * 10) / 10,
+            0,
+            TALENT_LIFECYCLE.CRAFT_CAP,
+        );
+
+        // Recalculate agent tier if stats shifted
+        talent.agentTier = pickAgentTierFromStats(talent.starPower, talent.reputation);
+
+        // Retirement check
+        if (age >= TALENT_LIFECYCLE.RETIREMENT_HARD_CAP_AGE) {
+            talent.status = 'retired';
+            talent.retiredWeek = manager.currentWeek;
+            talent.availability = 'unavailable';
+            talent.unavailableUntilWeek = null;
+            talent.attachedProjectId = null;
+            retiredCount++;
+            continue;
+        }
+
+        if (age >= TALENT_LIFECYCLE.RETIREMENT_CHECK_START_AGE) {
+            const chance = TALENT_LIFECYCLE.RETIREMENT_BASE_CHANCE +
+                (age - TALENT_LIFECYCLE.RETIREMENT_CHECK_START_AGE) * TALENT_LIFECYCLE.RETIREMENT_CHANCE_PER_YEAR;
+            if (manager.eventRng() < chance) {
+                talent.status = 'retired';
+                talent.retiredWeek = manager.currentWeek;
+                talent.availability = 'unavailable';
+                talent.unavailableUntilWeek = null;
+                talent.attachedProjectId = null;
+                retiredCount++;
+            }
+        }
+    }
+
+    // Replenishment
+    const newTalent = generateNewTalentBatch(manager);
+    manager.talentPool.push(...newTalent);
+
+    if (retiredCount > 0) {
+        events.push(`${retiredCount} talent(s) retired from the industry.`);
+    }
+    if (newTalent.length > 0) {
+        events.push(`${newTalent.length} new talent(s) entered the industry.`);
+    }
 }

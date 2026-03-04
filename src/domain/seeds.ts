@@ -8,6 +8,7 @@ import type {
   TalentRole,
 } from './types';
 import { createId } from './id';
+import { TALENT_LIFECYCLE } from './balance-constants';
 
 function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
   const trust = Math.round(Math.min(100, Math.max(0, 35 + studioRelationship * 45)));
@@ -245,6 +246,17 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
     50_000 + egoLevel * 55_000 + starPower * 22_000 + seededUnit(seedIndex, 18 + worldSalt) * 120_000
   );
 
+  // Age: Box-Muller approximation using two seeded uniform samples.
+  // Higher craftScore nudges age older; high starPower + low craft nudges younger.
+  const u1 = Math.max(0.0001, seededUnit(seedIndex, 50 + worldSalt));
+  const u2 = seededUnit(seedIndex, 51 + worldSalt);
+  const normalSample = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  const craftAgeBias = (craftScore - 6) * 1.5;
+  const starYouthBias = starPower > 7 && craftScore < 6 ? -5 : 0;
+  const rawAge = TALENT_LIFECYCLE.SEED_MEAN_AGE + normalSample * TALENT_LIFECYCLE.SEED_AGE_STDDEV + craftAgeBias + starYouthBias;
+  const age = clampNumber(Math.round(rawAge), TALENT_LIFECYCLE.SEED_MIN_AGE, TALENT_LIFECYCLE.SEED_MAX_AGE);
+  const birthWeek = -(age * 52);
+
   return {
     id: createId('talent'),
     name: buildTalentName(seedIndex, namePool),
@@ -266,6 +278,9 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
     studioRelationship,
     relationshipMemory: createInitialRelationship(studioRelationship),
     marketWindowExpiresWeek: null,
+    birthWeek,
+    status: 'active',
+    retiredWeek: null,
   };
 }
 

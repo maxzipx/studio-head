@@ -13,7 +13,8 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       cooldownWeeks: 9,
       baseWeight: 0.85,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -57,7 +58,8 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.9,
       minWeek: 10,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'creative',
@@ -103,7 +105,8 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.8,
       minWeek: 12,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'creative',

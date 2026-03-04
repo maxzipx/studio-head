@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import { getEventDeck } from './event-deck';
-import type { EventTemplate } from './types';
+import type { BuildDecisionContext, EventTemplate } from './types';
+
+const STUB_CONTEXT: BuildDecisionContext = {
+  talentPool: [],
+  activeProjects: [],
+  rivals: [],
+  reputation: { critics: 50, talent: 50, distributor: 50, audience: 50 },
+  storyFlags: {},
+  cash: 500_000,
+  currentWeek: 10,
+  studioTier: 'midTier',
+  franchises: [],
+};
 
 function buildDecisionForValidation(event: EventTemplate) {
   let seed = 0;
@@ -10,6 +22,7 @@ function buildDecisionForValidation(event: EventTemplate) {
     projectId: 'project-test',
     projectTitle: 'Project Test',
     currentWeek: 10,
+    context: STUB_CONTEXT,
   });
 }
 
@@ -37,6 +50,7 @@ describe('content validation', () => {
       const decision = buildDecisionForValidation(event);
       expect(decisionTitles.has(event.decisionTitle)).toBe(false);
       decisionTitles.add(event.decisionTitle);
+      if (!decision) continue;
       for (const option of decision.options) {
         if (option.setFlag) producedFlags.add(option.setFlag);
       }
@@ -56,6 +70,7 @@ describe('content validation', () => {
 
     for (const event of deck) {
       const decision = buildDecisionForValidation(event);
+      if (!decision) continue;
       const arcId = decision.arcId ?? event.requiresArc?.id ?? event.blocksArc?.id;
       if (!arcId) continue;
 

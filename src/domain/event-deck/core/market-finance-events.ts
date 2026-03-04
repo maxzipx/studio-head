@@ -12,7 +12,8 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1.1,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -51,7 +52,8 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -91,7 +93,8 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 0.9,
       minWeek: 2,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -133,7 +136,8 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 0.95,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',

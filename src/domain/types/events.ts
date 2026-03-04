@@ -1,4 +1,17 @@
-import type { ProjectPhase } from './project';
+import type { ProjectPhase, FranchiseTrack, MovieProject, Talent } from './project';
+import type { StudioTier, StudioReputation, RivalStudio } from './industry';
+
+export interface BuildDecisionContext {
+  readonly talentPool: readonly Talent[];
+  readonly activeProjects: readonly MovieProject[];
+  readonly rivals: readonly RivalStudio[];
+  readonly reputation: Readonly<StudioReputation>;
+  readonly storyFlags: Readonly<Record<string, number>>;
+  readonly cash: number;
+  readonly currentWeek: number;
+  readonly studioTier: StudioTier;
+  readonly franchises: readonly FranchiseTrack[];
+}
 
 export interface CrisisOption {
   id: string;
@@ -91,6 +104,10 @@ export interface EventTemplate {
   blocksFlag?: string;
   requiresArc?: ArcRequirement;
   blocksArc?: ArcRequirement;
+  /** Event only fires at or above this studio tier */
+  minStudioTier?: StudioTier;
+  /** Event retires (stops firing) above this studio tier */
+  maxStudioTier?: StudioTier;
   title: string;
   decisionTitle: string;
   body: string;
@@ -102,7 +119,8 @@ export interface EventTemplate {
     projectId: string | null;
     projectTitle: string | null;
     currentWeek: number;
-  }) => DecisionItem;
+    context: BuildDecisionContext;
+  }) => DecisionItem | null;
 }
 
 export interface StoryArcState {

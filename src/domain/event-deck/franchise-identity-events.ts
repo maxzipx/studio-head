@@ -16,7 +16,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 0.9,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -75,7 +76,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.95,
       minWeek: 10,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -131,7 +133,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.85,
       minWeek: 12,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -189,7 +192,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.85,
       minWeek: 12,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'marketing',
@@ -245,7 +249,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.9,
       minWeek: 14,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'creative',
@@ -302,7 +307,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 14,
       baseWeight: 0.8,
       minWeek: 16,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -373,7 +379,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 1.1,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -426,7 +433,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 0.95,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -475,7 +483,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 14,
       baseWeight: 0.85,
       minWeek: 10,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'creative',
@@ -527,7 +536,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 16,
       baseWeight: 0.8,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -581,7 +591,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 16,
       baseWeight: 0.9,
       minWeek: 8,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -633,7 +644,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 1.0,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -684,7 +696,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.9,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -738,7 +751,8 @@ export const franchiseIdentityEventDeck: EventTemplate[] = [
       cooldownWeeks: 18,
       baseWeight: 0.75,
       minWeek: 12,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',

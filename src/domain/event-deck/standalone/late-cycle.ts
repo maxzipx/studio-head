@@ -12,7 +12,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 11,
       baseWeight: 0.78,
       minWeek: 10,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -67,7 +68,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.7,
       minWeek: 11,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -119,7 +121,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 20,
       baseWeight: 0.66,
       minWeek: 16,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'marketing',
@@ -170,7 +173,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 26,
       baseWeight: 0.6,
       minWeek: 20,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'operations',
@@ -223,7 +227,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 13,
       baseWeight: 0.76,
       minWeek: 14,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -275,7 +280,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 30,
       baseWeight: 0.55,
       minWeek: 22,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -327,7 +333,8 @@ export const lateCycleEvents: EventTemplate[] = [
       cooldownWeeks: 14,
       baseWeight: 0.68,
       minWeek: 12,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'majorStudio',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',

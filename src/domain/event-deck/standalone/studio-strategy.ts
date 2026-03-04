@@ -11,7 +11,8 @@ export const studioStrategyEvents: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.85,
       minWeek: 5,
-      buildDecision: ({ idFactory, currentWeek }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'talent',
@@ -53,7 +54,8 @@ export const studioStrategyEvents: EventTemplate[] = [
       cooldownWeeks: 18,
       baseWeight: 0.8,
       minWeek: 8,
-      buildDecision: ({ idFactory, currentWeek }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'marketing',
@@ -95,7 +97,8 @@ export const studioStrategyEvents: EventTemplate[] = [
       cooldownWeeks: 15,
       baseWeight: 0.9,
       minWeek: 10,
-      buildDecision: ({ idFactory, currentWeek }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -148,7 +151,8 @@ export const studioStrategyEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 1.0,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -200,7 +204,8 @@ export const studioStrategyEvents: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.72,
       minWeek: 10,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',

@@ -96,6 +96,8 @@ export interface TalentRelationshipMemory {
   interactionHistory: TalentInteractionEntry[];
 }
 
+export type TalentStatus = 'active' | 'retired' | 'deceased';
+
 export interface Talent {
   id: string;
   name: string;
@@ -114,6 +116,12 @@ export interface Talent {
   relationshipMemory: TalentRelationshipMemory;
   /** Week number at which this talent's market window closes (null = not currently in market) */
   marketWindowExpiresWeek: number | null;
+  /** Absolute week the talent was "born" — compute age via (currentWeek - birthWeek) / 52 */
+  birthWeek: number;
+  /** Lifecycle state — retired talent stay in pool for history but are filtered from casting */
+  status: TalentStatus;
+  /** Week when retirement occurred (null if still active) */
+  retiredWeek: number | null;
 }
 
 export interface ScriptPitch {

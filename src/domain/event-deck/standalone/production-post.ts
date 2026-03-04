@@ -12,7 +12,8 @@ export const productionPostEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.1,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -63,7 +64,8 @@ export const productionPostEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.05,
       minWeek: 5,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -112,7 +114,8 @@ export const productionPostEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 1.0,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -164,7 +167,8 @@ export const productionPostEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 0.95,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -216,7 +220,8 @@ export const productionPostEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 1.0,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',

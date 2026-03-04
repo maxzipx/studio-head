@@ -12,7 +12,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 3,
       baseWeight: 1.4,
       minWeek: 1,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -52,7 +53,7 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -98,7 +99,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.1,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -138,7 +140,7 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 1.1,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -185,7 +187,7 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 1,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -230,7 +232,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1.15,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -270,7 +273,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 3,
       baseWeight: 1.2,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -312,7 +316,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.05,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -362,7 +367,8 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.08,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      maxStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -411,7 +417,7 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.05,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -460,7 +466,7 @@ export const foundationCoreEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1.05,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',

@@ -713,6 +713,22 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
 
   sanitizeRestoredManager(manager);
 
+  // Migrate talent lifecycle fields for saves predating generational talent
+  for (const talent of manager.talentPool) {
+    const t = talent as unknown as Record<string, unknown>;
+    if (typeof t.birthWeek !== 'number') {
+      const craft = typeof t.craftScore === 'number' ? t.craftScore : 5;
+      const estimatedAge = 25 + Math.round(craft * 3.5);
+      t.birthWeek = manager.currentWeek - estimatedAge * 52;
+    }
+    if (t.status !== 'active' && t.status !== 'retired' && t.status !== 'deceased') {
+      t.status = 'active';
+    }
+    if (typeof t.retiredWeek !== 'number') {
+      t.retiredWeek = null;
+    }
+  }
+
   const sourceLastEventWeek = input.lastEventWeek;
   const targetLastEventWeek = (manager as unknown as { lastEventWeek: Map<string, number> }).lastEventWeek;
 

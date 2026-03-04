@@ -15,7 +15,8 @@ export const passionProjectEventDeck: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 0.95,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -75,7 +76,8 @@ export const passionProjectEventDeck: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 1.0,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'creative',
@@ -136,7 +138,8 @@ export const passionProjectEventDeck: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.95,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',

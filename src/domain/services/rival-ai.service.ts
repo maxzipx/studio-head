@@ -4,6 +4,7 @@ import {
   checkRivalReleaseResponsesForManager,
   getRivalBehaviorProfileForManager,
   processRivalCalendarMovesForManager,
+  processRivalSignatureCrisesForManager,
   processRivalSignatureMovesForManager,
   processRivalTalentAcquisitionsForManager,
   queueRivalCounterplayDecisionForManager,
@@ -30,6 +31,10 @@ export class RivalAiService {
 
   processRivalSignatureMoves(events: string[]): void {
     processRivalSignatureMovesForManager(this.manager, events);
+  }
+
+  processRivalSignatureCrises(events: string[]): void {
+    processRivalSignatureCrisesForManager(this.manager, events);
   }
 
   checkRivalReleaseResponses(releasedProject: MovieProject, events: string[]): void {

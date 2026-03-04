@@ -124,6 +124,7 @@ import {
   negotiationPressurePointForManager,
   composeNegotiationPreviewForManager,
   composeNegotiationSignalForManager,
+  processTalentAgingForManager,
   type NegotiationEvaluation,
   type NegotiationTerms,
 } from './talent.service';
@@ -1540,6 +1541,9 @@ export class StudioManager {
     this.projectOutcomes();
 
     this.currentWeek += 1;
+    if (this.currentWeek % 52 === 0) {
+      processTalentAgingForManager(this, events);
+    }
     this.processAnnualAwards(events);
     this.evaluateMajorIpContractBreaches(events);
 
@@ -1763,6 +1767,10 @@ export class StudioManager {
 
   private refillScriptMarket(events: string[]): void {
     refillScriptMarketForManager(this, events);
+  }
+
+  injectCrisis(crisis: CrisisEvent): void {
+    this.pendingCrises.push(crisis);
   }
 
   private rollForCrises(events: string[]): void {
@@ -2408,6 +2416,7 @@ export class StudioManager {
 
   private processRivalSignatureMoves(events: string[]): void {
     this.rivalAiService.processRivalSignatureMoves(events);
+    this.rivalAiService.processRivalSignatureCrises(events);
   }
 
   private checkRivalReleaseResponses(project: MovieProject, events: string[]): void {

@@ -13,7 +13,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 0.95,
       minWeek: 4,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -59,7 +60,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 1.05,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -125,7 +127,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 9,
       baseWeight: 0.9,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -181,7 +184,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 1.05,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -234,7 +238,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 1.1,
       minWeek: 7,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -289,7 +294,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.95,
       minWeek: 9,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'finance',
@@ -344,7 +350,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 9,
       baseWeight: 0.68,
       minWeek: 8,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',
@@ -403,7 +410,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 10,
       baseWeight: 0.74,
       minWeek: 10,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -459,7 +467,8 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       cooldownWeeks: 12,
       baseWeight: 0.7,
       minWeek: 12,
-      buildDecision: ({ idFactory }) => ({
+      minStudioTier: 'midTier',
+      buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
         category: 'finance',

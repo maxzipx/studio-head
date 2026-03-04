@@ -1,7 +1,9 @@
-import { EVENT_BALANCE } from './balance-constants';
+import { EVENT_BALANCE, SEASONAL_RULES } from './balance-constants';
+import { isTierMet, isTierExceeded } from './studio-manager.constants';
 import { createId } from './id';
 import { createSeedScriptMarket } from './seeds';
 import type {
+  BuildDecisionContext,
   CrisisEvent,
   DecisionItem,
   EventTemplate,
@@ -178,27 +180,91 @@ export function rollForCrisesForManager(manager: StudioManager, events: string[]
   }
 }
 
+function buildContextSnapshot(manager: StudioManager): BuildDecisionContext {
+  return {
+    talentPool: manager.talentPool,
+    activeProjects: manager.activeProjects,
+    rivals: manager.rivals,
+    reputation: manager.reputation,
+    storyFlags: manager.storyFlags,
+    cash: manager.cash,
+    currentWeek: manager.currentWeek,
+    studioTier: manager.studioTier,
+    franchises: manager.franchises,
+  };
+}
+
 export function generateEventDecisionsForManager(manager: StudioManager, events: string[]): void {
   if (manager.decisionQueue.length >= 4) return;
 
-  const nextEvent = pickWeightedEventForManager(manager);
-  if (!nextEvent) return;
+  const queuedTitles = new Set(manager.decisionQueue.map((item) => item.title));
+  const candidates = manager.eventDeck
+    .filter((event: EventTemplate) => {
+      if (manager.currentWeek < event.minWeek) return false;
+      if (event.minStudioTier && !isTierMet(manager.studioTier, event.minStudioTier)) return false;
+      if (event.maxStudioTier && isTierExceeded(manager.studioTier, event.maxStudioTier)) return false;
+      if (queuedTitles.has(event.decisionTitle)) return false;
+      if (event.requiresFlag && !hasStoryFlagForManager(manager, event.requiresFlag)) return false;
+      if (event.blocksFlag && hasStoryFlagForManager(manager, event.blocksFlag)) return false;
+      if (event.requiresArc && !matchesArcRequirementForManager(manager, event.requiresArc)) return false;
+      if (event.blocksArc && matchesArcRequirementForManager(manager, event.blocksArc)) return false;
+      const lastWeek = manager.lastEventWeek.get(event.id);
+      if (lastWeek !== undefined && manager.currentWeek - lastWeek < event.cooldownWeeks) return false;
+      return true;
+    })
+    .map((event: EventTemplate) => ({ event, weight: eventWeightForManager(manager, event) }))
+    .filter((entry) => entry.weight > 0);
 
-  const project = chooseProjectForEventForManager(manager, nextEvent);
-  if (nextEvent.scope === 'project' && !project) return;
-  const decision = nextEvent.buildDecision({
-    idFactory: createId,
-    projectId: project?.id ?? null,
-    projectTitle: project?.title ?? null,
-    currentWeek: manager.currentWeek,
-  });
-  decision.category ??= nextEvent.category;
-  decision.sourceEventId ??= nextEvent.id;
-  manager.decisionQueue.push(decision);
-  manager.lastEventWeek.set(nextEvent.id, manager.currentWeek);
-  manager.recentDecisionCategories.unshift(nextEvent.category);
-  manager.recentDecisionCategories = manager.recentDecisionCategories.slice(0, 5);
-  events.push(`New event: ${nextEvent.title}.`);
+  const context = buildContextSnapshot(manager);
+
+  for (let attempt = 0; attempt < Math.min(3, candidates.length); attempt++) {
+    if (candidates.length === 0) break;
+
+    const total = candidates.reduce((sum, item) => sum + item.weight, 0);
+    let roll = manager.eventRng() * total;
+    let picked: EventTemplate | null = null;
+    let pickedIdx = -1;
+    for (let i = 0; i < candidates.length; i++) {
+      roll -= candidates[i].weight;
+      if (roll <= 0) {
+        picked = candidates[i].event;
+        pickedIdx = i;
+        break;
+      }
+    }
+    if (!picked) {
+      picked = candidates[candidates.length - 1].event;
+      pickedIdx = candidates.length - 1;
+    }
+
+    const project = chooseProjectForEventForManager(manager, picked);
+    if (picked.scope === 'project' && !project) {
+      candidates.splice(pickedIdx, 1);
+      continue;
+    }
+
+    const decision = picked.buildDecision({
+      idFactory: createId,
+      projectId: project?.id ?? null,
+      projectTitle: project?.title ?? null,
+      currentWeek: manager.currentWeek,
+      context,
+    });
+
+    if (decision === null) {
+      candidates.splice(pickedIdx, 1);
+      continue;
+    }
+
+    decision.category ??= picked.category;
+    decision.sourceEventId ??= picked.id;
+    manager.decisionQueue.push(decision);
+    manager.lastEventWeek.set(picked.id, manager.currentWeek);
+    manager.recentDecisionCategories.unshift(picked.category);
+    manager.recentDecisionCategories = manager.recentDecisionCategories.slice(0, 5);
+    events.push(`New event: ${picked.title}.`);
+    break;
+  }
 }
 
 export function pickWeightedEventForManager(manager: StudioManager): EventTemplate | null {
@@ -206,6 +272,8 @@ export function pickWeightedEventForManager(manager: StudioManager): EventTempla
   const weighted = manager.eventDeck
     .filter((event: EventTemplate) => {
       if (manager.currentWeek < event.minWeek) return false;
+      if (event.minStudioTier && !isTierMet(manager.studioTier, event.minStudioTier)) return false;
+      if (event.maxStudioTier && isTierExceeded(manager.studioTier, event.maxStudioTier)) return false;
       if (queuedTitles.has(event.decisionTitle)) return false;
       if (event.requiresFlag && !hasStoryFlagForManager(manager, event.requiresFlag)) return false;
       if (event.blocksFlag && hasStoryFlagForManager(manager, event.blocksFlag)) return false;
@@ -260,6 +328,18 @@ export function eventWeightForManager(manager: StudioManager, event: EventTempla
   }
   if (manager.recentDecisionCategories[0] === event.category && manager.recentDecisionCategories[1] === event.category) {
     weight *= 0.55;
+  }
+
+  // Seasonal weight modifier
+  const weekInYear = manager.currentWeek % 52;
+  if (weekInYear >= SEASONAL_RULES.AWARDS_SEASON.startWeek && weekInYear <= SEASONAL_RULES.AWARDS_SEASON.endWeek) {
+    if (event.category === 'marketing' || event.id.includes('award')) weight *= 1.4;
+  }
+  if (weekInYear >= SEASONAL_RULES.SUMMER_BLOCKBUSTER.startWeek && weekInYear <= SEASONAL_RULES.SUMMER_BLOCKBUSTER.endWeek) {
+    if (event.category === 'marketing' || event.category === 'finance') weight *= 1.2;
+  }
+  if (weekInYear >= SEASONAL_RULES.HOLIDAY_CORRIDOR.startWeek && weekInYear <= SEASONAL_RULES.HOLIDAY_CORRIDOR.endWeek) {
+    if (event.category === 'operations') weight *= 1.3;
   }
 
   return weight;

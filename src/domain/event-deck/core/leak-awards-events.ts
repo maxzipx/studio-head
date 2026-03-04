@@ -14,7 +14,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 0.95,
       minWeek: 5,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -73,7 +74,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 1.2,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -131,7 +133,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 7,
       baseWeight: 1.05,
       minWeek: 8,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'operations',
@@ -178,7 +181,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1.1,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -224,7 +228,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 0.9,
       minWeek: 6,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',
@@ -270,7 +275,8 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 0.95,
       minWeek: 9,
-      buildDecision: ({ idFactory, projectId, projectTitle }) => ({
+      minStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'marketing',

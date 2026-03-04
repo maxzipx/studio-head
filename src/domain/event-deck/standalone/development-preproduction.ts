@@ -14,7 +14,8 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       cooldownWeeks: 5,
       baseWeight: 1.1,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      maxStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -66,7 +67,8 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       cooldownWeeks: 8,
       baseWeight: 0.9,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      maxStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -108,7 +110,8 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       cooldownWeeks: 4,
       baseWeight: 1.15,
       minWeek: 3,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      maxStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
@@ -163,7 +166,8 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       cooldownWeeks: 6,
       baseWeight: 0.95,
       minWeek: 2,
-      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek }) => ({
+      maxStudioTier: 'establishedIndie',
+      buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
         category: 'talent',
