@@ -1502,28 +1502,9 @@ export class StudioManager {
     this.eventService.generateEventDecisions(events);
   }
 
-  private pickWeightedEvent(): EventTemplate | null {
-    return this.eventService.pickWeightedEvent();
-  }
 
-  private eventWeight(event: EventTemplate): number {
-    return this.eventService.eventWeight(event);
-  }
-
-  private getEventArcId(event: EventTemplate): string | null {
-    return this.eventService.getEventArcId(event);
-  }
-
-  private getArcPressureFromRivals(arcId: string): number {
+  getArcPressureFromRivals(arcId: string): number {
     return this.eventService.getArcPressureFromRivals(arcId);
-  }
-
-  private getEventProjectCandidates(event: EventTemplate): MovieProject[] {
-    return this.eventService.getEventProjectCandidates(event);
-  }
-
-  private chooseProjectForEvent(event: EventTemplate): MovieProject | null {
-    return this.eventService.chooseProjectForEvent(event);
   }
 
   hasStoryFlag(flag: string): boolean {
@@ -1637,10 +1618,6 @@ export class StudioManager {
     }
   }
 
-  private estimateReleaseRunWeeks(project: MovieProject): number {
-    return this.lifecycleService.estimateReleaseRunWeeks(project);
-  }
-
   private tickRivalHeat(events: string[]): void {
     this.rivalAiService.tickRivalHeat(events);
   }
@@ -1666,16 +1643,8 @@ export class StudioManager {
     this.rivalAiService.checkRivalReleaseResponses(project, events);
   }
 
-  private queueRivalCounterplayDecision(flag: string, rivalName: string, projectId?: string): void {
-    this.rivalAiService.queueRivalCounterplayDecision(flag, rivalName, projectId);
-  }
-
   calendarPressureMultiplier(week: number, genre: MovieGenre): number {
     return this.releaseService.calendarPressureMultiplier(week, genre);
-  }
-
-  private pickTalentForRival(rival: RivalStudio, candidates: Talent[]): Talent | null {
-    return this.rivalAiService.pickTalentForRival(rival, candidates);
   }
 
   private updateTalentAvailability(): void {
@@ -1703,10 +1672,6 @@ export class StudioManager {
   composeNegotiationSignal(talentName: string, evaluation: Parameters<TalentService['composeNegotiationSignal']>[1], accepted: boolean, holdLineCount: number) { return this.talentService.composeNegotiationSignal(talentName, evaluation, accepted, holdLineCount); }
   finalizeTalentAttachment(project: MovieProject, talent: Talent, terms?: Parameters<TalentService['finalizeTalentAttachment']>[2]) { return this.talentService.finalizeTalentAttachment(project, talent, terms); }
 
-  private rivalHeatBias(personality: RivalStudio['personality']): number {
-    return this.rivalAiService.rivalHeatBias(personality);
-  }
-
   getRivalBehaviorProfile(rival: RivalStudio): {
     arcPressure: Record<string, number>;
     talentPoachChance: number;
@@ -1723,15 +1688,11 @@ export class StudioManager {
     return this.eventService.getArcOutcomeModifiers();
   }
 
-  private rivalNewsHeadline(name: string, delta: number): string {
-    return this.rivalAiService.rivalNewsHeadline(name, delta);
-  }
-
   private tickDistributionWindows(events: string[]): void {
     this.lifecycleService.tickDistributionWindows(events);
   }
 
-  private generateDistributionOffers(projectId: string): void {
+  generateDistributionOffers(projectId: string): void {
     this.lifecycleService.generateDistributionOffers(projectId);
   }
 
