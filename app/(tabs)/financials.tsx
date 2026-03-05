@@ -5,13 +5,7 @@ import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, spacing, typography } from '@/src/ui/tokens';
-
-function money(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
-  return `$${Math.round(abs).toLocaleString()}`;
-}
+import { money } from '@/src/ui/helpers/formatting';
 
 function roiToOutcome(roi: number): OutcomeType {
   if (roi >= 3) return 'blockbuster';

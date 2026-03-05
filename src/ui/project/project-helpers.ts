@@ -1,25 +1,20 @@
-import { colors } from '@/src/ui/tokens';
 import type { OutcomeType } from '@/src/ui/components';
 
-export function money(amount: number): string {
-  return `$${Math.round(amount).toLocaleString()}`;
-}
-
-export function pct(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
+// Re-export shared utilities so existing imports from project-helpers keep working.
+export {
+  money,
+  pct,
+  phaseColor,
+  burnBarColor,
+  roiColor,
+  franchiseStrategyLabel,
+} from '@/src/ui/helpers/formatting';
 
 export function resolveParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? '';
   return value ?? '';
 }
 
-export function franchiseStrategyLabel(strategy: string): string {
-  if (strategy === 'safe') return 'Safe Continuation';
-  if (strategy === 'reinvention') return 'Reinvention';
-  if (strategy === 'balanced') return 'Balanced';
-  return 'Standalone';
-}
 
 export function outcomeFromReport(outcome: string): OutcomeType {
   if (outcome === 'blockbuster') return 'blockbuster';
@@ -29,26 +24,6 @@ export function outcomeFromReport(outcome: string): OutcomeType {
   return 'bomb';
 }
 
-export function phaseColor(phase: string): string {
-  if (phase === 'development') return colors.accentTeal;
-  if (phase === 'preProduction' || phase === 'production') return colors.goldMid;
-  if (phase === 'postProduction') return colors.accentTeal;
-  if (phase === 'distribution') return '#6FAEEA';
-  if (phase === 'released') return colors.accentGreen;
-  return colors.textMuted;
-}
-
-export function burnBarColor(percent: number): string {
-  if (percent < 80) return colors.accentTeal;
-  if (percent < 95) return colors.goldMid;
-  return colors.accentRed;
-}
-
-export function roiColor(roi: number): string {
-  if (roi >= 1.5) return colors.accentTeal;
-  if (roi >= 1.0) return colors.goldMid;
-  return colors.accentRed;
-}
 
 type AdvanceProject = {
   phase: string;

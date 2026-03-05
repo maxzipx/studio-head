@@ -35,7 +35,22 @@ export function useGameStore<T>(selector: (state: GameState) => T): T {
   return useStore(store, selector);
 }
 
-// Backwards compatible hook that returns everything (will cause re-renders on every tick)
+/**
+ * @deprecated Use `useGameStore(useShallow(selector))` with a screen-level
+ * selector from `view-selectors.ts` instead. This hook spreads the entire
+ * store and causes re-renders on every state change regardless of which slice
+ * the caller uses. It is kept only for backwards compatibility during the
+ * migration and will be removed once all call sites are updated.
+ *
+ * @example
+ * // Before (bad — re-renders on every tick)
+ * const { manager, endWeek } = useGame();
+ *
+ * // After (good — only re-renders when the selected slice changes)
+ * import { selectHQView } from '@/src/state/view-selectors';
+ * import { useShallow } from 'zustand/react/shallow';
+ * const { manager, endWeek } = useGameStore(useShallow(selectHQView));
+ */
 export function useGame(): GameContextValue {
   return useGameStore((state) => ({
     manager: state.manager,

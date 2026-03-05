@@ -30,7 +30,7 @@ const sizeConfig = {
   lg: { paddingVertical: 16, paddingHorizontal: 24, fontSize: typography.sizeMD, borderRadius: radius.r3 },
 };
 
-export function PremiumButton({
+export const PremiumButton = React.memo(function PremiumButton({
   label,
   onPress,
   variant = 'primary',
@@ -81,7 +81,7 @@ export function PremiumButton({
       {inner}
     </TouchableOpacity>
   );
-}
+});
 
 // ── Per-variant container styles ─────────────────────────────────────────────
 const variantContainerStyle: Record<ButtonVariant, ViewStyle> = {

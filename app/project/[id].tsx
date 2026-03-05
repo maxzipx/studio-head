@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { ACTION_BALANCE, FESTIVAL_RULES } from '@/src/domain/balance-constants';
+// ACTION_BALANCE and FESTIVAL_RULES moved to useProjectActions hook
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { colors, typography } from '@/src/ui/tokens';
@@ -26,6 +26,7 @@ import {
   roiColor,
 } from '@/src/ui/project/project-helpers';
 import { styles } from '@/src/ui/project/project-styles';
+import { useProjectActions } from '@/src/ui/hooks/useProjectActions';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -124,65 +125,26 @@ export default function ProjectDetailScreen() {
   const blockers = project.phase !== 'released'
     ? advanceBlockers(project, manager.currentWeek, projectCrises.length, castStatus ?? undefined)
     : [];
-  const canPush = project.phase !== 'released' && manager.cash >= ACTION_BALANCE.OPTIONAL_ACTION_COST;
   const genreDemand = manager.getGenreDemandMultiplier(project.genre);
-  const canFestivalSubmit =
-    (project.phase === 'postProduction' || project.phase === 'distribution') &&
-    project.festivalStatus !== 'submitted' &&
-    project.festivalStatus !== 'selected' &&
-    project.festivalStatus !== 'buzzed' &&
-    manager.cash >= FESTIVAL_RULES.SUBMISSION_COST;
-  const canScriptSprint =
-    project.phase === 'development' &&
-    manager.cash >= ACTION_BALANCE.SCRIPT_SPRINT_COST &&
-    project.scriptQuality < ACTION_BALANCE.SCRIPT_SPRINT_MAX_QUALITY;
-  const canApproveGreenlight =
-    project.phase === 'development' &&
-    !!project.directorId &&
-    manager.meetsCastRequirements(project) &&
-    project.scriptQuality >= 6 &&
-    !project.greenlightApproved &&
-    manager.cash >= ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE;
-  const canSendBack =
-    project.phase === 'development' &&
-    !!project.directorId &&
-    manager.meetsCastRequirements(project) &&
-    project.scriptQuality >= 6;
-  const canPolishPass =
-    project.phase === 'postProduction' &&
-    manager.cash >= ACTION_BALANCE.POLISH_PASS_COST &&
-    project.editorialScore < ACTION_BALANCE.POLISH_PASS_MAX_EDITORIAL &&
-    (project.postPolishPasses ?? 0) < ACTION_BALANCE.POLISH_PASS_MAX_USES;
-  const canTestScreening =
-    (project.phase === 'postProduction' || project.phase === 'distribution') &&
-    manager.cash >= ACTION_BALANCE.TEST_SCREENING_COST;
-  const canReshoot =
-    project.phase === 'postProduction' &&
-    !!project.testScreeningCompleted &&
-    manager.cash >= ACTION_BALANCE.RESHOOT_COST;
-  const canTrackingLeverage = project.phase === 'distribution' && (project.trackingLeverageAmount ?? 0) <= 0;
   const franchiseModifiers = manager.getFranchiseProjectionModifiers(project.id);
   const franchiseStatus = manager.getFranchiseStatus(project.id);
   const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
-  const isSequelProject = !!project.franchiseId && (project.franchiseEpisode ?? 0) > 1;
-  const canSetStrategy =
-    isSequelProject &&
-    (project.phase === 'development' || project.phase === 'preProduction') &&
-    project.franchiseStrategy === 'balanced';
-  const canBrandReset =
-    !!franchiseStatus &&
-    isSequelProject &&
-    manager.cash >= franchiseStatus.nextBrandResetCost &&
-    (project.phase === 'development' || project.phase === 'preProduction');
-  const canLegacyCampaign =
-    !!franchiseStatus && isSequelProject && project.phase !== 'released' && manager.cash >= franchiseStatus.nextLegacyCastingCampaignCost;
-  const canHiatusPlan =
-    !!franchiseStatus &&
-    isSequelProject &&
-    project.phase !== 'production' &&
-    project.phase !== 'released' &&
-    manager.cash >= franchiseStatus.nextHiatusPlanCost;
   const releaseReport = manager.getLatestReleaseReport(project.id);
+  const {
+    canPush,
+    canFestivalSubmit,
+    canScriptSprint,
+    canApproveGreenlight,
+    canSendBack,
+    canPolishPass,
+    canTestScreening,
+    canReshoot,
+    canTrackingLeverage,
+    canSetStrategy,
+    canBrandReset,
+    canLegacyCampaign,
+    canHiatusPlan,
+  } = useProjectActions(project, manager);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

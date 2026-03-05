@@ -1,25 +1,8 @@
 import type { OutcomeType } from '@/src/ui/components';
 import type { ReleaseReport } from '@/src/domain/types';
 
-/** Capitalizes the first letter of every word, e.g. "sci-fi horror" → "Sci-Fi Horror" */
-export function capitalize(str: string): string {
-  if (!str) return str;
-  return str
-    .split(/(\s+|-)/)
-    .map((part) => (part.match(/^[a-z]/) ? part.charAt(0).toUpperCase() + part.slice(1) : part))
-    .join('');
-}
-
-export function money(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
-  return `$${Math.round(abs).toLocaleString()}`;
-}
-
-export function signedMoney(amount: number): string {
-  return `${amount >= 0 ? '+' : '-'}${money(Math.abs(amount))}`;
-}
+// Re-export shared utilities so existing imports from hq-helpers keep working.
+export { capitalize, money, signedMoney, stanceLabel, stanceColor } from '@/src/ui/helpers/formatting';
 
 export type ReleaseSplashTone = 'blockbuster' | 'flop' | 'record' | 'hit';
 
@@ -89,18 +72,3 @@ export const SPECIALIZATION_OPTIONS: { key: 'balanced' | 'blockbuster' | 'presti
 
 export const PARTNER_OPTIONS = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
 
-export function stanceLabel(value: string): string {
-  if (value === 'friendly') return 'Friendly';
-  if (value === 'warm') return 'Warm';
-  if (value === 'competitor') return 'Competitor';
-  if (value === 'rival') return 'Rival';
-  return 'Neutral';
-}
-
-export function stanceColor(value: string): string {
-  if (value === 'friendly') return '#0E6B44'; // dark green
-  if (value === 'warm') return '#5FAE8A'; // light green
-  if (value === 'competitor') return '#D87A77'; // light red
-  if (value === 'rival') return '#A93232'; // dark red
-  return '#000000';
-}

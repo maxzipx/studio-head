@@ -12,42 +12,13 @@ import {
   buildSlateRivalsSignature,
   buildSlateScriptsSignature,
 } from '@/src/state/view-signatures';
-
-function money(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
-  return `$${Math.round(abs).toLocaleString()}`;
-}
-
-function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
-  if (value === 'strongBuy') return 'Strong Buy';
-  if (value === 'conditional') return 'Conditional';
-  return 'Pass';
-}
-
-function recommendationColor(value: 'strongBuy' | 'conditional' | 'pass'): string {
-  if (value === 'strongBuy') return colors.accentGreen;
-  if (value === 'conditional') return colors.goldMid;
-  return colors.accentRed;
-}
-
-function phaseColor(phase: string): string {
-  if (phase === 'development') return colors.accentGreen;
-  if (phase === 'preProduction') return colors.goldMid;
-  if (phase === 'production') return colors.ctaBlue;
-  if (phase === 'postProduction') return colors.accentGreen;
-  if (phase === 'distribution') return colors.goldDeep;
-  return colors.textMuted;
-}
-
-function phaseProgress(phase: string, weeksRemaining: number): number {
-  const totals: Record<string, number> = {
-    development: 4, preProduction: 8, production: 14, postProduction: 6, distribution: 3,
-  };
-  const total = totals[phase] ?? 1;
-  return Math.max(0, Math.min(100, ((total - weeksRemaining) / total) * 100));
-}
+import {
+  money,
+  phaseColor,
+  phaseProgress,
+  recommendationColor,
+  recommendationLabel,
+} from '@/src/ui/helpers/formatting';
 
 export default function SlateScreen() {
   const router = useRouter();

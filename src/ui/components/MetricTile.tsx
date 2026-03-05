@@ -17,7 +17,7 @@ interface MetricTileProps {
   centered?: boolean;
 }
 
-export function MetricTile({
+export const MetricTile = React.memo(function MetricTile({
   value,
   label,
   size     = 'md',
@@ -53,7 +53,7 @@ export function MetricTile({
       </View>
     </View>
   );
-}
+});
 
 const sizeConfig: Record<MetricSize, { valueFontSize: number; labelFontSize: number; fontFamily: string }> = {
   lg: { valueFontSize: typography.size3XL, labelFontSize: typography.sizeXS,  fontFamily: typography.fontDisplay },

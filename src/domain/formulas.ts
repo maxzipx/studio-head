@@ -1,26 +1,5 @@
 import type { MovieGenre } from './types';
-
-const GENRE_BASELINE_OPENING: Record<MovieGenre, number> = {
-  action: 28_000_000,
-  drama: 9_000_000,
-  comedy: 14_000_000,
-  horror: 12_000_000,
-  thriller: 13_500_000,
-  sciFi: 21_000_000,
-  animation: 24_000_000,
-  documentary: 2_500_000,
-};
-
-const INTERNATIONAL_FACTOR: Record<MovieGenre, number> = {
-  action: 2.4,
-  drama: 1.2,
-  comedy: 1.4,
-  horror: 1.6,
-  thriller: 1.5,
-  sciFi: 2.2,
-  animation: 2.8,
-  documentary: 0.8,
-};
+import { GENRE_BASELINE_OPENING, GENRE_INTERNATIONAL_FACTOR } from './genre-config';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -92,7 +71,7 @@ export function projectedROI(input: {
     (clamp(input.criticalScore, 0, 100) / 100) * 0.9 +
     (clamp(input.audienceScore, 0, 100) / 100) * 0.8;
   const domesticTotal = input.openingWeekend * legMultiplier;
-  const internationalTotal = domesticTotal * INTERNATIONAL_FACTOR[input.genre];
+  const internationalTotal = domesticTotal * GENRE_INTERNATIONAL_FACTOR[input.genre];
   const worldwideGross = domesticTotal + internationalTotal;
   const netRevenue = worldwideGross * 0.54;
   return netRevenue / Math.max(1, input.totalCost);

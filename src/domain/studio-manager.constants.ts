@@ -1,7 +1,6 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import type {
   DecisionCategory,
-  GenreCycleState,
   IpKind,
   MilestoneRecord,
   MovieGenre,
@@ -24,55 +23,8 @@ export function initialBudgetForGenre(genre: MovieGenre): number {
   return PROJECT_BALANCE.INITIAL_BUDGET_BY_GENRE[genre];
 }
 
-export const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
-
-export const GENRE_SHOCK_LIBRARY: Record<MovieGenre, { surge: string[]; slump: string[] }> = {
-  action: {
-    surge: ['Global action revival', 'Practical stunt renaissance'],
-    slump: ['Superhero fatigue wave', 'Action sequel burnout'],
-  },
-  drama: {
-    surge: ['Awards-season drama appetite', 'Character-story comeback'],
-    slump: ['Prestige-drama cooling cycle', 'Audience patience dip for slow burns'],
-  },
-  comedy: {
-    surge: ['Comedy rebound on social platforms', 'Crowd-pleaser comeback'],
-    slump: ['Comedy oversupply', 'Audience comedy fatigue'],
-  },
-  horror: {
-    surge: ['Horror revival trend', 'Midnight-screening boom'],
-    slump: ['Horror formula fatigue', 'Jump-scare burnout'],
-  },
-  thriller: {
-    surge: ['Streaming thriller spillover', 'Conspiracy-thriller surge'],
-    slump: ['Twist-thriller fatigue', 'Thriller saturation'],
-  },
-  sciFi: {
-    surge: ['Speculative fiction boom', 'Sci-fi spectacle upswing'],
-    slump: ['Sci-fi VFX fatigue', 'High-concept confusion backlash'],
-  },
-  animation: {
-    surge: ['Family animation rebound', 'Animated feature boom'],
-    slump: ['Animated franchise fatigue', 'Crowded family slate'],
-  },
-  documentary: {
-    surge: ['Doc prestige wave', 'True-story urgency spike'],
-    slump: ['Documentary attention dip', 'Issue-doc fatigue'],
-  },
-};
-
-export function createInitialGenreCycles(): Record<MovieGenre, GenreCycleState> {
-  return {
-    action: { demand: 1.02, momentum: 0.004 },
-    drama: { demand: 0.98, momentum: 0.002 },
-    comedy: { demand: 1, momentum: 0.001 },
-    horror: { demand: 1.04, momentum: 0.003 },
-    thriller: { demand: 1.01, momentum: 0.002 },
-    sciFi: { demand: 1.03, momentum: 0.003 },
-    animation: { demand: 0.99, momentum: 0.001 },
-    documentary: { demand: 0.95, momentum: 0.001 },
-  };
-}
+// Re-export from the canonical genre-config module so existing imports keep working.
+export { MOVIE_GENRES, GENRE_SHOCK_LIBRARY, createInitialGenreCycles } from './genre-config';
 
 export const AGENT_DIFFICULTY: Record<Talent['agentTier'], number> = {
   independent: 1,

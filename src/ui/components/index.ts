@@ -18,3 +18,6 @@ export type { OutcomeType } from './OutcomeBadge';
 export { RepPillarGrid }  from './RepPillarGrid';
 export { ProgressBar }    from './ProgressBar';
 export { MetricsStrip }   from './MetricsStrip';
+
+export { TalentCard }     from './TalentCard';
+export type { TalentCardProps } from './TalentCard';

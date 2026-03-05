@@ -13,7 +13,7 @@ interface SectionLabelProps {
   style?:  ViewStyle;
 }
 
-export function SectionLabel({ label, action, style }: SectionLabelProps) {
+export const SectionLabel = React.memo(function SectionLabel({ label, action, style }: SectionLabelProps) {
   return (
     <View style={[styles.row, style]}>
       <Text style={styles.label}>{label.toUpperCase()}</Text>
@@ -24,7 +24,7 @@ export function SectionLabel({ label, action, style }: SectionLabelProps) {
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {

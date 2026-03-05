@@ -10,7 +10,7 @@ interface StarRatingProps {
   style?:     ViewStyle;
 }
 
-export function StarRating({ value, maxStars = 5, size = 'md', style }: StarRatingProps) {
+export const StarRating = React.memo(function StarRating({ value, maxStars = 5, size = 'md', style }: StarRatingProps) {
   // Map 0-10 → 0-maxStars (default: 0-5)
   const starValue = (value / 10) * maxStars;
   const fullStars = Math.floor(starValue);
@@ -32,7 +32,7 @@ export function StarRating({ value, maxStars = 5, size = 'md', style }: StarRati
       ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {

@@ -13,7 +13,7 @@ interface ProgressBarProps {
   bgColor?:    string;
 }
 
-export function ProgressBar({
+export const ProgressBar = React.memo(function ProgressBar({
   value,
   color      = colors.accentTeal,
   height     = 4,
@@ -64,7 +64,7 @@ export function ProgressBar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   track: {
