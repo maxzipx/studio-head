@@ -1,7 +1,6 @@
 import {
   ACTION_BALANCE,
   BANKRUPTCY_RULES,
-  GENRE_CYCLE_RULES,
   MEMORY_RULES,
   SESSION_RULES,
   STUDIO_STARTING,
@@ -23,26 +22,6 @@ import {
   getMajorIpCommitmentsForManager,
   initializeMajorIpCommitmentForManager,
 } from './studio-manager.major-ip';
-import {
-  applyArcMutationForManager,
-  applyStoryFlagMutationsForManager,
-  buildOperationalCrisisForManager,
-  chooseProjectForEventForManager,
-  ensureArcStateForManager,
-  eventWeightForManager,
-  generateEventDecisionsForManager,
-  getArcPressureFromRivalsForManager,
-  getDecisionTargetProjectForManager,
-  getEventArcIdForManager,
-  getEventProjectCandidatesForManager,
-  hasStoryFlagForManager,
-  matchesArcRequirementForManager,
-  pickWeightedEventForManager,
-  refillScriptMarketForManager,
-  rollForCrisesForManager,
-  tickDecisionExpiryForManager,
-  tickScriptMarketExpiryForManager,
-} from './studio-manager.events';
 import {
   runGreenlightReviewForManager,
   runTestScreeningForManager,
@@ -68,14 +47,13 @@ import { ProjectLifecycleService } from './services/project-lifecycle.service';
 import { RivalAiService } from './services/rival-ai.service';
 import { ReleaseService } from './services/release.service';
 import { TalentService } from './services/talent.service';
+import { EventService } from './services/event.service';
 import {
   ARC_LABELS,
   buildIpTemplate,
   clamp,
   createInitialGenreCycles,
-  GENRE_SHOCK_LIBRARY,
   initialBudgetForGenre,
-  MOVIE_GENRES,
   specializationProfile,
   TIER_RANK,
   type ArcOutcomeModifiers,
@@ -197,6 +175,7 @@ export class StudioManager {
   private readonly lifecycleService = new ProjectLifecycleService(this);
   private readonly franchiseService = new FranchiseService(this);
   private readonly rivalAiService = new RivalAiService(this);
+  private readonly eventService = new EventService(this);
   private readonly releaseService = new ReleaseService(this);
   private readonly talentService = new TalentService(this);
 
@@ -846,7 +825,7 @@ export class StudioManager {
   }
 
   getGenreDemandMultiplier(genre: MovieGenre): number {
-    return this.genreCycles[genre]?.demand ?? 1;
+    return this.eventService.getGenreDemandMultiplier(genre);
   }
 
   getProjectCastStatus(projectId: string): { actorCount: number; actressCount: number; total: number; requiredTotal: number } | null {
@@ -881,14 +860,7 @@ export class StudioManager {
     shockDirection: 'surge' | 'slump' | null;
     shockWeeksRemaining: number;
   }[] {
-    return MOVIE_GENRES.map((genre) => ({
-      genre,
-      demand: this.getGenreDemandMultiplier(genre),
-      momentum: this.genreCycles[genre]?.momentum ?? 0,
-      shockLabel: this.genreCycles[genre]?.shockLabel ?? null,
-      shockDirection: this.genreCycles[genre]?.shockDirection ?? null,
-      shockWeeksRemaining: Math.max(0, (this.genreCycles[genre]?.shockUntilWeek ?? this.currentWeek) - this.currentWeek),
-    })).sort((a, b) => b.demand - a.demand);
+    return this.eventService.getGenreCycleSnapshot();
   }
 
   getAvailableTalentForRole(role: TalentRole): Talent[] {
@@ -934,34 +906,7 @@ export class StudioManager {
     affordabilityScore: number;
     riskLabel: 'low' | 'medium' | 'high';
   } | null {
-    const script = this.scriptMarket.find((item) => item.id === scriptId);
-    if (!script) return null;
-
-    const affordability = script.askingPrice / Math.max(1, this.cash);
-    const qualityScore = clamp(
-      ((script.scriptQuality / 10) * 0.62 + (script.conceptStrength / 10) * 0.38) * 100,
-      0,
-      100
-    );
-    const affordabilityScore = clamp((1 - affordability / 0.18) * 100, 0, 100);
-    const valueScore = clamp(qualityScore * 0.74 + affordabilityScore * 0.26, 0, 100);
-    const score = valueScore;
-    const recommendation = score >= 70 ? 'strongBuy' : score >= 55 ? 'conditional' : 'pass';
-    const riskLabel =
-      affordability > 0.15 || qualityScore < 58
-        ? 'high'
-        : affordability > 0.08 || qualityScore < 70
-          ? 'medium'
-          : 'low';
-
-    return {
-      score,
-      recommendation,
-      qualityScore,
-      valueScore,
-      affordabilityScore,
-      riskLabel,
-    };
+    return this.eventService.evaluateScriptPitch(scriptId);
   }
 
   getIndustryHeatLeaderboard(): { name: string; heat: number; isPlayer: boolean }[] {
@@ -1534,84 +1479,84 @@ export class StudioManager {
   }
 
   private tickDecisionExpiry(events: string[]): void {
-    tickDecisionExpiryForManager(this, events);
+    this.eventService.tickDecisionExpiry(events);
   }
 
   private tickScriptMarketExpiry(events: string[]): void {
-    tickScriptMarketExpiryForManager(this, events);
+    this.eventService.tickScriptMarketExpiry(events);
   }
 
   private refillScriptMarket(events: string[]): void {
-    refillScriptMarketForManager(this, events);
+    this.eventService.refillScriptMarket(events);
   }
 
   injectCrisis(crisis: CrisisEvent): void {
-    this.pendingCrises.push(crisis);
+    this.eventService.injectCrisis(crisis);
   }
 
   private rollForCrises(events: string[]): void {
-    rollForCrisesForManager(this, events);
+    this.eventService.rollForCrises(events);
   }
 
   private generateEventDecisions(events: string[]): void {
-    generateEventDecisionsForManager(this, events);
+    this.eventService.generateEventDecisions(events);
   }
 
   private pickWeightedEvent(): EventTemplate | null {
-    return pickWeightedEventForManager(this);
+    return this.eventService.pickWeightedEvent();
   }
 
   private eventWeight(event: EventTemplate): number {
-    return eventWeightForManager(this, event);
+    return this.eventService.eventWeight(event);
   }
 
   private getEventArcId(event: EventTemplate): string | null {
-    return getEventArcIdForManager(this, event);
+    return this.eventService.getEventArcId(event);
   }
 
   private getArcPressureFromRivals(arcId: string): number {
-    return getArcPressureFromRivalsForManager(this, arcId);
+    return this.eventService.getArcPressureFromRivals(arcId);
   }
 
   private getEventProjectCandidates(event: EventTemplate): MovieProject[] {
-    return getEventProjectCandidatesForManager(this, event);
+    return this.eventService.getEventProjectCandidates(event);
   }
 
   private chooseProjectForEvent(event: EventTemplate): MovieProject | null {
-    return chooseProjectForEventForManager(this, event);
+    return this.eventService.chooseProjectForEvent(event);
   }
 
   hasStoryFlag(flag: string): boolean {
-    return hasStoryFlagForManager(this, flag);
+    return this.eventService.hasStoryFlag(flag);
   }
 
-  private matchesArcRequirement(input: {
+  matchesArcRequirement(input: {
     id: string;
     minStage?: number;
     maxStage?: number;
     status?: 'active' | 'resolved' | 'failed';
   }): boolean {
-    return matchesArcRequirementForManager(this, input);
+    return this.eventService.matchesArcRequirement(input);
   }
 
-  private ensureArcState(arcId: string): StoryArcState {
-    return ensureArcStateForManager(this, arcId);
+  ensureArcState(arcId: string): StoryArcState {
+    return this.eventService.ensureArcState(arcId);
   }
 
-  private applyArcMutation(arcId: string, option: DecisionItem['options'][number]): void {
-    applyArcMutationForManager(this, arcId, option);
+  applyArcMutation(arcId: string, option: DecisionItem['options'][number]): void {
+    this.eventService.applyArcMutation(arcId, option);
   }
 
-  private applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {
-    applyStoryFlagMutationsForManager(this, setFlag, clearFlag);
+  applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {
+    this.eventService.applyStoryFlagMutations(setFlag, clearFlag);
   }
 
-  private getDecisionTargetProject(decision: DecisionItem): MovieProject | null {
-    return getDecisionTargetProjectForManager(this, decision);
+  getDecisionTargetProject(decision: DecisionItem): MovieProject | null {
+    return this.eventService.getDecisionTargetProject(decision);
   }
 
-  private buildOperationalCrisis(project: MovieProject): CrisisEvent {
-    return buildOperationalCrisisForManager(this, project);
+  buildOperationalCrisis(project: MovieProject): CrisisEvent {
+    return this.eventService.buildOperationalCrisis(project);
   }
 
   private projectOutcomes(): void {
@@ -1626,97 +1571,8 @@ export class StudioManager {
     this.releaseService.processAnnualAwards(events);
   }
 
-  private triggerGenreShock(events: string[]): void {
-    const ranked = this.getGenreCycleSnapshot().filter((entry) => {
-      const state = this.genreCycles[entry.genre];
-      return !state?.shockUntilWeek || this.currentWeek > state.shockUntilWeek;
-    });
-    if (ranked.length === 0) return;
-
-    const topBand = ranked.slice(0, Math.max(2, Math.ceil(ranked.length / 3)));
-    const bottomBand = ranked.slice(-Math.max(2, Math.ceil(ranked.length / 3)));
-    const slumpFirst = this.eventRng() < 0.58;
-    const sourceBand = slumpFirst ? topBand : bottomBand;
-    const picked = sourceBand[Math.floor(this.eventRng() * sourceBand.length)] ?? ranked[0];
-    if (!picked) return;
-
-    const direction: 'surge' | 'slump' = slumpFirst ? 'slump' : 'surge';
-    const duration =
-      GENRE_CYCLE_RULES.SHOCK_DURATION_MIN +
-      Math.floor(
-        this.eventRng() * (GENRE_CYCLE_RULES.SHOCK_DURATION_MAX - GENRE_CYCLE_RULES.SHOCK_DURATION_MIN + 1)
-      );
-    const strength =
-      GENRE_CYCLE_RULES.SHOCK_INTENSITY_MIN +
-      this.eventRng() * (GENRE_CYCLE_RULES.SHOCK_INTENSITY_MAX - GENRE_CYCLE_RULES.SHOCK_INTENSITY_MIN);
-    const labelPool = GENRE_SHOCK_LIBRARY[picked.genre][direction];
-    const label = labelPool[Math.floor(this.eventRng() * labelPool.length)] ?? `${picked.genre} market shift`;
-    const state = this.genreCycles[picked.genre] ?? { demand: 1, momentum: 0 };
-
-    state.shockLabel = label;
-    state.shockDirection = direction;
-    state.shockStrength = strength;
-    state.shockUntilWeek = this.currentWeek + duration;
-    this.genreCycles[picked.genre] = state;
-
-    events.push(
-      `Genre shock: ${picked.genre} ${direction === 'surge' ? 'surge' : 'slump'} (${label}) over roughly ${duration} weeks.`
-    );
-  }
-
   private tickGenreCycles(events: string[]): void {
-    for (const genre of MOVIE_GENRES) {
-      const state = this.genreCycles[genre] ?? { demand: 1, momentum: 0 };
-      const hasShock = !!state.shockUntilWeek && this.currentWeek <= state.shockUntilWeek;
-      const shockDirection = state.shockDirection === 'slump' ? -1 : 1;
-      const shockStrength = hasShock ? (state.shockStrength ?? 0) * shockDirection : 0;
-      const drift = (this.eventRng() - 0.5) * GENRE_CYCLE_RULES.DRIFT_RANGE;
-
-      state.demand = clamp(
-        state.demand + state.momentum + drift + shockStrength * 0.55,
-        GENRE_CYCLE_RULES.DEMAND_MIN,
-        GENRE_CYCLE_RULES.DEMAND_MAX
-      );
-      state.momentum = clamp(
-        state.momentum * 0.88 + (this.eventRng() - 0.5) * GENRE_CYCLE_RULES.MOMENTUM_DRIFT_RANGE + shockStrength * 0.2,
-        GENRE_CYCLE_RULES.MOMENTUM_MIN,
-        GENRE_CYCLE_RULES.MOMENTUM_MAX
-      );
-
-      if (state.shockUntilWeek && this.currentWeek > state.shockUntilWeek) {
-        state.shockLabel = null;
-        state.shockDirection = null;
-        state.shockStrength = null;
-        state.shockUntilWeek = null;
-      }
-
-      this.genreCycles[genre] = state;
-    }
-
-    if (this.currentWeek % 9 === 0) {
-      const genre = MOVIE_GENRES[Math.floor(this.eventRng() * MOVIE_GENRES.length)];
-      const momentumShift = (this.eventRng() > 0.5 ? 1 : -1) * (0.01 + this.eventRng() * 0.015);
-      this.genreCycles[genre].momentum = clamp(
-        this.genreCycles[genre].momentum + momentumShift,
-        GENRE_CYCLE_RULES.MOMENTUM_MIN,
-        GENRE_CYCLE_RULES.MOMENTUM_MAX
-      );
-    }
-
-    if (this.currentWeek % GENRE_CYCLE_RULES.SHOCK_CHECK_INTERVAL_WEEKS === 0) {
-      this.triggerGenreShock(events);
-    }
-
-    if (this.currentWeek % 12 === 0) {
-      const snapshot = this.getGenreCycleSnapshot();
-      const hottest = snapshot[0];
-      const coolest = snapshot[snapshot.length - 1];
-      if (hottest && coolest && hottest.genre !== coolest.genre) {
-        events.push(
-          `Genre cycle shift: ${hottest.genre} is heating up while ${coolest.genre} is cooling off.`
-        );
-      }
-    }
+    this.eventService.tickGenreCycles(events);
   }
 
   private resolveFestivalCircuit(events: string[]): void {
@@ -1864,77 +1720,7 @@ export class StudioManager {
   }
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
-    const modifiers: ArcOutcomeModifiers = {
-      talentLeverage: 0,
-      distributionLeverage: 0,
-      burnMultiplier: 1,
-      hypeDecayStep: 2,
-      releaseHeatMomentum: 0,
-      categoryBias: {},
-    };
-
-    for (const [arcId, arc] of Object.entries(this.storyArcs)) {
-      if (arc.status === 'resolved') {
-        if (arcId === 'awards-circuit') {
-          modifiers.talentLeverage += 0.05;
-          modifiers.releaseHeatMomentum += 1;
-          modifiers.categoryBias.marketing = (modifiers.categoryBias.marketing ?? 0) + 0.2;
-        } else if (arcId === 'exhibitor-war') {
-          modifiers.distributionLeverage += 0.05;
-          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.12;
-        } else if (arcId === 'financier-control') {
-          modifiers.distributionLeverage += 0.02;
-          modifiers.burnMultiplier *= 0.98;
-        } else if (arcId === 'leak-piracy') {
-          modifiers.hypeDecayStep -= 0.2;
-          modifiers.distributionLeverage += 0.02;
-        } else if (arcId === 'talent-meltdown') {
-          modifiers.talentLeverage += 0.04;
-          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.15;
-        } else if (arcId === 'franchise-pivot') {
-          modifiers.distributionLeverage += 0.03;
-          modifiers.burnMultiplier *= 1.02;
-          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.1;
-        }
-      } else if (arc.status === 'failed') {
-        if (arcId === 'awards-circuit') {
-          modifiers.talentLeverage -= 0.04;
-          modifiers.releaseHeatMomentum -= 1;
-        } else if (arcId === 'exhibitor-war') {
-          modifiers.distributionLeverage -= 0.05;
-          modifiers.hypeDecayStep += 0.2;
-        } else if (arcId === 'financier-control') {
-          modifiers.burnMultiplier *= 1.04;
-          modifiers.talentLeverage -= 0.03;
-        } else if (arcId === 'leak-piracy') {
-          modifiers.hypeDecayStep += 0.35;
-          modifiers.distributionLeverage -= 0.03;
-        } else if (arcId === 'talent-meltdown') {
-          modifiers.talentLeverage -= 0.08;
-          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.08;
-        } else if (arcId === 'franchise-pivot') {
-          modifiers.burnMultiplier *= 0.99;
-          modifiers.distributionLeverage -= 0.02;
-        }
-      }
-    }
-
-    modifiers.distributionLeverage += this.specializationProfile.distributionLeverage;
-    modifiers.distributionLeverage += this.departmentLevels.distribution * 0.015;
-    modifiers.distributionLeverage += this.executiveNetworkLevel * 0.01;
-    modifiers.talentLeverage += this.executiveNetworkLevel * 0.012;
-    if (this.studioSpecialization === 'blockbuster') {
-      modifiers.hypeDecayStep = Math.max(0.8, modifiers.hypeDecayStep - 0.2);
-    } else if (this.studioSpecialization === 'prestige') {
-      modifiers.releaseHeatMomentum += 0.6;
-    }
-
-    modifiers.burnMultiplier = clamp(modifiers.burnMultiplier, 0.85, 1.2);
-    modifiers.distributionLeverage = clamp(modifiers.distributionLeverage, -0.12, 0.12);
-    modifiers.talentLeverage = clamp(modifiers.talentLeverage, -0.2, 0.2);
-    modifiers.hypeDecayStep = clamp(modifiers.hypeDecayStep, 0.8, 3.2);
-    modifiers.releaseHeatMomentum = clamp(modifiers.releaseHeatMomentum, -3, 3);
-    return modifiers;
+    return this.eventService.getArcOutcomeModifiers();
   }
 
   private rivalNewsHeadline(name: string, delta: number): string {
