@@ -1,4 +1,4 @@
-import type { CrisisEvent, DecisionItem, InboxNotification, MovieProject, ReleaseReport, Talent } from '../domain/types';
+import type { CrisisEvent, DecisionItem, InboxNotification, MovieProject, ReleaseReport } from '../domain/types';
 import type { GameState } from './game-store';
 import {
   buildBoxOfficeReleasedSignature,

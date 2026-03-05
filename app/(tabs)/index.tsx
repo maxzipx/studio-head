@@ -268,7 +268,7 @@ export default function HQScreen() {
                 <SectionLabel label="HQ Help" />
                 <Text style={styles.body}>Use End Turn to progress pipeline phases and market cycles.</Text>
                 <Text style={styles.body}>Studio identity changes commit on End Turn; keep cash reserved for pivots.</Text>
-                <Text style={styles.body}>Before greenlight, attach a director and satisfy each project's actor/actress requirements.</Text>
+                <Text style={styles.body}>Before greenlight, attach a director and satisfy each project&apos;s actor/actress requirements.</Text>
                 <Text style={styles.body}>Monitor Inbox each week. Crises block advancement until resolved.</Text>
               </GlassCard>
             ) : null}

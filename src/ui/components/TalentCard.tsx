@@ -14,11 +14,9 @@ import type { MovieProject, Talent } from '@/src/domain/types';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 import {
   agencyLabel,
-  chanceColor,
   craftGrade,
   craftGradeColor,
   interactionLabel,
-  money,
   pct,
   refusalRiskColor,
   roleLabel,

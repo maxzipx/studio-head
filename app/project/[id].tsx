@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// ACTION_BALANCE and FESTIVAL_RULES moved to useProjectActions hook
+import { ACTION_BALANCE, FESTIVAL_RULES } from '@/src/domain/balance-constants';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { selectProjectDetailView } from '@/src/state/view-selectors';
@@ -61,6 +61,22 @@ export default function ProjectDetailScreen() {
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const project = manager.activeProjects.find((item) => item.id === projectId) ?? null;
+  const isSequelProject = !!project?.franchiseId && (project?.franchiseEpisode ?? 0) > 1;
+  const {
+    canPush,
+    canFestivalSubmit,
+    canScriptSprint,
+    canApproveGreenlight,
+    canSendBack,
+    canPolishPass,
+    canTestScreening,
+    canReshoot,
+    canTrackingLeverage,
+    canSetStrategy,
+    canBrandReset,
+    canLegacyCampaign,
+    canHiatusPlan,
+  } = useProjectActions(project, manager);
   const projectionWeek = useMemo(() => {
     if (!project) return manager.currentWeek + 4;
     const base = project.releaseWeek ?? manager.currentWeek + 4;
@@ -105,21 +121,6 @@ export default function ProjectDetailScreen() {
   const franchiseStatus = manager.getFranchiseStatus(project.id);
   const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
   const releaseReport = manager.getLatestReleaseReport(project.id);
-  const {
-    canPush,
-    canFestivalSubmit,
-    canScriptSprint,
-    canApproveGreenlight,
-    canSendBack,
-    canPolishPass,
-    canTestScreening,
-    canReshoot,
-    canTrackingLeverage,
-    canSetStrategy,
-    canBrandReset,
-    canLegacyCampaign,
-    canHiatusPlan,
-  } = useProjectActions(project, manager);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
