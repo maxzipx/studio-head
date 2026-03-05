@@ -27,7 +27,6 @@ import type {
   MovieProject,
   ReleasePerformanceBreakdown,
   ReleaseReport,
-  StudioReputation,
   Talent,
 } from '../types';
 

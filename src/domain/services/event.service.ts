@@ -31,7 +31,6 @@ import type {
   CrisisEvent,
   DecisionItem,
   EventTemplate,
-  GenreCycleState,
   MovieGenre,
   MovieProject,
   StoryArcState,

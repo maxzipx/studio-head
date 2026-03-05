@@ -9,9 +9,6 @@ import {
 } from './balance-constants';
 import { createId } from './id';
 import {
-  projectedROI,
-} from './formulas';
-import {
   type NegotiationRoundPreview,
   type NegotiationSnapshot,
 } from './studio-manager.negotiation';

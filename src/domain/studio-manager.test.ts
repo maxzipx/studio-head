@@ -897,7 +897,7 @@ describe('StudioManager', () => {
     const opened = manager.startTalentNegotiationRound(project!.id, lead!.id, 'sweetenSalary');
     expect(opened.success).toBe(true);
 
-    const summary = manager.endTurn();
+    manager.endTurn();
     // After 2 weeks of processing, negotiation should still be open (counter on both passes)
     expect(manager.playerNegotiations.some((e) => e.talentId === lead!.id)).toBe(true);
     expect(lead!.availability).toBe('inNegotiation');

@@ -25,13 +25,30 @@ export interface ProjectActions {
   canHiatusPlan: boolean;
 }
 
-export function useProjectActions(project: MovieProject, manager: StudioManager): ProjectActions {
+const EMPTY_PROJECT_ACTIONS: ProjectActions = {
+  canPush: false,
+  canFestivalSubmit: false,
+  canScriptSprint: false,
+  canApproveGreenlight: false,
+  canSendBack: false,
+  canPolishPass: false,
+  canTestScreening: false,
+  canReshoot: false,
+  canTrackingLeverage: false,
+  canSetStrategy: false,
+  canBrandReset: false,
+  canLegacyCampaign: false,
+  canHiatusPlan: false,
+};
+
+export function useProjectActions(project: MovieProject | null, manager: StudioManager): ProjectActions {
   return useMemo(() => {
+    if (!project) {
+      return EMPTY_PROJECT_ACTIONS;
+    }
+
     const franchiseStatus = manager.getFranchiseStatus(project.id);
     const isSequelProject = !!project.franchiseId && (project.franchiseEpisode ?? 0) > 1;
-    const projectCrisesCount = manager.pendingCrises.filter((c) => c.projectId === project.id).length;
-
-    void projectCrisesCount; // used indirectly via blockers in parent; kept for reference
 
     return {
       canPush:
