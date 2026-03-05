@@ -425,7 +425,7 @@ export class StudioManager {
     }
     this.bindOpeningDecisionToLeadProject();
     this.refreshIpMarketplace();
-    this.refillScriptMarket([]);
+    this.eventService.refillScriptMarket([]);
     this.refreshTalentMarket();
   }
 
@@ -1317,19 +1317,19 @@ export class StudioManager {
     const tierBefore = this.studioTier;
     const events: string[] = [];
 
-    const burn = this.applyWeeklyBurn();
+    const burn = this.releaseService.applyWeeklyBurn();
     if (burn > 0) {
       events.push(`Production burn applied: -$${Math.round(burn / 1000)}K`);
     }
 
-    this.applyHypeDecay();
-    this.tickGenreCycles(events);
-    this.resolveFestivalCircuit(events);
-    this.updateTalentAvailability();
-    this.refreshTalentMarket();
-    this.tickDecisionExpiry(events);
-    this.tickScriptMarketExpiry(events);
-    this.refillScriptMarket(events);
+    this.releaseService.applyHypeDecay();
+    this.eventService.tickGenreCycles(events);
+    this.releaseService.resolveFestivalCircuit(events);
+    this.talentService.updateTalentAvailability();
+    this.talentService.refreshTalentMarket();
+    this.eventService.tickDecisionExpiry(events);
+    this.eventService.tickScriptMarketExpiry(events);
+    this.eventService.refillScriptMarket(events);
     if ((this.currentWeek + 1) % 6 === 0) {
       this.refreshIpMarketplace(this.currentWeek % 26 === 0);
       const latestIp = this.ownedIps[0];
@@ -1337,23 +1337,24 @@ export class StudioManager {
         events.push(`IP market: ${latestIp.name} rights are now in play.`);
       }
     }
-    this.tickDistributionWindows(events);
-    this.rollForCrises(events);
-    this.processRivalTalentAcquisitions(events);
-    this.processPlayerNegotiations(events);
-    this.generateEventDecisions(events);
-    this.tickReleasedFilms(events);
-    this.tickRivalHeat(events);
-    this.processRivalCalendarMoves(events);
-    this.processRivalSignatureMoves(events);
+    this.lifecycleService.tickDistributionWindows(events);
+    this.eventService.rollForCrises(events);
+    this.rivalAiService.processRivalTalentAcquisitions(events);
+    this.talentService.processPlayerNegotiations(events);
+    this.eventService.generateEventDecisions(events);
+    this.releaseService.tickReleasedFilms(events);
+    this.rivalAiService.tickRivalHeat(events);
+    this.rivalAiService.processRivalCalendarMoves(events);
+    this.rivalAiService.processRivalSignatureMoves(events);
+    this.rivalAiService.processRivalSignatureCrises(events);
     this.applyRivalMemoryReversion();
-    this.projectOutcomes();
+    this.releaseService.projectOutcomes();
 
     this.currentWeek += 1;
     if (this.currentWeek % 52 === 0) {
       this.talentService.processTalentAging(events);
     }
-    this.processAnnualAwards(events);
+    this.releaseService.processAnnualAwards(events);
     this.evaluateMajorIpContractBreaches(events);
 
     if (this.cash < BANKRUPTCY_RULES.LOW_CASH_WARNING_THRESHOLD) {
@@ -1470,36 +1471,19 @@ export class StudioManager {
     this.studioChronicle = this.studioChronicle.slice(0, 100);
   }
 
-  private applyWeeklyBurn(): number {
-    return this.releaseService.applyWeeklyBurn();
-  }
-
-  private applyHypeDecay(): void {
-    this.releaseService.applyHypeDecay();
-  }
-
-  private tickDecisionExpiry(events: string[]): void {
-    this.eventService.tickDecisionExpiry(events);
-  }
-
-  private tickScriptMarketExpiry(events: string[]): void {
-    this.eventService.tickScriptMarketExpiry(events);
-  }
-
-  private refillScriptMarket(events: string[]): void {
-    this.eventService.refillScriptMarket(events);
+  // Delegation stubs accessed by tests and ForManager functions via cast
+  applyWeeklyBurn(): number { return this.releaseService.applyWeeklyBurn(); }
+  refillScriptMarket(events: string[]): void { this.eventService.refillScriptMarket(events); }
+  tickDecisionExpiry(events: string[]): void { this.eventService.tickDecisionExpiry(events); }
+  processRivalTalentAcquisitions(events: string[]): void { this.rivalAiService.processRivalTalentAcquisitions(events); }
+  processRivalCalendarMoves(events: string[]): void { this.rivalAiService.processRivalCalendarMoves(events); }
+  processRivalSignatureMoves(events: string[]): void {
+    this.rivalAiService.processRivalSignatureMoves(events);
+    this.rivalAiService.processRivalSignatureCrises(events);
   }
 
   injectCrisis(crisis: CrisisEvent): void {
     this.eventService.injectCrisis(crisis);
-  }
-
-  private rollForCrises(events: string[]): void {
-    this.eventService.rollForCrises(events);
-  }
-
-  private generateEventDecisions(events: string[]): void {
-    this.eventService.generateEventDecisions(events);
   }
 
 
@@ -1539,27 +1523,6 @@ export class StudioManager {
   buildOperationalCrisis(project: MovieProject): CrisisEvent {
     return this.eventService.buildOperationalCrisis(project);
   }
-
-  private projectOutcomes(): void {
-    this.releaseService.projectOutcomes();
-  }
-
-  private tickReleasedFilms(events: string[]): void {
-    this.releaseService.tickReleasedFilms(events);
-  }
-
-  private processAnnualAwards(events: string[]): void {
-    this.releaseService.processAnnualAwards(events);
-  }
-
-  private tickGenreCycles(events: string[]): void {
-    this.eventService.tickGenreCycles(events);
-  }
-
-  private resolveFestivalCircuit(events: string[]): void {
-    this.releaseService.resolveFestivalCircuit(events);
-  }
-
 
 
   private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
@@ -1618,37 +1581,12 @@ export class StudioManager {
     }
   }
 
-  private tickRivalHeat(events: string[]): void {
-    this.rivalAiService.tickRivalHeat(events);
-  }
-
-  private processRivalTalentAcquisitions(events: string[]): void {
-    this.rivalAiService.processRivalTalentAcquisitions(events);
-  }
-
-  private processPlayerNegotiations(events: string[]): void {
-    this.talentService.processPlayerNegotiations(events);
-  }
-
-  private processRivalCalendarMoves(events: string[]): void {
-    this.rivalAiService.processRivalCalendarMoves(events);
-  }
-
-  private processRivalSignatureMoves(events: string[]): void {
-    this.rivalAiService.processRivalSignatureMoves(events);
-    this.rivalAiService.processRivalSignatureCrises(events);
-  }
-
   checkRivalReleaseResponses(project: MovieProject, events: string[]): void {
     this.rivalAiService.checkRivalReleaseResponses(project, events);
   }
 
   calendarPressureMultiplier(week: number, genre: MovieGenre): number {
     return this.releaseService.calendarPressureMultiplier(week, genre);
-  }
-
-  private updateTalentAvailability(): void {
-    this.talentService.updateTalentAvailability();
   }
 
   refreshTalentMarket(): void {
@@ -1686,10 +1624,6 @@ export class StudioManager {
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
     return this.eventService.getArcOutcomeModifiers();
-  }
-
-  private tickDistributionWindows(events: string[]): void {
-    this.lifecycleService.tickDistributionWindows(events);
   }
 
   generateDistributionOffers(projectId: string): void {
