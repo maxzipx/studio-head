@@ -8,7 +8,6 @@ import {
   SESSION_RULES,
   STUDIO_STARTING,
   STUDIO_TIER_REQUIREMENTS,
-  TALENT_MARKET_RULES,
   TURN_RULES,
 } from './balance-constants';
 import { createId } from './id';
@@ -22,15 +21,6 @@ import {
   projectedROI,
 } from './formulas';
 import {
-  adjustTalentNegotiationForManager,
-  getNegotiationChanceForManager,
-  previewTalentNegotiationRoundForManager,
-  getNegotiationSnapshotForManager,
-  getQuickCloseChanceForManager,
-  negotiateAndAttachTalentForManager,
-  processPlayerNegotiationsForManager,
-  startTalentNegotiationRoundForManager,
-  startTalentNegotiationForManager,
   type NegotiationRoundPreview,
   type NegotiationSnapshot,
 } from './studio-manager.negotiation';
@@ -84,6 +74,7 @@ import { adjustCashForManager, evaluateBankruptcyForManager } from './finance.se
 import { FranchiseService } from './services/franchise.service';
 import { ProjectLifecycleService } from './services/project-lifecycle.service';
 import { RivalAiService } from './services/rival-ai.service';
+import { TalentService } from './services/talent.service';
 import {
   ARC_LABELS,
   buildIpTemplate,
@@ -101,33 +92,6 @@ import {
   type SpecializationProfile,
 } from './studio-manager.constants';
 import { STUDIO_TIER_LABELS } from './types';
-import {
-  getTalentMemoryForManager,
-  syncLegacyRelationshipForManager,
-  getTalentTrustLevelForManager,
-  getTalentGrudgeMetricsForManager,
-  getTalentNegotiationOutlookForManager,
-  recordTalentInteractionForManager,
-  updateTalentAvailabilityForManager,
-  setNegotiationCooldownForManager,
-  findNegotiationForManager,
-  defaultNegotiationTermsForManager,
-  buildQuickCloseTermsForManager,
-  readNegotiationTermsForManager,
-  normalizeNegotiationForManager,
-  demandedNegotiationTermsForManager,
-  computeDealMemoCostForManager,
-  computeQuickCloseAttemptFeeForManager,
-  talentDealChanceForManager,
-  evaluateNegotiationForManager,
-  finalizeTalentAttachmentForManager,
-  negotiationPressurePointForManager,
-  composeNegotiationPreviewForManager,
-  composeNegotiationSignalForManager,
-  processTalentAgingForManager,
-  type NegotiationEvaluation,
-  type NegotiationTerms,
-} from './talent.service';
 import type {
   AwardsSeasonRecord,
   CastRequirements,
@@ -244,6 +208,7 @@ export class StudioManager {
   private readonly lifecycleService = new ProjectLifecycleService(this);
   private readonly franchiseService = new FranchiseService(this);
   private readonly rivalAiService = new RivalAiService(this);
+  private readonly talentService = new TalentService(this);
 
   get studioHeat(): number {
     return Math.round(
@@ -382,30 +347,16 @@ export class StudioManager {
     adjustCashForManager(this, delta);
   }
 
-  private getTalentMemory(talent: Talent): Talent['relationshipMemory'] {
-    return getTalentMemoryForManager(this, talent);
-  }
-
-  private syncLegacyRelationship(talent: Talent): void {
-    syncLegacyRelationshipForManager(this, talent);
-  }
-
   getTalentTrustLevel(talent: Talent): TalentTrustLevel {
-    return getTalentTrustLevelForManager(this, talent);
-  }
-
-  private getTalentGrudgeMetrics(talent: Talent) {
-    return getTalentGrudgeMetricsForManager(this, talent);
+    return this.talentService.getTalentTrustLevel(talent);
   }
 
   getTalentNegotiationOutlook(talent: Talent) {
-    return getTalentNegotiationOutlookForManager(this, talent);
+    return this.talentService.getTalentNegotiationOutlook(talent);
   }
 
   canOpenTalentNegotiation(talent: Talent): { ok: boolean; lockoutWeeks: number; reason: string | null } {
-    const outlook = this.getTalentNegotiationOutlook(talent);
-    if (!outlook.blocked) return { ok: true, lockoutWeeks: 0, reason: null };
-    return { ok: false, lockoutWeeks: outlook.lockoutWeeks, reason: outlook.reason };
+    return this.talentService.canOpenTalentNegotiation(talent);
   }
 
   recordTalentInteraction(
@@ -418,7 +369,7 @@ export class StudioManager {
       projectId?: string | null;
     }
   ): void {
-    recordTalentInteractionForManager(this, talent, input);
+    this.talentService.recordTalentInteraction(talent, input);
   }
 
   private getRivalMemory(rival: RivalStudio): RivalStudio['memory'] {
@@ -908,64 +859,12 @@ export class StudioManager {
     return this.genreCycles[genre]?.demand ?? 1;
   }
 
-  private talentCompensationValue(talent: Talent): number {
-    return talent.salary.base + talent.salary.perksCost;
-  }
-
-  private estimateRoleMarketComp(role: TalentRole, genre: MovieGenre): number {
-    const pool = this.talentPool.filter((talent) => talent.role === role);
-    if (pool.length === 0) return 0;
-    const sample = [...pool]
-      .sort((a, b) => {
-        const aFit = a.genreFit[genre] ?? 0.55;
-        const bFit = b.genreFit[genre] ?? 0.55;
-        const aScore = aFit * 5 + a.starPower * 0.35 + a.craftScore * 0.3;
-        const bScore = bFit * 5 + b.starPower * 0.35 + b.craftScore * 0.3;
-        return bScore - aScore;
-      })
-      .slice(0, Math.max(8, Math.min(20, Math.round(pool.length * 0.12))));
-    const values = sample
-      .map((talent) => this.talentCompensationValue(talent))
-      .sort((a, b) => a - b);
-    const middle = Math.floor(values.length / 2);
-    return values[middle] ?? values[0] ?? 0;
-  }
-
-  private castCountsForProject(project: MovieProject): { actorCount: number; actressCount: number; total: number } {
-    let actorCount = 0;
-    let actressCount = 0;
-    for (const talentId of project.castIds) {
-      const talent = this.talentPool.find((item) => item.id === talentId);
-      if (!talent) continue;
-      if (talent.role === 'leadActress') {
-        actressCount += 1;
-      } else if (talent.role === 'leadActor' || talent.role === 'supportingActor') {
-        actorCount += 1;
-      }
-    }
-    return { actorCount, actressCount, total: actorCount + actressCount };
-  }
-
   getProjectCastStatus(projectId: string): { actorCount: number; actressCount: number; total: number; requiredTotal: number } | null {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    if (!project) return null;
-    const current = this.castCountsForProject(project);
-    return {
-      ...current,
-      requiredTotal: project.castRequirements.actorCount + project.castRequirements.actressCount,
-    };
+    return this.talentService.getProjectCastStatus(projectId);
   }
 
   meetsCastRequirements(project: MovieProject): boolean {
-    const current = this.castCountsForProject(project);
-    const requiredActor = project.castRequirements.actorCount;
-    const requiredActress = project.castRequirements.actressCount;
-    const requiredTotal = requiredActor + requiredActress;
-    return (
-      current.actorCount >= requiredActor &&
-      current.actressCount >= requiredActress &&
-      current.total >= requiredTotal
-    );
+    return this.talentService.meetsCastRequirements(project);
   }
 
   private rollCastRequirements(): CastRequirements {
@@ -981,27 +880,7 @@ export class StudioManager {
     ceiling: number,
     castRequirements: CastRequirements
   ): ProjectBudgetPlan {
-    const directorEstimate = this.estimateRoleMarketComp('director', genre);
-    const actorEstimate = this.estimateRoleMarketComp('leadActor', genre);
-    const actressEstimate =
-      this.estimateRoleMarketComp('leadActress', genre) || this.estimateRoleMarketComp('leadActor', genre);
-    const castPlannedActor = Math.round(actorEstimate * castRequirements.actorCount);
-    const castPlannedActress = Math.round(actressEstimate * castRequirements.actressCount);
-    const castPlannedTotal = castPlannedActor + castPlannedActress;
-    const directorFloor = Math.round(ceiling * 0.06);
-    const directorCeiling = Math.round(ceiling * 0.26);
-    const directorPlanned = clamp(
-      Math.round(directorEstimate),
-      directorFloor,
-      Math.max(directorFloor, directorCeiling)
-    );
-
-    return {
-      directorPlanned,
-      castPlannedTotal,
-      castPlannedActor,
-      castPlannedActress,
-    };
+    return this.talentService.buildProjectBudgetPlan(genre, ceiling, castRequirements);
   }
 
   getGenreCycleSnapshot(): {
@@ -1023,27 +902,22 @@ export class StudioManager {
   }
 
   getAvailableTalentForRole(role: TalentRole): Talent[] {
-    return this.talentPool.filter(
-      (talent) =>
-        talent.role === role &&
-        talent.availability === 'available' &&
-        talent.marketWindowExpiresWeek !== null
-    );
+    return this.talentService.getAvailableTalentForRole(role);
   }
 
   getNegotiationChance(talentId: string, projectId?: string): number | null {
-    return getNegotiationChanceForManager(this, talentId, projectId);
+    return this.talentService.getNegotiationChance(talentId, projectId);
   }
 
   getQuickCloseChance(talentId: string): number | null {
-    return getQuickCloseChanceForManager(this, talentId);
+    return this.talentService.getQuickCloseChance(talentId);
   }
 
   getNegotiationSnapshot(
     projectId: string,
     talentId: string
   ): NegotiationSnapshot | null {
-    return getNegotiationSnapshotForManager(this, projectId, talentId);
+    return this.talentService.getNegotiationSnapshot(projectId, talentId);
   }
 
   previewTalentNegotiationRound(
@@ -1051,7 +925,7 @@ export class StudioManager {
     talentId: string,
     action: NegotiationAction
   ): { success: boolean; message?: string; preview?: NegotiationRoundPreview } {
-    return previewTalentNegotiationRoundForManager(this, projectId, talentId, action);
+    return this.talentService.previewTalentNegotiationRound(projectId, talentId, action);
   }
 
   adjustTalentNegotiation(
@@ -1059,7 +933,7 @@ export class StudioManager {
     talentId: string,
     action: NegotiationAction
   ): { success: boolean; message: string } {
-    return adjustTalentNegotiationForManager(this, projectId, talentId, action);
+    return this.talentService.adjustTalentNegotiation(projectId, talentId, action);
   }
 
   evaluateScriptPitch(scriptId: string): {
@@ -1133,7 +1007,7 @@ export class StudioManager {
   }
 
   startTalentNegotiation(projectId: string, talentId: string): { success: boolean; message: string } {
-    return startTalentNegotiationForManager(this, projectId, talentId);
+    return this.talentService.startTalentNegotiation(projectId, talentId);
   }
 
   startTalentNegotiationRound(
@@ -1141,19 +1015,11 @@ export class StudioManager {
     talentId: string,
     action: NegotiationAction
   ): { success: boolean; message: string } {
-    return startTalentNegotiationRoundForManager(this, projectId, talentId, action);
+    return this.talentService.startTalentNegotiationRound(projectId, talentId, action);
   }
 
   dismissTalentNegotiation(projectId: string, talentId: string): void {
-    this.playerNegotiations = this.playerNegotiations.filter(
-      (item) => !(item.projectId === projectId && item.talentId === talentId)
-    );
-    const talent = this.talentPool.find((item) => item.id === talentId);
-    if (!talent) return;
-    const stillNegotiating = this.playerNegotiations.some((item) => item.talentId === talentId);
-    if (!stillNegotiating && talent.attachedProjectId === null && talent.availability === 'inNegotiation') {
-      talent.availability = 'available';
-    }
+    this.talentService.dismissTalentNegotiation(projectId, talentId);
   }
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
@@ -1378,7 +1244,7 @@ export class StudioManager {
   }
 
   negotiateAndAttachTalent(projectId: string, talentId: string): { success: boolean; message: string } {
-    return negotiateAndAttachTalentForManager(this, projectId, talentId);
+    return this.talentService.negotiateAndAttachTalent(projectId, talentId);
   }
 
   advanceProjectPhase(projectId: string): { success: boolean; message: string } {
@@ -1410,7 +1276,7 @@ export class StudioManager {
     const project = this.activeProjects.find((item) => item.id === crisis.projectId);
     if (project) {
       if (crisis.kind === 'talentPoached') {
-        this.resolveTalentPoachCrisis(project, option);
+        this.talentService.resolveTalentPoachCrisis(project, option);
         this.pendingCrises = this.pendingCrises.filter((item) => item.id !== crisisId);
         const remaining = this.pendingCrises.length;
         return {
@@ -1542,7 +1408,7 @@ export class StudioManager {
 
     this.currentWeek += 1;
     if (this.currentWeek % 52 === 0) {
-      processTalentAgingForManager(this, events);
+      this.talentService.processTalentAging(events);
     }
     this.processAnnualAwards(events);
     this.evaluateMajorIpContractBreaches(events);
@@ -2407,7 +2273,7 @@ export class StudioManager {
   }
 
   private processPlayerNegotiations(events: string[]): void {
-    processPlayerNegotiationsForManager(this, events);
+    this.talentService.processPlayerNegotiations(events);
   }
 
   private processRivalCalendarMoves(events: string[]): void {
@@ -2445,316 +2311,30 @@ export class StudioManager {
     return this.rivalAiService.pickTalentForRival(rival, candidates);
   }
 
-  private findNegotiation(talentId: string, projectId?: string): PlayerNegotiation | null {
-    return findNegotiationForManager(this, talentId, projectId);
-  }
-
-  private defaultNegotiationTerms(talent: Talent) {
-    return defaultNegotiationTermsForManager(talent);
-  }
-
-  private buildQuickCloseTerms(talent: Talent) {
-    return buildQuickCloseTermsForManager(talent);
-  }
-
-  private readNegotiationTerms(negotiation: PlayerNegotiation, talent: Talent) {
-    return readNegotiationTermsForManager(negotiation, talent);
-  }
-
-  private normalizeNegotiation(negotiation: PlayerNegotiation, talent: Talent): PlayerNegotiation {
-    return normalizeNegotiationForManager(negotiation, talent);
-  }
-
-  private demandedNegotiationTerms(talent: Talent) {
-    return demandedNegotiationTermsForManager(talent);
-  }
-
-  private computeDealMemoCost(talent: Talent, terms: NegotiationTerms): number {
-    return computeDealMemoCostForManager(talent, terms);
-  }
-
-  private computeQuickCloseAttemptFee(talent: Talent, terms: NegotiationTerms): number {
-    return computeQuickCloseAttemptFeeForManager(talent, terms);
-  }
-
-  private setNegotiationCooldown(talent: Talent, weeks: number): void {
-    setNegotiationCooldownForManager(this, talent, weeks);
-  }
-
-  private talentDealChance(talent: Talent, base: number): number {
-    return talentDealChanceForManager(this, talent, base);
-  }
-
-  private evaluateNegotiation(
-    negotiation: PlayerNegotiation,
-    talent: Talent,
-    baseChance = 0.7
-  ) {
-    return evaluateNegotiationForManager(this, negotiation, talent, baseChance);
-  }
-
-  private negotiationPressurePoint(evaluation: NegotiationEvaluation): 'salary' | 'backend' | 'perks' {
-    return negotiationPressurePointForManager(evaluation);
-  }
-
-  private composeNegotiationPreview(
-    talentName: string,
-    evaluation: NegotiationEvaluation,
-    holdLineCount: number
-  ): string {
-    return composeNegotiationPreviewForManager(talentName, evaluation, holdLineCount);
-  }
-
-  private composeNegotiationSignal(
-    talentName: string,
-    evaluation: NegotiationEvaluation,
-    accepted: boolean,
-    holdLineCount: number
-  ): string {
-    return composeNegotiationSignalForManager(talentName, evaluation, accepted, holdLineCount);
-  }
-
-  private finalizeTalentAttachment(project: MovieProject, talent: Talent, terms?: NegotiationTerms): boolean {
-    return finalizeTalentAttachmentForManager(this, project, talent, terms);
-  }
-
-  private resolveTalentPoachCrisis(project: MovieProject, option: CrisisEvent['options'][number]): void {
-    const talent = this.talentPool.find((item) => item.id === option.talentId);
-    if (!talent) return;
-    const rival = this.rivals.find((item) => item.id === option.rivalStudioId);
-
-    if (option.kind === 'talentCounter') {
-      const premium = option.premiumMultiplier ?? 1.25;
-      const cost = talent.salary.base * 0.2 * premium;
-      const retainer = this.computeDealMemoCost(talent, this.defaultNegotiationTerms(talent));
-      const chance = clamp(0.55 + this.reputation.talent / 210 + talent.studioRelationship * 0.2, 0.15, 0.95);
-      if (this.cash >= cost + retainer && this.negotiationRng() <= chance) {
-        this.adjustCash(-cost);
-        if (rival) {
-          rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
-        }
-        this.finalizeTalentAttachment(project, talent);
-        this.recordTalentInteraction(talent, {
-          kind: 'counterPoachWon',
-          trustDelta: 4,
-          loyaltyDelta: 7,
-          note: `Countered rival pressure and re-secured ${talent.name} for ${project.title}.`,
-          projectId: project.id,
-        });
-      } else {
-        this.recordTalentInteraction(talent, {
-          kind: 'counterPoachLost',
-          trustDelta: -4,
-          loyaltyDelta: -6,
-          note: `Counter-offer failed while trying to secure ${project.title}.`,
-          projectId: project.id,
-        });
-      }
-    }
-
-    if (option.kind === 'talentWalk') {
-      project.hypeScore = clamp(project.hypeScore - 2, 0, 100);
-      this.recordTalentInteraction(talent, {
-        kind: 'counterPoachLost',
-        trustDelta: -2,
-        loyaltyDelta: -3,
-        note: `Let poach pressure stand on ${project.title}.`,
-        projectId: project.id,
-      });
-    }
-
-    this.playerNegotiations = this.playerNegotiations.filter((item) => item.talentId !== talent.id);
-  }
-
   private updateTalentAvailability(): void {
-    updateTalentAvailabilityForManager(this);
-    for (const talent of this.talentPool) {
-      if (talent.availability === 'available') {
-        for (const rival of this.rivals) {
-          rival.lockedTalentIds = rival.lockedTalentIds.filter((idValue) => idValue !== talent.id);
-        }
-      }
-    }
+    this.talentService.updateTalentAvailability();
   }
 
-  private marketWindowDuration(starPower: number): number {
-    if (starPower >= TALENT_MARKET_RULES.THRESHOLD_HIGH) return TALENT_MARKET_RULES.WINDOW_HIGH_WEEKS;
-    if (starPower >= TALENT_MARKET_RULES.THRESHOLD_MID) return TALENT_MARKET_RULES.WINDOW_MID_WEEKS;
-    return TALENT_MARKET_RULES.WINDOW_LOW_WEEKS;
+  refreshTalentMarket(): void {
+    this.talentService.refreshTalentMarket();
   }
 
-  private isTalentMarketEligible(talent: Talent): boolean {
-    if (talent.availability !== 'available') return false;
-    if (talent.marketWindowExpiresWeek !== null) return false;
-    const sp = talent.starPower;
-    const heat = this.studioHeat;
-    const talentRep = this.reputation.talent;
-    if (sp >= TALENT_MARKET_RULES.THRESHOLD_LEGEND) {
-      return heat >= TALENT_MARKET_RULES.GATE_LEGEND_HEAT && talentRep >= TALENT_MARKET_RULES.GATE_LEGEND_TALENT_REP;
-    }
-    if (sp >= TALENT_MARKET_RULES.THRESHOLD_ELITE) {
-      return heat >= TALENT_MARKET_RULES.GATE_ELITE_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_ELITE_TALENT_REP;
-    }
-    if (sp >= TALENT_MARKET_RULES.THRESHOLD_HIGH) {
-      return heat >= TALENT_MARKET_RULES.GATE_HIGH_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_HIGH_TALENT_REP;
-    }
-    if (sp >= TALENT_MARKET_RULES.THRESHOLD_MID) {
-      return heat >= TALENT_MARKET_RULES.GATE_MID_HEAT || talentRep >= TALENT_MARKET_RULES.GATE_MID_TALENT_REP;
-    }
-    return true;
-  }
-
-  private addTalentToMarket(talent: Talent): void {
-    talent.marketWindowExpiresWeek = this.currentWeek + this.marketWindowDuration(talent.starPower);
-  }
-
-  private addNextEligibleFromPool(
-    pool: Talent[],
-    role: 'director' | 'leadActor' | 'leadActress'
-  ): boolean {
-    if (pool.length === 0) return false;
-    let attempts = 0;
-    while (attempts < pool.length) {
-      let candidate: Talent | undefined;
-      if (role === 'director') {
-        candidate = pool[this.marketDirectorIdx % pool.length];
-        this.marketDirectorIdx += 1;
-      } else if (role === 'leadActor') {
-        candidate = pool[this.marketLeadActorIdx % pool.length];
-        this.marketLeadActorIdx += 1;
-      } else {
-        candidate = pool[this.marketLeadActressIdx % pool.length];
-        this.marketLeadActressIdx += 1;
-      }
-      attempts += 1;
-      if (candidate && this.isTalentMarketEligible(candidate)) {
-        this.addTalentToMarket(candidate);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private ageOutExpiredMarketWindows(): void {
-    for (const talent of this.talentPool) {
-      if (
-        talent.marketWindowExpiresWeek !== null &&
-        talent.marketWindowExpiresWeek <= this.currentWeek &&
-        talent.availability === 'available'
-      ) {
-        talent.marketWindowExpiresWeek = null;
-      }
-    }
-  }
-
-  private trickleNewMarketEntrants(): void {
-    const directors = this.talentPool.filter((t) => t.role === 'director');
-    const actors = this.talentPool.filter((t) => t.role === 'leadActor' || t.role === 'leadActress');
-
-    const visibleDirectors = directors.filter(
-      (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
-    ).length;
-    const visibleActors = actors.filter(
-      (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
-    ).length;
-
-    let dirToAdd = Math.min(
-      Math.max(0, TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS - visibleDirectors),
-      TALENT_MARKET_RULES.WEEKLY_DIRECTOR_TRICKLE
-    );
-    let attempts = 0;
-    while (dirToAdd > 0 && attempts < directors.length) {
-      const candidate = directors[this.marketDirectorIdx % directors.length];
-      this.marketDirectorIdx++;
-      attempts++;
-      if (candidate && this.isTalentMarketEligible(candidate)) {
-        this.addTalentToMarket(candidate);
-        dirToAdd--;
-      }
-    }
-
-    let actToAdd = Math.min(
-      Math.max(0, TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS - visibleActors),
-      TALENT_MARKET_RULES.WEEKLY_ACTOR_TRICKLE
-    );
-    attempts = 0;
-    while (actToAdd > 0 && attempts < actors.length) {
-      const candidate = actors[this.marketActorIdx % actors.length];
-      this.marketActorIdx++;
-      attempts++;
-      if (candidate && this.isTalentMarketEligible(candidate)) {
-        this.addTalentToMarket(candidate);
-        actToAdd--;
-      }
-    }
-  }
-
-  private populateInitialMarket(): void {
-    const directors = this.talentPool.filter((t) => t.role === 'director');
-    let dirCount = 0;
-    while (dirCount < TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS) {
-      const added = this.addNextEligibleFromPool(directors, 'director');
-      if (!added) break;
-      dirCount += 1;
-    }
-
-    const leadActors = this.talentPool.filter((t) => t.role === 'leadActor');
-    const leadActresses = this.talentPool.filter((t) => t.role === 'leadActress');
-    const totalLeadSlots = TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS;
-    const baselinePerRole = Math.floor(totalLeadSlots / 2);
-    let leadActorCount = 0;
-    let leadActressCount = 0;
-
-    while (leadActorCount < baselinePerRole) {
-      const added = this.addNextEligibleFromPool(leadActors, 'leadActor');
-      if (!added) break;
-      leadActorCount += 1;
-      this.marketActorIdx += 1;
-    }
-
-    while (leadActressCount < baselinePerRole) {
-      const added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
-      if (!added) break;
-      leadActressCount += 1;
-      this.marketActorIdx += 1;
-    }
-
-    while (leadActorCount + leadActressCount < totalLeadSlots) {
-      const preferActor =
-        leadActorCount < leadActressCount ||
-        (leadActorCount === leadActressCount && this.marketActorIdx % 2 === 0);
-      let added = false;
-      if (preferActor) {
-        added = this.addNextEligibleFromPool(leadActors, 'leadActor');
-        if (added) {
-          leadActorCount += 1;
-        } else {
-          added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
-          if (added) leadActressCount += 1;
-        }
-      } else {
-        added = this.addNextEligibleFromPool(leadActresses, 'leadActress');
-        if (added) {
-          leadActressCount += 1;
-        } else {
-          added = this.addNextEligibleFromPool(leadActors, 'leadActor');
-          if (added) leadActorCount += 1;
-        }
-      }
-      if (!added) break;
-      this.marketActorIdx += 1;
-    }
-  }
-
-  private refreshTalentMarket(): void {
-    if (!this.marketInitialized) {
-      this.marketInitialized = true;
-      this.populateInitialMarket();
-      return;
-    }
-    this.ageOutExpiredMarketWindows();
-    this.trickleNewMarketEntrants();
-  }
+  // Delegation stubs used by ForManager functions that access these via the manager parameter
+  findNegotiation(talentId: string, projectId?: string) { return this.talentService.findNegotiation(talentId, projectId); }
+  defaultNegotiationTerms(talent: Talent) { return this.talentService.defaultNegotiationTerms(talent); }
+  buildQuickCloseTerms(talent: Talent) { return this.talentService.buildQuickCloseTerms(talent); }
+  readNegotiationTerms(negotiation: PlayerNegotiation, talent: Talent) { return this.talentService.readNegotiationTerms(negotiation, talent); }
+  normalizeNegotiation(negotiation: PlayerNegotiation, talent: Talent) { return this.talentService.normalizeNegotiation(negotiation, talent); }
+  demandedNegotiationTerms(talent: Talent) { return this.talentService.demandedNegotiationTerms(talent); }
+  computeDealMemoCost(talent: Talent, terms: Parameters<TalentService['computeDealMemoCost']>[1]) { return this.talentService.computeDealMemoCost(talent, terms); }
+  computeQuickCloseAttemptFee(talent: Talent, terms: Parameters<TalentService['computeQuickCloseAttemptFee']>[1]) { return this.talentService.computeQuickCloseAttemptFee(talent, terms); }
+  setNegotiationCooldown(talent: Talent, weeks: number) { this.talentService.setNegotiationCooldown(talent, weeks); }
+  talentDealChance(talent: Talent, base: number) { return this.talentService.talentDealChance(talent, base); }
+  evaluateNegotiation(negotiation: PlayerNegotiation, talent: Talent, baseChance = 0.7) { return this.talentService.evaluateNegotiation(negotiation, talent, baseChance); }
+  negotiationPressurePoint(evaluation: Parameters<TalentService['negotiationPressurePoint']>[0]) { return this.talentService.negotiationPressurePoint(evaluation); }
+  composeNegotiationPreview(talentName: string, evaluation: Parameters<TalentService['composeNegotiationPreview']>[1], holdLineCount: number) { return this.talentService.composeNegotiationPreview(talentName, evaluation, holdLineCount); }
+  composeNegotiationSignal(talentName: string, evaluation: Parameters<TalentService['composeNegotiationSignal']>[1], accepted: boolean, holdLineCount: number) { return this.talentService.composeNegotiationSignal(talentName, evaluation, accepted, holdLineCount); }
+  finalizeTalentAttachment(project: MovieProject, talent: Talent, terms?: Parameters<TalentService['finalizeTalentAttachment']>[2]) { return this.talentService.finalizeTalentAttachment(project, talent, terms); }
 
   private rivalHeatBias(personality: RivalStudio['personality']): number {
     return this.rivalAiService.rivalHeatBias(personality);
@@ -2859,30 +2439,7 @@ export class StudioManager {
   }
 
   releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {
-    const project = this.activeProjects.find((item) => item.id === projectId);
-    for (const talent of this.talentPool) {
-      if (talent.attachedProjectId === projectId) {
-        talent.attachedProjectId = null;
-        talent.availability = 'available';
-        if (context === 'abandoned') {
-          this.recordTalentInteraction(talent, {
-            kind: 'projectAbandoned',
-            trustDelta: -9,
-            loyaltyDelta: -11,
-            note: `Studio abandoned ${project?.title ?? 'an attached project'}.`,
-            projectId,
-          });
-        } else {
-          this.recordTalentInteraction(talent, {
-            kind: 'projectReleased',
-            trustDelta: 2,
-            loyaltyDelta: 3,
-            note: `${project?.title ?? 'Project'} moved into release.`,
-            projectId,
-          });
-        }
-      }
-    }
+    this.talentService.releaseTalent(projectId, context);
   }
 
   private bindOpeningDecisionToLeadProject(): void {
