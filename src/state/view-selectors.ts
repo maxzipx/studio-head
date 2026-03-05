@@ -193,6 +193,10 @@ export interface ProjectDetailViewState {
   manager: GameState['manager'];
   lastMessage: string | null;
   advancePhase: GameState['advancePhase'];
+  setReleaseWeek: GameState['setReleaseWeek'];
+  acceptOffer: GameState['acceptOffer'];
+  counterOffer: GameState['counterOffer'];
+  walkAwayOffer: GameState['walkAwayOffer'];
   runMarketingPush: GameState['runMarketingPush'];
   runFestivalSubmission: GameState['runFestivalSubmission'];
   runScriptSprint: GameState['runScriptSprint'];
@@ -215,6 +219,10 @@ export function selectProjectDetailView(state: GameState): ProjectDetailViewStat
     manager: state.manager,
     lastMessage: state.lastMessage,
     advancePhase: state.advancePhase,
+    setReleaseWeek: state.setReleaseWeek,
+    acceptOffer: state.acceptOffer,
+    counterOffer: state.counterOffer,
+    walkAwayOffer: state.walkAwayOffer,
     runMarketingPush: state.runMarketingPush,
     runFestivalSubmission: state.runFestivalSubmission,
     runScriptSprint: state.runScriptSprint,

@@ -4,14 +4,9 @@ import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
+import { selectSlateView } from '@/src/state/view-selectors';
 import { GlassCard, MetricTile, MetricsStrip, PremiumButton, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
-import {
-  buildSlateOffersSignature,
-  buildSlateProjectsSignature,
-  buildSlateRivalsSignature,
-  buildSlateScriptsSignature,
-} from '@/src/state/view-signatures';
 import {
   money,
   phaseColor,
@@ -35,24 +30,7 @@ export default function SlateScreen() {
     walkAwayOffer,
     lastMessage,
     scriptsSignature,
-  } = useGameStore(useShallow((state) => {
-    const mgr = state.manager;
-    return {
-      manager: mgr,
-      acquireScript: state.acquireScript,
-      advancePhase: state.advancePhase,
-      passScript: state.passScript,
-      setReleaseWeek: state.setReleaseWeek,
-      acceptOffer: state.acceptOffer,
-      counterOffer: state.counterOffer,
-      walkAwayOffer: state.walkAwayOffer,
-      lastMessage: state.lastMessage,
-      projectsSignature: buildSlateProjectsSignature(mgr.activeProjects),
-      scriptsSignature: buildSlateScriptsSignature(mgr.scriptMarket),
-      offersSignature: buildSlateOffersSignature(mgr.distributionOffers),
-      rivalsSignature: buildSlateRivalsSignature(mgr.rivals),
-    };
-  }));
+  } = useGameStore(useShallow(selectSlateView));
   const [hiddenAcquiredScriptIds, setHiddenAcquiredScriptIds] = useState<string[]>([]);
   const [acquisitionPopup, setAcquisitionPopup] = useState<{
     visible: boolean;

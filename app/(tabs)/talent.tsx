@@ -3,15 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
+import { selectTalentView } from '@/src/state/view-selectors';
 import { GlassCard, MetricsStrip, PremiumButton, SectionLabel, TalentCard } from '@/src/ui/components';
 import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 import type { NegotiationAction } from '@/src/domain/types';
-import {
-  buildTalentNegotiationSignature,
-  buildTalentPoolSignature,
-  buildTalentProjectsSignature,
-  buildTalentRivalsSignature,
-} from '@/src/state/view-signatures';
 import {
   capitalized,
   chanceColor,
@@ -23,23 +18,7 @@ import {
 import { useNegotiationModal } from '@/src/ui/hooks/useNegotiationModal';
 
 export default function TalentScreen() {
-  const { manager, startNegotiation, adjustNegotiation, dismissNegotiation, attachTalent, lastMessage } = useGameStore(useShallow((state) => {
-    const mgr = state.manager;
-    return {
-      manager: mgr,
-      tick: state.tick,
-      startNegotiation: state.startNegotiation,
-      adjustNegotiation: state.adjustNegotiation,
-      dismissNegotiation: state.dismissNegotiation,
-      attachTalent: state.attachTalent,
-      lastMessage: state.lastMessage,
-      projectsSignature: buildTalentProjectsSignature(mgr.activeProjects),
-      talentSignature: buildTalentPoolSignature(mgr.talentPool),
-      negotiationSignature: buildTalentNegotiationSignature(mgr.playerNegotiations),
-      rivalsSignature: buildTalentRivalsSignature(mgr.rivals),
-      talentChanceContext: `${mgr.reputation.talent}:${mgr.executiveNetworkLevel}:${mgr.studioSpecialization}`,
-    };
-  }));
+  const { manager, startNegotiation, adjustNegotiation, dismissNegotiation, attachTalent, lastMessage } = useGameStore(useShallow(selectTalentView));
 
   const developmentProjects = manager.activeProjects.filter((p) => p.phase === 'development');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(developmentProjects[0]?.id ?? null);

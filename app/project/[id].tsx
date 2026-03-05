@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 // ACTION_BALANCE and FESTIVAL_RULES moved to useProjectActions hook
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
+import { selectProjectDetailView } from '@/src/state/view-selectors';
 import { colors, typography } from '@/src/ui/tokens';
 import {
   GlassCard,
@@ -35,7 +36,6 @@ export default function ProjectDetailScreen() {
   const projectId = resolveParam(id);
   const {
     manager,
-    tick,
     lastMessage,
     advancePhase,
     setReleaseWeek,
@@ -56,35 +56,10 @@ export default function ProjectDetailScreen() {
     runFranchiseBrandReset,
     runFranchiseLegacyCastingCampaign,
     runFranchiseHiatusPlanning,
-  } = useGameStore(useShallow((state) => ({
-    manager: state.manager,
-    tick: state.tick,
-    lastMessage: state.lastMessage,
-    advancePhase: state.advancePhase,
-    setReleaseWeek: state.setReleaseWeek,
-    acceptOffer: state.acceptOffer,
-    counterOffer: state.counterOffer,
-    walkAwayOffer: state.walkAwayOffer,
-    runMarketingPush: state.runMarketingPush,
-    runFestivalSubmission: state.runFestivalSubmission,
-    runScriptSprint: state.runScriptSprint,
-    runPostPolishPass: state.runPostPolishPass,
-    runGreenlightReview: state.runGreenlightReview,
-    runTestScreening: state.runTestScreening,
-    runReshoots: state.runReshoots,
-    runTrackingLeverage: state.runTrackingLeverage,
-    abandonProject: state.abandonProject,
-    startSequel: state.startSequel,
-    setFranchiseStrategy: state.setFranchiseStrategy,
-    runFranchiseBrandReset: state.runFranchiseBrandReset,
-    runFranchiseLegacyCastingCampaign: state.runFranchiseLegacyCastingCampaign,
-    runFranchiseHiatusPlanning: state.runFranchiseHiatusPlanning,
-  })));
+  } = useGameStore(useShallow(selectProjectDetailView));
   const [projectionWeekShift, setProjectionWeekShift] = useState(0);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-
-  void tick;
   const project = manager.activeProjects.find((item) => item.id === projectId) ?? null;
   const projectionWeek = useMemo(() => {
     if (!project) return manager.currentWeek + 4;

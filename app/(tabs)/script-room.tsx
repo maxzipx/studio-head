@@ -5,31 +5,15 @@ import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 import { buildTalentNegotiationSignature } from '@/src/state/view-signatures';
+import { agencyLabel, pct, recommendationLabel } from '@/src/ui/helpers/formatting';
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
-function pct(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
 function capitalize(str: string): string {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function recommendationLabel(value: 'strongBuy' | 'conditional' | 'pass'): string {
-  if (value === 'strongBuy') return 'Strong Buy';
-  if (value === 'conditional') return 'Conditional Buy';
-  return 'Pass';
-}
-
-function agencyLabel(agentTier: string): string {
-  if (agentTier === 'aea') return 'AEA';
-  if (agentTier === 'wma') return 'WMA';
-  if (agentTier === 'tca') return 'TCA';
-  return 'IND';
 }
 
 function scriptTierLabel(value: string | undefined): string | null {
