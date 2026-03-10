@@ -22,9 +22,9 @@ export function splashToneToOutcome(tone: ReleaseSplashTone): OutcomeType {
 }
 
 export function splashGradientColor(tone: ReleaseSplashTone): string {
-  if (tone === 'blockbuster' || tone === 'record') return 'rgba(31,169,113,0.18)';
-  if (tone === 'flop') return 'rgba(217,83,79,0.15)';
-  return 'rgba(47,111,237,0.15)';
+  if (tone === 'blockbuster' || tone === 'record') return 'rgba(107,168,130,0.18)';
+  if (tone === 'flop') return 'rgba(224,112,112,0.15)';
+  return 'rgba(196,129,59,0.15)';
 }
 
 export const TIER_LABELS: Record<string, string> = {

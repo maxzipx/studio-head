@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   modalButtonText: {
-    color: '#001220',
+    color: tokens.textInverse,
     fontWeight: '700',
     fontSize: 12,
   },

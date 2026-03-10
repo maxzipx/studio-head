@@ -82,7 +82,7 @@ export const styles = StyleSheet.create({
   },
   turnBtnActive: {
     borderColor: colors.borderGold,
-    backgroundColor: 'rgba(198,168,74,0.10)',
+    backgroundColor: 'rgba(184,144,58,0.10)',
   },
 
   arcRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -96,7 +96,7 @@ export const styles = StyleSheet.create({
   chronicleHeadline: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary, lineHeight: 18 },
 
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(30,42,56,0.65)' },
+  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,10,8,0.72)' },
   modalContent: {
     width: '100%',
     maxWidth: 480,

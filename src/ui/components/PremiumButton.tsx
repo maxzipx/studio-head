@@ -101,9 +101,9 @@ const variantContainerStyle: Record<ButtonVariant, ViewStyle> = {
     borderColor: colors.borderSubtle,
   },
   danger: {
-    backgroundColor: 'rgba(248,113,113,0.12)',
+    backgroundColor: 'rgba(224,112,112,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.35)',
+    borderColor: 'rgba(224,112,112,0.35)',
   },
   'gold-outline': {
     backgroundColor: 'transparent',

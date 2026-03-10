@@ -28,31 +28,31 @@ const projectOutlookConfig: Record<ProjectOutlookTag, ProjectOutlookConfig> = {
   smashHit: {
     label: 'SMASH HIT',
     color: colors.accentGreen,
-    bg: 'rgba(52,211,153,0.15)',
+    bg: 'rgba(107,168,130,0.15)',
     border: colors.accentGreen,
   },
   hit: {
     label: 'HIT',
     color: colors.ctaBlue,
-    bg: 'rgba(59,130,246,0.15)',
+    bg: 'rgba(196,129,59,0.15)',
     border: colors.ctaBlue,
   },
   breakEven: {
     label: 'BREAK EVEN',
     color: colors.goldMid,
-    bg: 'rgba(234,179,8,0.15)',
+    bg: 'rgba(184,144,58,0.15)',
     border: colors.goldMid,
   },
   softLoss: {
     label: 'SOFT LOSS',
     color: colors.accentRed,
-    bg: 'rgba(248,113,113,0.15)',
+    bg: 'rgba(224,112,112,0.15)',
     border: colors.accentRed,
   },
   flop: {
     label: 'FLOP',
     color: colors.accentRedDeep,
-    bg: 'rgba(220,38,38,0.15)',
+    bg: 'rgba(196,32,32,0.15)',
     border: colors.accentRedDeep,
   },
 };

@@ -52,13 +52,13 @@ const variantConfig: Record<GlassCardVariant, VariantConfig> = {
     shadow: shadows.glowGold,
   },
   red: {
-    bg: 'rgba(248,113,113,0.10)',
-    border: 'rgba(248,113,113,0.35)',
+    bg: 'rgba(224,112,112,0.10)',
+    border: 'rgba(224,112,112,0.35)',
     shadow: {} as ViewStyle,
   },
   blue: {
-    bg: 'rgba(59,130,246,0.10)',
-    border: 'rgba(59,130,246,0.35)',
+    bg: 'rgba(196,129,59,0.10)',
+    border: 'rgba(196,129,59,0.35)',
     shadow: {} as ViewStyle,
   },
 };

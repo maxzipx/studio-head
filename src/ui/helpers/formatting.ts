@@ -52,7 +52,7 @@ export function phaseColor(phase: string): string {
   if (phase === 'development') return colors.accentTeal;
   if (phase === 'preProduction' || phase === 'production') return colors.goldMid;
   if (phase === 'postProduction') return colors.accentTeal;
-  if (phase === 'distribution') return '#6FAEEA';
+  if (phase === 'distribution') return colors.ctaBlue;
   if (phase === 'released') return colors.accentGreen;
   return colors.textMuted;
 }
@@ -227,11 +227,11 @@ export function stanceLabel(value: string): string {
 
 /** Returns the accent color for a rival stance. */
 export function stanceColor(value: string): string {
-  if (value === 'friendly') return '#0E6B44';
-  if (value === 'warm') return '#5FAE8A';
-  if (value === 'competitor') return '#D87A77';
-  if (value === 'rival') return '#A93232';
-  return '#000000';
+  if (value === 'friendly') return colors.accentGreen;
+  if (value === 'warm') return colors.accentTeal;
+  if (value === 'competitor') return colors.accentRed;
+  if (value === 'rival') return colors.accentRedDeep;
+  return colors.textMuted;
 }
 
 // ─── Franchise ───────────────────────────────────────────────────────────────
