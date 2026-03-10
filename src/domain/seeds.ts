@@ -9,6 +9,7 @@ import type {
 } from './types';
 import { createId } from './id';
 import { TALENT_LIFECYCLE } from './balance-constants';
+import { reserveSeededTalentName } from './talent-names';
 
 function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
   const trust = Math.round(Math.min(100, Math.max(0, 35 + studioRelationship * 45)));
@@ -35,32 +36,6 @@ function createInitialRivalMemory(
     interactionHistory: [],
   };
 }
-
-const TALENT_FIRST_PREFIXES = [
-  'Ari', 'Bren', 'Cami', 'Dari', 'Emi', 'Fina', 'Gala', 'Hali',
-  'Ira', 'Jora', 'Kari', 'Lumi', 'Mira', 'Nori', 'Olia', 'Pera',
-  'Quina', 'Risa', 'Sola', 'Tavi', 'Uli', 'Vera', 'Wina', 'Xena',
-  'Yara', 'Zori', 'Alia', 'Bria', 'Cora', 'Dela',
-];
-
-const TALENT_FIRST_SUFFIXES = [
-  'na', 'ra', 'len', 'dell', 'vin', 'ya', 'nor', 'sel',
-  'lia', 'rin', 'vyn', 'tel', 'mon', 'ria', 'zen', 'kal',
-  'beth', 'lyn', 'vora', 'den',
-];
-
-const TALENT_LAST_PREFIXES = [
-  'Ard', 'Beck', 'Call', 'Dalt', 'Ell', 'Frost', 'Grad', 'Hale',
-  'Irv', 'Jett', 'Keat', 'Lane', 'Marl', 'Nash', 'Onyx', 'Pryce',
-  'Quill', 'Row', 'Sterl', 'Thorn', 'Brant', 'Crow', 'Dray', 'Ever',
-  'Flint', 'Grove', 'Hawk', 'Kent', 'Lox', 'Morn',
-];
-
-const TALENT_LAST_SUFFIXES = [
-  'en', 'ford', 'well', 'ley', 'son', 'ridge', 'stone', 'worth',
-  'mont', 'hart', 'burn', 'field', 'croft', 'brook', 'vale', 'more',
-  'shaw', 'wick', 'crest', 'holm',
-];
 
 const TALENT_GENRES: MovieGenre[] = [
   'action',
@@ -93,61 +68,6 @@ function roundMoney(value: number): number {
 function seededUnit(seed: number, salt: number): number {
   const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43_758.545_312_3;
   return x - Math.floor(x);
-}
-
-function createSeededRng(seed: number): () => number {
-  let state = (seed >>> 0) || 1;
-  return () => {
-    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
-    return state / 4_294_967_296;
-  };
-}
-
-function shuffleSeeded(values: string[], seed: number): string[] {
-  const copy = [...values];
-  if (seed === 0) return copy;
-  const rng = createSeededRng(seed);
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    const temp = copy[i];
-    copy[i] = copy[j];
-    copy[j] = temp;
-  }
-  return copy;
-}
-
-function buildNamePartPool(prefixes: string[], suffixes: string[]): string[] {
-  const parts = new Set<string>();
-  for (const prefix of prefixes) {
-    for (const suffix of suffixes) {
-      parts.add(`${prefix}${suffix}`);
-    }
-  }
-  return [...parts];
-}
-
-function buildUniqueTalentNamePool(worldSeed: number, totalCount: number): string[] {
-  const firstPool = shuffleSeeded(
-    buildNamePartPool(TALENT_FIRST_PREFIXES, TALENT_FIRST_SUFFIXES),
-    worldSeed + 17
-  );
-  const lastPool = shuffleSeeded(
-    buildNamePartPool(TALENT_LAST_PREFIXES, TALENT_LAST_SUFFIXES),
-    worldSeed + 53
-  );
-  if (firstPool.length < totalCount || lastPool.length < totalCount) {
-    throw new Error(`Talent name pool exhausted for count ${totalCount}.`);
-  }
-  const names: string[] = [];
-  for (let i = 0; i < totalCount; i += 1) {
-    names.push(`${firstPool[i]} ${lastPool[i]}`);
-  }
-  return names;
-}
-
-function buildTalentName(index: number, namePool: string[]): string {
-  if (index < namePool.length) return namePool[index];
-  return `Talent${index + 1} Alias${index + 1}`;
 }
 
 function pickDistinctGenres(seedIndex: number, seedOffset: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
@@ -198,7 +118,7 @@ function pickAgentTier(starPower: number, reputation: number, seedIndex: number,
   return 'independent';
 }
 
-function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number, namePool: string[]): Talent {
+function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number, usedNames: Set<string>): Talent {
   const worldSalt = (worldSeed % 251) * 0.11;
   const starPower = roundTo(
     clampNumber(
@@ -259,7 +179,12 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
 
   return {
     id: createId('talent'),
-    name: buildTalentName(seedIndex, namePool),
+    name: reserveSeededTalentName({
+      worldSeed,
+      role,
+      sequenceIndex: seedIndex,
+      usedNames,
+    }),
     role,
     starPower,
     craftScore,
@@ -286,23 +211,22 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
 
 export function createSeedTalentPool(worldSeed = 0): Talent[] {
   const normalizedSeed = Number.isFinite(worldSeed) ? Math.max(0, Math.floor(Math.abs(worldSeed))) : 0;
-  const totalTalentCount = DIRECTOR_POOL_SIZE + LEAD_ACTOR_POOL_SIZE + LEAD_ACTRESS_POOL_SIZE;
-  const namePool = buildUniqueTalentNamePool(normalizedSeed, totalTalentCount);
   const talentPool: Talent[] = [];
+  const usedNames = new Set<string>();
   let seedIndex = 0;
 
   for (let i = 0; i < DIRECTOR_POOL_SIZE; i += 1) {
-    talentPool.push(buildTalentSeed(seedIndex, 'director', normalizedSeed, namePool));
+    talentPool.push(buildTalentSeed(seedIndex, 'director', normalizedSeed, usedNames));
     seedIndex += 1;
   }
 
   for (let i = 0; i < LEAD_ACTOR_POOL_SIZE; i += 1) {
-    talentPool.push(buildTalentSeed(seedIndex, 'leadActor', normalizedSeed, namePool));
+    talentPool.push(buildTalentSeed(seedIndex, 'leadActor', normalizedSeed, usedNames));
     seedIndex += 1;
   }
 
   for (let i = 0; i < LEAD_ACTRESS_POOL_SIZE; i += 1) {
-    talentPool.push(buildTalentSeed(seedIndex, 'leadActress', normalizedSeed, namePool));
+    talentPool.push(buildTalentSeed(seedIndex, 'leadActress', normalizedSeed, usedNames));
     seedIndex += 1;
   }
 

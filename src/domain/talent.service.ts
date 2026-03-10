@@ -10,6 +10,7 @@ import type {
 import { clamp, AGENT_DIFFICULTY } from './studio-manager.constants';
 import { TALENT_NEGOTIATION_RULES, MEMORY_RULES, TALENT_LIFECYCLE } from './balance-constants';
 import { createId } from './id';
+import { reserveSeededTalentName } from './talent-names';
 
 export interface TalentManagerAdapter {
     currentWeek: number;
@@ -458,6 +459,7 @@ export function composeNegotiationSignalForManager(
 
 export interface TalentLifecycleAdapter {
     currentWeek: number;
+    talentSeed: number;
     talentPool: Talent[];
     eventRng(): number;
 }
@@ -508,6 +510,8 @@ export function generateNewTalentBatch(
 
     const totalActive = activeCounts.director + activeCounts.leadActor + activeCounts.leadActress;
     const batch: Talent[] = [];
+    const usedNames = new Set(manager.talentPool.map((talent) => talent.name));
+    const sequenceBase = manager.currentWeek * 100 + manager.talentPool.length;
 
     for (let i = 0; i < batchSize; i++) {
         // Pick role biased toward underrepresented
@@ -534,7 +538,12 @@ export function generateNewTalentBatch(
 
         const talent: Talent = {
             id: createId('talent'),
-            name: `New Talent ${manager.currentWeek}-${i}`,
+            name: reserveSeededTalentName({
+                worldSeed: manager.talentSeed,
+                role: chosenRole,
+                sequenceIndex: sequenceBase + i,
+                usedNames,
+            }),
             role: chosenRole,
             starPower: Math.round(starPower * 10) / 10,
             craftScore: Math.round(craftScore * 10) / 10,

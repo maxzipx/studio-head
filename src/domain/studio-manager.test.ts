@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { TALENT_MARKET_RULES } from './balance-constants';
+import { TALENT_LIFECYCLE, TALENT_MARKET_RULES } from './balance-constants';
 import { createSeedScriptMarket } from './seeds';
 import { StudioManager } from './studio-manager';
 
@@ -1576,7 +1576,7 @@ describe('StudioManager', () => {
     expect(visibleLeadTotal).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
   });
 
-  it('seeds expanded actor pools with unique first and last names', () => {
+  it('seeds expanded actor pools with realistic full names and repeated components', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
     const directors = manager.talentPool.filter((talent) => talent.role === 'director');
     const actors = manager.talentPool.filter((talent) => talent.role === 'leadActor');
@@ -1595,8 +1595,64 @@ describe('StudioManager', () => {
 
     expect(firstNames.every((value) => value.length > 0)).toBe(true);
     expect(lastNames.every((value) => value.length > 0)).toBe(true);
-    expect(new Set(firstNames).size).toBe(firstNames.length);
-    expect(new Set(lastNames).size).toBe(lastNames.length);
+    expect(new Set(manager.talentPool.map((talent) => talent.name)).size).toBe(manager.talentPool.length);
+    expect(new Set(firstNames).size).toBeLessThan(firstNames.length);
+    expect(new Set(lastNames).size).toBeLessThan(lastNames.length);
+  });
+
+  it('uses talentSeed to generate deterministic but varied talent rosters', () => {
+    const first = new StudioManager({ talentSeed: 17, crisisRng: () => 0.95, eventRng: () => 0.42 });
+    const second = new StudioManager({ talentSeed: 17, crisisRng: () => 0.95, eventRng: () => 0.42 });
+    const third = new StudioManager({ talentSeed: 18, crisisRng: () => 0.95, eventRng: () => 0.42 });
+
+    const firstNames = first.talentPool.slice(0, 12).map((talent) => talent.name);
+    const secondNames = second.talentPool.slice(0, 12).map((talent) => talent.name);
+    const thirdNames = third.talentPool.slice(0, 12).map((talent) => talent.name);
+
+    expect(firstNames).toEqual(secondNames);
+    expect(thirdNames).not.toEqual(firstNames);
+  });
+
+  it('replenishes the annual talent batch with seeded names instead of placeholders', () => {
+    const manager = new StudioManager({
+      talentSeed: 9,
+      crisisRng: () => 0.95,
+      eventRng: () => 0.42,
+      negotiationRng: () => 0.95,
+      rivalRng: () => 0.95,
+    });
+    const initialCount = manager.talentPool.length;
+    const existingNames = new Set(manager.talentPool.map((talent) => talent.name));
+
+    manager.currentWeek = 51;
+    manager.endWeek();
+
+    const newTalents = manager.talentPool.slice(initialCount);
+    expect(newTalents.length).toBe(TALENT_LIFECYCLE.REPLENISHMENT_BATCH_SIZE);
+    expect(newTalents.every((talent) => !/^New Talent \d+-\d+$/.test(talent.name))).toBe(true);
+    expect(newTalents.every((talent) => !existingNames.has(talent.name))).toBe(true);
+    expect(new Set(manager.talentPool.map((talent) => talent.name)).size).toBe(manager.talentPool.length);
+  });
+
+  it('skips duplicate legacy names when replenishing', () => {
+    const manager = new StudioManager({
+      talentSeed: 12,
+      crisisRng: () => 0.95,
+      eventRng: () => 0.42,
+      negotiationRng: () => 0.95,
+      rivalRng: () => 0.95,
+    });
+    const initialCount = manager.talentPool.length;
+
+    manager.talentPool[0].name = 'New Talent 51-0';
+    manager.talentPool[1].name = 'Jordan Parker';
+    manager.currentWeek = 51;
+    manager.endWeek();
+
+    const newTalents = manager.talentPool.slice(initialCount);
+    expect(newTalents.every((talent) => talent.name !== 'New Talent 51-0')).toBe(true);
+    expect(newTalents.every((talent) => talent.name !== 'Jordan Parker')).toBe(true);
+    expect(new Set(manager.talentPool.map((talent) => talent.name)).size).toBe(manager.talentPool.length);
   });
 
   it('biases script market refill toward currently hot genres', () => {

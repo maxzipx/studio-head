@@ -242,4 +242,33 @@ describe('persistence restore', () => {
     expect(restored.marketDirectorIdx).toBe(7);
     expect(restored.marketActorIdx).toBe(11);
   });
+
+  it('preserves saved talent names while using the new generator for future entrants', () => {
+    const manager = new StudioManager({
+      talentSeed: 8,
+      crisisRng: () => 0.95,
+      eventRng: () => 0.42,
+      negotiationRng: () => 0.95,
+      rivalRng: () => 0.95,
+    });
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const storedTalent = snapshot.talentPool as Record<string, unknown>[];
+    storedTalent[0].name = 'New Talent 57-0';
+    storedTalent[1].name = 'Legacy Synthname';
+
+    const restored = restoreStudioManager(snapshot);
+    const initialCount = restored.talentPool.length;
+
+    expect(restored.talentPool[0].name).toBe('New Talent 57-0');
+    expect(restored.talentPool[1].name).toBe('Legacy Synthname');
+
+    restored.currentWeek = 51;
+    restored.endWeek();
+
+    const newTalents = restored.talentPool.slice(initialCount);
+    expect(newTalents.length).toBeGreaterThan(0);
+    expect(newTalents.every((talent) => !/^New Talent \d+-\d+$/.test(talent.name))).toBe(true);
+    expect(restored.talentPool[0].name).toBe('New Talent 57-0');
+    expect(restored.talentPool[1].name).toBe('Legacy Synthname');
+  });
 });
