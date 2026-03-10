@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { ACTION_BALANCE, AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
+import { GrainOverlay } from '@/src/ui/components';
 import { useGameStore } from '@/src/state/game-context';
 import {
   CollapsibleCard,
@@ -228,6 +229,7 @@ export default function HQScreen() {
 
   return (
     <View style={styles.screen}>
+      <GrainOverlay />
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
       <ScrollView contentContainerStyle={styles.content}>
 

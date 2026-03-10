@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { GrainOverlay } from '@/src/ui/components';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { selectSlateView } from '@/src/state/view-selectors';
@@ -86,6 +87,7 @@ export default function SlateScreen() {
 
   return (
     <View style={styles.screen}>
+      <GrainOverlay />
       <Modal
         transparent
         animationType="fade"

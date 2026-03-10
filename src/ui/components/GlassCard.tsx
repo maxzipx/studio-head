@@ -1,4 +1,5 @@
 import React from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { colors, radius, shadows } from '../tokens';
 
@@ -86,6 +87,14 @@ export function GlassCard({
         style as ViewStyle,
       ]}
     >
+      {/* Subtle inner top-glow — light emanating from top of card surface */}
+      <LinearGradient
+        colors={['rgba(237,232,222,0.05)', 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.6 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
       {children}
     </View>
   );
@@ -96,6 +105,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.r3,
     borderWidth: 1,
     overflow: 'hidden',
-    padding: 14,
+    padding: 16,
   },
 });

@@ -21,3 +21,4 @@ export { MetricsStrip }   from './MetricsStrip';
 
 export { TalentCard }     from './TalentCard';
 export type { TalentCardProps } from './TalentCard';
+export { GrainOverlay }   from './GrainOverlay';

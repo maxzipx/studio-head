@@ -10,6 +10,7 @@ import { selectProjectDetailView } from '@/src/state/view-selectors';
 import { colors, typography } from '@/src/ui/tokens';
 import {
   GlassCard,
+  GrainOverlay,
   PremiumButton,
   SectionLabel,
   MetricTile,
@@ -124,7 +125,9 @@ export default function ProjectDetailScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1 }}>
+      <GrainOverlay />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
 
       {/* ── Header ── */}
       <LinearGradient
@@ -733,6 +736,7 @@ export default function ProjectDetailScreen() {
       ) : null}
 
     </ScrollView>
+    </View>
   );
 }
 

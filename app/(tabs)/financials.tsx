@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
-import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
+import { GlassCard, GrainOverlay, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, spacing, typography } from '@/src/ui/tokens';
 import { money } from '@/src/ui/helpers/formatting';
 
@@ -104,7 +104,9 @@ export default function FinancialsScreen() {
         colors.accentGreen;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1 }}>
+      <GrainOverlay />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -263,6 +265,7 @@ export default function FinancialsScreen() {
       </GlassCard>
 
     </ScrollView>
+    </View>
   );
 }
 
