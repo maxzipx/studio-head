@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   },
 
   messageCard: {
-    borderColor: colors.borderBlue,
+    borderColor: colors.borderAmber,
   },
   messageText: {
     fontFamily: typography.fontBody,

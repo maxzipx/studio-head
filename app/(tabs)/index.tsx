@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { ACTION_BALANCE, AWARDS_RULES, BANKRUPTCY_RULES } from '@/src/domain/balance-constants';
-import { GrainOverlay } from '@/src/ui/components';
 import { useGameStore } from '@/src/state/game-context';
 import {
   CollapsibleCard,
@@ -229,7 +228,6 @@ export default function HQScreen() {
 
   return (
     <View style={styles.screen}>
-      <GrainOverlay />
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
       <ScrollView contentContainerStyle={styles.content}>
 
@@ -246,7 +244,7 @@ export default function HQScreen() {
 
         {/* Getting Started / HQ Help */}
         {manager.currentWeek <= 1 ? (
-          <GlassCard variant="blue">
+          <GlassCard variant="amber">
             <SectionLabel label="Getting Started" />
             {[
               'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
@@ -278,7 +276,7 @@ export default function HQScreen() {
         )}
 
         {lastMessage ? (
-          <GlassCard variant="blue">
+          <GlassCard variant="amber">
             <Text style={styles.message}>{lastMessage}</Text>
           </GlassCard>
         ) : null}
@@ -411,15 +409,15 @@ export default function HQScreen() {
             </GlassCard>
           ))}
           {visibleUpdates.map((item) => (
-            <GlassCard key={item.id} variant="elevated" accentBorder={colors.ctaBlue} style={{ gap: spacing.sp2 }}>
+            <GlassCard key={item.id} variant="elevated" accentBorder={colors.ctaAmber} style={{ gap: spacing.sp2 }}>
               <View style={styles.inboxHeader}>
                 <Text style={styles.muted}>
                   {item.projectId
                     ? manager.activeProjects.find((p) => p.id === item.projectId)?.title ?? 'Unknown Project'
                     : 'Studio-wide'}
                 </Text>
-                <View style={[styles.expiryPill, { borderColor: colors.borderBlue }]}>
-                  <Text style={[styles.expiryText, { color: colors.ctaBlue }]}>UPDATE</Text>
+                <View style={[styles.expiryPill, { borderColor: colors.borderAmber }]}>
+                  <Text style={[styles.expiryText, { color: colors.ctaAmber }]}>UPDATE</Text>
                 </View>
               </View>
               <Text style={styles.bodyStrong}>{item.title}</Text>

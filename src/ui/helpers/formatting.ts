@@ -52,7 +52,7 @@ export function phaseColor(phase: string): string {
   if (phase === 'development') return colors.accentTeal;
   if (phase === 'preProduction' || phase === 'production') return colors.goldMid;
   if (phase === 'postProduction') return colors.accentTeal;
-  if (phase === 'distribution') return colors.ctaBlue;
+  if (phase === 'distribution') return colors.ctaAmber;
   if (phase === 'released') return colors.accentGreen;
   return colors.textMuted;
 }

@@ -49,7 +49,7 @@ export const PremiumButton = React.memo(function PremiumButton({
       {icon}
       {loading
         ? <ActivityIndicator
-          color={variant === 'primary' ? colors.textInverse : colors.ctaBlue}
+          color={variant === 'primary' ? colors.textInverse : colors.ctaAmber}
           size="small"
         />
         : <Text style={[styles.label, { fontSize: sz.fontSize }, variantLabelStyle[variant]]}>
@@ -86,8 +86,8 @@ export const PremiumButton = React.memo(function PremiumButton({
 // ── Per-variant container styles ─────────────────────────────────────────────
 const variantContainerStyle: Record<ButtonVariant, ViewStyle> = {
   primary: {
-    backgroundColor: colors.ctaBlue,
-    ...shadows.glowBlue,
+    backgroundColor: colors.ctaAmber,
+    ...shadows.glowAmber,
   },
   secondary: {
     backgroundColor: colors.bgSurface,

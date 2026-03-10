@@ -10,7 +10,7 @@ export type GlassCardVariant =
   | 'gold'
   | 'champagne'
   | 'red'
-  | 'blue';
+  | 'amber';
 
 interface GlassCardProps {
   variant?: GlassCardVariant;
@@ -57,7 +57,7 @@ const variantConfig: Record<GlassCardVariant, VariantConfig> = {
     border: 'rgba(224,112,112,0.35)',
     shadow: {} as ViewStyle,
   },
-  blue: {
+  amber: {
     bg: 'rgba(196,129,59,0.10)',
     border: 'rgba(196,129,59,0.35)',
     shadow: {} as ViewStyle,

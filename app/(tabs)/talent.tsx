@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { GrainOverlay } from '@/src/ui/components';
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { selectTalentView } from '@/src/state/view-selectors';
@@ -72,12 +71,11 @@ export default function TalentScreen() {
 
   return (
     <View style={styles.screen}>
-      <GrainOverlay />
       <MetricsStrip cash={manager.cash} heat={manager.studioHeat} week={manager.currentWeek} />
       <ScrollView contentContainerStyle={styles.content}>
 
         {lastMessage ? (
-          <GlassCard variant="blue">
+          <GlassCard variant="amber">
             <Text style={styles.message}>{lastMessage}</Text>
           </GlassCard>
         ) : null}
@@ -109,7 +107,7 @@ export default function TalentScreen() {
           <SectionLabel label="Talent Market Snapshot" />
           <View style={styles.snapshotRow}>
             {[
-              { label: 'Directors', value: marketDirectorCount, accent: colors.ctaBlue },
+              { label: 'Directors', value: marketDirectorCount, accent: colors.ctaAmber },
               { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
               { label: 'Actresses', value: marketActressCount, accent: colors.goldMid },
               { label: 'Deals', value: manager.playerNegotiations.length, accent: colors.goldMid },
@@ -507,10 +505,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.ctaBlue + '14',
+    backgroundColor: colors.ctaAmber + '14',
     borderRadius: radius.r2,
     borderWidth: 1,
-    borderColor: colors.ctaBlue + '40',
+    borderColor: colors.ctaAmber + '40',
     paddingHorizontal: spacing.sp3,
     paddingVertical: spacing.sp2,
   },

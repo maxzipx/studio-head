@@ -25,10 +25,10 @@ export const colors = {
   goldMid: '#B8903A',    // primary brass — awards, active states, accents
   goldDeep: '#9A7028',   // gradient start / deep brass
 
-  // CTA Amber — primary interactive (replaces CTA Blue)
+  // CTA Amber — primary interactive
   // Warm amber reads as decisive / analog rather than digital-blue
-  ctaBlue: '#C4813B',     // primary buttons, links, interactive — warm amber
-  ctaBlueDark: '#A86A2C', // pressed / deeper amber
+  ctaAmber: '#C4813B',     // primary buttons, links, interactive — warm amber
+  ctaAmberDark: '#A86A2C', // pressed / deeper amber
 
   // Secondary accents — desaturated for warm palette compatibility
   accentTeal: '#7A9E72',    // muted olive/sage — dev phase, info, mid-range scores
@@ -49,7 +49,7 @@ export const colors = {
   borderGold: 'rgba(184,144,58,0.40)',   // brass active / selected state
   borderNavy: 'rgba(237,232,222,0.12)', // warm ghost border (secondary buttons)
   borderRed: 'rgba(224,112,112,0.35)',  // crisis / danger border
-  borderBlue: 'rgba(196,129,59,0.25)',  // amber info / interactive border
+  borderAmber: 'rgba(196,129,59,0.25)',  // amber info / interactive border
 };
 
 // Backwards-compatible alias — screens importing `tokens.accentGold` etc. still work
@@ -143,7 +143,7 @@ export const shadows = {
     elevation: 6,
   } as ViewStyle,
 
-  glowBlue: {
+  glowAmber: {
     shadowColor: '#C4813B',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.22,

@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
-import { GlassCard, GrainOverlay, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
+import { GlassCard, MetricTile, OutcomeBadge, OutcomeType, ProgressBar, SectionLabel } from '@/src/ui/components';
 import { colors, spacing, typography } from '@/src/ui/tokens';
 import { money } from '@/src/ui/helpers/formatting';
 
@@ -33,9 +33,9 @@ const projectOutlookConfig: Record<ProjectOutlookTag, ProjectOutlookConfig> = {
   },
   hit: {
     label: 'HIT',
-    color: colors.ctaBlue,
+    color: colors.ctaAmber,
     bg: 'rgba(196,129,59,0.15)',
-    border: colors.ctaBlue,
+    border: colors.ctaAmber,
   },
   breakEven: {
     label: 'BREAK EVEN',
@@ -104,9 +104,7 @@ export default function FinancialsScreen() {
         colors.accentGreen;
 
   return (
-    <View style={{ flex: 1 }}>
-      <GrainOverlay />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -265,7 +263,6 @@ export default function FinancialsScreen() {
       </GlassCard>
 
     </ScrollView>
-    </View>
   );
 }
 

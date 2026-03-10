@@ -29,10 +29,10 @@ const outcomeConfig: Record<OutcomeType, OutcomeConfig> = {
   },
   hit: {
     label: 'HIT',
-    color: colors.ctaBlue,
+    color: colors.ctaAmber,
     bg: 'rgba(196,129,59,0.15)',
-    border: colors.ctaBlue,
-    shadow: shadows.glowBlue,
+    border: colors.ctaAmber,
+    shadow: shadows.glowAmber,
   },
   solid: {
     label: 'SOLID',
