@@ -8,8 +8,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.bgPrimary,
   },
   content: {
-    padding: spacing.sp4,
-    gap: spacing.sp3,
+    padding: spacing.sp5,
+    gap: spacing.sp4,
     paddingBottom: 120,
   },
 
@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   title: {
-    fontFamily: typography.fontDisplay,
+    fontFamily: typography.fontDisplayItalic,
     fontSize: 28,
     color: colors.textPrimary,
     letterSpacing: typography.trackingTight,

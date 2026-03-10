@@ -464,7 +464,7 @@ export default function TalentScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
+  content: { padding: spacing.sp5, paddingBottom: 120, gap: spacing.sp4 },
 
   header: { gap: 4, marginBottom: spacing.sp1 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },

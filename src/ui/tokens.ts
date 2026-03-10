@@ -80,6 +80,7 @@ export const typography = {
   sizeXL: 24,   // film titles, modal headings
   size2XL: 30,  // screen titles
   size3XL: 40,  // hero metrics
+  size4XL: 52,  // HQ hero studio name
 
   // Line heights (multipliers)
   lineHeightTight: 1.15,

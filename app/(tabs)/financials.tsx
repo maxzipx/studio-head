@@ -268,7 +268,7 @@ export default function FinancialsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp4, paddingBottom: 120, gap: spacing.sp3 },
+  content: { padding: spacing.sp5, paddingBottom: 120, gap: spacing.sp4 },
 
   // Header
   header: { gap: 4, marginBottom: spacing.sp1 },

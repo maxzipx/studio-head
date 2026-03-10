@@ -4,9 +4,9 @@ import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp4, gap: spacing.sp3, paddingBottom: spacing.sp4 },
+  content: { padding: spacing.sp5, gap: spacing.sp4, paddingBottom: spacing.sp5 },
 
-  header: { gap: 3, marginBottom: spacing.sp1 },
+  header: { gap: 4, marginBottom: spacing.sp2 },
   headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
   stickyFooter: {
     paddingHorizontal: spacing.sp4,
@@ -18,12 +18,12 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sp1,
   },
-  studioName: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  weekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
+  studioName: { fontFamily: typography.fontDisplay, fontSize: typography.size4XL, color: colors.textPrimary, letterSpacing: typography.trackingTight, lineHeight: 55 },
+  weekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeBase, color: colors.textMuted, marginTop: 4 },
 
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal },
-  body: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary },
-  bodyStrong: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal, lineHeight: 20 },
+  body: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
+  bodyStrong: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, lineHeight: 20 },
   muted: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
   alert: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.accentRed },
 
@@ -51,7 +51,7 @@ export const styles = StyleSheet.create({
     gap: 3,
   },
   optionTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-  optionBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
+  optionBody: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
 
   capRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
   actionsRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp2 },
@@ -118,7 +118,7 @@ export const styles = StyleSheet.create({
     letterSpacing: typography.trackingWidest,
   },
   modalFilmTitle: {
-    fontFamily: typography.fontDisplay,
+    fontFamily: typography.fontDisplayItalic,
     fontSize: typography.sizeXL,
     color: colors.textPrimary,
     letterSpacing: typography.trackingTight,
