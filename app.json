@@ -1,15 +1,20 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Studio Head",
+    "slug": "studio-head",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "app",
+    "scheme": "studiohead",
+    "owner": "maxzipx",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.maxzipx.studiohead",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,6 +48,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "49f57be6-f8eb-4ab2-9576-b7c17c147798"
+      }
     }
   }
 }
