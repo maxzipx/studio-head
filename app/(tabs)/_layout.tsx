@@ -4,39 +4,35 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { colors, typography } from '@/src/ui/tokens';
+import { colors } from '@/src/ui/tokens';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor:   colors.navyPrimary,
+        headerShown:            false,
+        tabBarShowLabel:        false,
+        tabBarActiveTintColor:  colors.navyPrimary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: {
-          fontFamily:    typography.fontBodyMedium,
-          fontSize:      10,
-          letterSpacing: typography.trackingWide,
-          marginTop:     2,
-        },
         tabBarStyle: {
-          backgroundColor: colors.bgSurface,
-          borderTopWidth:  1,
-          borderTopColor:  colors.borderSubtle,
-          height:          Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
-          paddingTop:      8,
+          backgroundColor: colors.bgElevated,
+          borderTopWidth:  0,
+          borderWidth:     1,
+          borderColor:     colors.borderDefault,
+          marginHorizontal: 24,
+          marginBottom:    Platform.OS === 'ios' ? 24 : 10,
+          borderRadius:    32,
+          height:          60,
+          shadowColor:     '#1A0E06',
+          shadowOffset:    { width: 0, height: 6 },
+          shadowOpacity:   0.50,
+          shadowRadius:    16,
+          elevation:       10,
         },
-        headerStyle: {
-          backgroundColor: colors.bgSurface,
+        tabBarItemStyle: {
+          paddingVertical: 8,
         },
-        headerShadowVisible: false,
-        headerTitleStyle: {
-          fontFamily: typography.fontDisplay,
-          fontSize:   typography.sizeMD,
-          color:      colors.navyPrimary,
-        },
-        headerTintColor: colors.navyPrimary,
-        tabBarButton:    HapticTab,
+        tabBarButton: HapticTab,
       }}
     >
       <Tabs.Screen
@@ -45,7 +41,7 @@ export default function TabLayout() {
           title: 'HQ',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : undefined}>
-              <IconSymbol size={22} name="building.2.fill" color={color} />
+              <IconSymbol size={24} name="building.2.fill" color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -57,7 +53,7 @@ export default function TabLayout() {
           title: 'Slate',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : undefined}>
-              <IconSymbol size={22} name="film.fill" color={color} />
+              <IconSymbol size={24} name="film.fill" color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -74,7 +70,7 @@ export default function TabLayout() {
           title: 'Talent',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : undefined}>
-              <IconSymbol size={22} name="person.2.fill" color={color} />
+              <IconSymbol size={24} name="person.2.fill" color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -86,7 +82,7 @@ export default function TabLayout() {
           title: 'Financials',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : undefined}>
-              <IconSymbol size={22} name="dollarsign.circle.fill" color={color} />
+              <IconSymbol size={24} name="dollarsign.circle.fill" color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -102,8 +98,8 @@ const styles = StyleSheet.create({
     gap:        3,
   },
   activeDot: {
-    width:           4,
-    height:          4,
+    width:           20,
+    height:          3,
     borderRadius:    2,
     backgroundColor: colors.navyPrimary,
   },

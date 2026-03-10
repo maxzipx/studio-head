@@ -384,7 +384,7 @@ export default function HQScreen() {
                   <Text style={[styles.expiryText, { color: colors.accentRed }]}>CRISIS</Text>
                 </View>
               </View>
-              <Text style={[styles.bodyStrong, { color: colors.accentRed }]}>{crisis.title}</Text>
+              <Text style={[styles.decisionTitle, { color: colors.accentRed }]}>{crisis.title}</Text>
               <Text style={styles.body}>{crisis.body}</Text>
               <Text style={[styles.muted, { color: colors.accentRed }]}>Severity: {crisis.severity.toUpperCase()}</Text>
               {Array.isArray(crisis.options) && crisis.options.length > 0 ? null : (
@@ -396,7 +396,7 @@ export default function HQScreen() {
                 {(Array.isArray(crisis.options) ? crisis.options : []).map((option) => (
                   <Pressable
                     key={option.id}
-                    style={[styles.optionBtn, { borderColor: colors.borderRed }]}
+                    style={({ pressed }) => [styles.optionBtn, { borderColor: colors.borderRed }, pressed && styles.optionBtnPressed]}
                     onPress={() => resolveCrisis(crisis.id, option.id)}
                   >
                     <Text style={styles.optionTitle}>{option.label}</Text>
@@ -701,9 +701,9 @@ export default function HQScreen() {
             : arcEntries.map(([arcId, arc]) => {
               const arcColor = arc.status === 'resolved' ? colors.accentGreen : arc.status === 'failed' ? colors.accentRed : colors.goldMid;
               return (
-                <GlassCard key={arcId} variant="elevated" style={{ gap: 4 }}>
+                <GlassCard key={arcId} variant="elevated" style={{ gap: spacing.sp2 }}>
                   <View style={styles.arcRow}>
-                    <Text style={styles.bodyStrong}>{ARC_LABELS[arcId] ?? arcId}</Text>
+                    <Text style={styles.arcTitle}>{ARC_LABELS[arcId] ?? arcId}</Text>
                     <View style={[styles.arcBadge, { borderColor: arcColor + '50', backgroundColor: arcColor + '12' }]}>
                       <Text style={[styles.arcStatus, { color: arcColor }]}>{arc.status.toUpperCase()}</Text>
                     </View>

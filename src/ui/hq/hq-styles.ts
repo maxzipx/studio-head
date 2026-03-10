@@ -24,6 +24,8 @@ export const styles = StyleSheet.create({
   message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentTeal, lineHeight: 20 },
   body: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
   bodyStrong: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, lineHeight: 20 },
+  decisionTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeMD, color: colors.textPrimary, lineHeight: 26, marginTop: 2 },
+  arcTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeBase, color: colors.textPrimary, letterSpacing: typography.trackingWide },
   muted: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
   alert: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.accentRed },
 
@@ -38,19 +40,23 @@ export const styles = StyleSheet.create({
   heatLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest },
 
   inboxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  expiryPill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
+  expiryPill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 10 },
   expiryText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4 },
 
-  optionGroup: { gap: spacing.sp2, marginTop: spacing.sp1 },
+  optionGroup: { gap: spacing.sp3, marginTop: spacing.sp2 },
   optionBtn: {
     borderRadius: radius.r2,
     borderWidth: 1,
     borderColor: colors.borderDefault,
     backgroundColor: colors.bgElevated,
-    padding: spacing.sp2 + 2,
-    gap: 3,
+    padding: spacing.sp3,
+    gap: 4,
   },
-  optionTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeSM, color: colors.textPrimary },
+  optionBtnPressed: {
+    backgroundColor: colors.bgChampagne,
+    borderColor: colors.borderStrong,
+  },
+  optionTitle: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeBase, color: colors.textPrimary },
   optionBody: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
 
   capRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
