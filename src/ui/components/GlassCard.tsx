@@ -87,14 +87,16 @@ export function GlassCard({
         style as ViewStyle,
       ]}
     >
-      {/* Subtle inner top-glow — light emanating from top of card surface */}
-      <LinearGradient
-        colors={['rgba(237,232,222,0.05)', 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.6 }}
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
-      />
+      {/* Inner top-glow clipped to card bounds without touching the outer shadow */}
+      <View style={styles.glowClip} pointerEvents="none">
+        <LinearGradient
+          colors={['rgba(237,232,222,0.05)', 'transparent']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.6 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+      </View>
       {children}
     </View>
   );
@@ -104,7 +106,11 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: radius.r3,
     borderWidth: 1,
-    overflow: 'hidden',
     padding: 16,
+  },
+  glowClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.r3,
+    overflow: 'hidden',
   },
 });
