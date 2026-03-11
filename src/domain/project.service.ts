@@ -270,9 +270,9 @@ export function runOptionalActionForManager(manager: ProjectManagerAdapter): { s
             if (a.marketingBudget === b.marketingBudget) return b.hypeScore - a.hypeScore;
             return a.marketingBudget - b.marketingBudget;
         })[0];
-    if (!project) return { success: false, message: 'No active project available for optional action.' };
+    if (!project) return { success: false, message: 'No active project available for a campaign boost.' };
     if (manager.cash < ACTION_BALANCE.OPTIONAL_ACTION_COST) {
-        return { success: false, message: 'Insufficient cash for optional campaign action.' };
+        return { success: false, message: 'Insufficient cash for a campaign boost.' };
     }
 
     const bonusLevels = Math.max(0, manager.marketingTeamLevel - 1);
@@ -286,7 +286,7 @@ export function runOptionalActionForManager(manager: ProjectManagerAdapter): { s
     manager.evaluateBankruptcy();
     return {
         success: true,
-        message: `Optional campaign executed on ${project.title}. Hype +${Math.round(hypeGain)} and marketing +$${Math.round(marketingGain / 1000)}K.`,
+        message: `Campaign boost executed on ${project.title}. Hype +${Math.round(hypeGain)} and marketing +$${Math.round(marketingGain / 1000)}K.`,
     };
 }
 

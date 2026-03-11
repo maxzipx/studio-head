@@ -538,11 +538,11 @@ export default function HQScreen() {
 
             <SectionLabel label="Optional Marketing Push" style={{ marginTop: spacing.sp2 }} />
             <Text style={styles.muted}>
-              Costs 1 production action per use.
-              Generates +{optionalActionHype} Hype and allocates +{money(optionalActionMarketing)} extra marketing spend to all active projects.
+              Costs {money(ACTION_BALANCE.OPTIONAL_ACTION_COST)} cash per use.
+              Boosts the active project with the lightest campaign by +{optionalActionHype} Hype and +{money(optionalActionMarketing)} in extra marketing.
             </Text>
             <PremiumButton
-              label={`Run Optional Action (+${optionalActionHype} Hype)`}
+              label={`Run Campaign Boost (+${optionalActionHype} Hype)`}
               onPress={runOptionalAction}
               disabled={isGameOver}
               variant="secondary"

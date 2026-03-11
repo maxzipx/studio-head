@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../tokens';
 
 interface MetricsStripProps {
@@ -39,25 +40,31 @@ function MetricColumn({
 }
 
 export function MetricsStrip({ cash, heat, week }: MetricsStripProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.strip}>
-      <MetricColumn value={formatCash(cash)} label="CASH" />
-      <View style={styles.divider} />
-      <MetricColumn value={String(Math.round(heat))} label="HEAT" valueColor={heatColor(heat)} />
-      <View style={styles.divider} />
-      <MetricColumn value={`WK ${week}`} label="WEEK" />
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+      <View style={styles.strip}>
+        <MetricColumn value={formatCash(cash)} label="CASH" />
+        <View style={styles.divider} />
+        <MetricColumn value={String(Math.round(heat))} label="HEAT" valueColor={heatColor(heat)} />
+        <View style={styles.divider} />
+        <MetricColumn value={`WK ${week}`} label="WEEK" />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  strip: {
+  safeArea: {
     backgroundColor: colors.bgDeep,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  strip: {
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
   },
   column: {
     flex: 1,

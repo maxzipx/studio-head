@@ -519,7 +519,7 @@ export class StudioManager {
     return { success: true, message: `Executive network upgraded to level ${next}.` };
   }
 
-  advanceUntilDecision(maxWeeks = TURN_RULES.NEXT_DECISION_MAX_SKIP_WEEKS): {
+  advanceUntilDecision(maxWeeks: number = TURN_RULES.NEXT_DECISION_MAX_SKIP_WEEKS): {
     success: boolean;
     advancedWeeks: number;
     reason: 'decision' | 'crisis' | 'release' | 'limit' | 'blocked' | 'bankrupt';

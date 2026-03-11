@@ -15,6 +15,7 @@ import {
   pct,
   phaseLabel,
 } from '@/src/ui/helpers/formatting';
+import { buildTalentScreenProjectView } from '@/src/ui/helpers/talent-screen';
 import { useNegotiationModal } from '@/src/ui/hooks/useNegotiationModal';
 
 export default function TalentScreen() {
@@ -31,34 +32,27 @@ export default function TalentScreen() {
     : null;
 
   const negModal = useNegotiationModal(manager, activeProject, startNegotiation, adjustNegotiation);
-
-  // Market: available talents with an active window, sorted directors first then by starPower desc
-  const marketTalent = manager.talentPool
-    .filter((t) => t.marketWindowExpiresWeek !== null && t.availability === 'available')
-    .sort((a, b) => {
-      if (a.role !== b.role) return a.role === 'director' ? -1 : 1;
-      return b.starPower - a.starPower;
-    });
-
-  // Roster: talents attached to your projects (negotiating talents show in Open Negotiations)
-  const rosterTalent = manager.talentPool
-    .filter((t) => t.attachedProjectId !== null)
-    .sort((a, b) => {
-      if (a.role !== b.role) return a.role === 'director' ? -1 : 1;
-      return b.starPower - a.starPower;
-    });
-
-  const marketDirectorCount = marketTalent.filter((t) => t.role === 'director').length;
-  const marketActorCount = marketTalent.filter((t) => t.role === 'leadActor').length;
-  const marketActressCount = marketTalent.filter((t) => t.role === 'leadActress').length;
-  const marketDirectors = marketTalent.filter((t) => t.role === 'director');
-  const marketActors = marketTalent.filter((t) => t.role === 'leadActor');
-  const marketActresses = marketTalent.filter((t) => t.role === 'leadActress');
-  const rosterDirectors = rosterTalent.filter((t) => t.role === 'director');
-  const rosterActors = rosterTalent.filter((t) => t.role === 'leadActor');
-  const rosterActresses = rosterTalent.filter((t) => t.role === 'leadActress');
-  const rivalLockedCount = manager.talentPool.filter((t) => manager.rivals.some((r) => r.lockedTalentIds.includes(t.id))).length;
-  const coolingOffCount = manager.talentPool.filter((t) => manager.getTalentNegotiationOutlook(t).blocked).length;
+  const {
+    openNegotiations,
+    rosterTalent,
+    rosterDirectors,
+    rosterActors,
+    rosterActresses,
+    marketTalent,
+    marketDirectors,
+    marketActors,
+    marketActresses,
+    marketDirectorCount,
+    marketActorCount,
+    marketActressCount,
+    attachedCount,
+    neededSlots,
+  } = buildTalentScreenProjectView({
+    activeProject,
+    playerNegotiations: manager.playerNegotiations,
+    talentPool: manager.talentPool,
+    getProjectCastStatus: manager.getProjectCastStatus.bind(manager),
+  });
 
   useEffect(() => {
     const stillValid = !!selectedProjectId && developmentProjects.some((p) => p.id === selectedProjectId);
@@ -104,15 +98,15 @@ export default function TalentScreen() {
 
         {/*  Market Snapshot  */}
         <GlassCard>
-          <SectionLabel label="Talent Market Snapshot" />
+          <SectionLabel label="Project Staffing Snapshot" />
           <View style={styles.snapshotRow}>
             {[
               { label: 'Directors', value: marketDirectorCount, accent: colors.ctaAmber },
               { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
               { label: 'Actresses', value: marketActressCount, accent: colors.goldMid },
-              { label: 'Deals', value: manager.playerNegotiations.length, accent: colors.goldMid },
-              { label: 'Rivals', value: rivalLockedCount, accent: colors.accentRed },
-              { label: 'Cooldown', value: coolingOffCount, accent: colors.textMuted },
+              { label: 'Deals', value: openNegotiations.length, accent: colors.goldMid },
+              { label: 'Attached', value: attachedCount, accent: colors.accentRed },
+              { label: 'Needed', value: neededSlots, accent: colors.textMuted },
             ].map(({ label, value, accent }) => (
               <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
                 <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
@@ -172,9 +166,11 @@ export default function TalentScreen() {
         <GlassCard>
           <SectionLabel label="Open Negotiations" />
           <Text style={styles.muted}>Each submission spends one round. You can change only one lever per round.</Text>
-          {manager.playerNegotiations.length === 0
-            ? <Text style={styles.empty}>No open negotiations.</Text>
-            : manager.playerNegotiations.map((entry) => {
+          {!activeProject
+            ? <Text style={styles.empty}>Select a development project to view its negotiations.</Text>
+            : openNegotiations.length === 0
+              ? <Text style={styles.empty}>No open negotiations for this project.</Text>
+              : openNegotiations.map((entry) => {
               const talent = manager.talentPool.find((t) => t.id === entry.talentId);
               const project = manager.activeProjects.find((p) => p.id === entry.projectId);
               const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
@@ -295,72 +291,99 @@ export default function TalentScreen() {
                   })()}
                 </GlassCard>
               );
-            })
+              })
           }
         </GlassCard>
 
         {/*  Directors In Market  */}
-        <View style={styles.roleHeaderDirector}>
-          <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
-          <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
-        </View>
-        {marketTalent.length === 0
+        {!activeProject ? (
+          <GlassCard variant="elevated">
+            <Text style={styles.empty}>Select a development project to view its staffing needs.</Text>
+          </GlassCard>
+        ) : marketTalent.length === 0
           ? (
             <GlassCard variant="elevated">
-              <Text style={styles.empty}>Market is initializing  advance a turn to populate talent windows.</Text>
+              <Text style={styles.empty}>
+                {neededSlots === 0
+                  ? 'This project\'s current staffing needs are filled.'
+                  : 'No available talent currently matches this project\'s open roles.'}
+              </Text>
             </GlassCard>
           )
-          : marketDirectors.map((talent) => (
-            <TalentCard
-              key={talent.id}
-              talent={talent}
-              manager={manager}
-              activeProject={activeProject}
-              openNegotiationModal={negModal.open}
-              attachTalent={attachTalent}
-              showCountdown
-            />
-          ))}
+          : null}
+
+        {marketDirectors.length > 0 && (
+          <>
+            <View style={styles.roleHeaderDirector}>
+              <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
+              <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
+            </View>
+            {marketDirectors.map((talent) => (
+              <TalentCard
+                key={talent.id}
+                talent={talent}
+                manager={manager}
+                activeProject={activeProject}
+                openNegotiationModal={negModal.open}
+                attachTalent={attachTalent}
+                showCountdown
+              />
+            ))}
+          </>
+        )}
 
         {/*  Actors In Market  */}
-        <View style={styles.roleHeaderActor}>
-          <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
-          <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
-        </View>
-        {marketActors.map((talent) => (
-          <TalentCard
-            key={talent.id}
-            talent={talent}
-            manager={manager}
-            activeProject={activeProject}
-            openNegotiationModal={negModal.open}
-            attachTalent={attachTalent}
-            showCountdown
-          />
-        ))}
-        <View style={styles.roleHeaderActor}>
-          <Text style={styles.roleHeaderText}>ACTRESSES IN MARKET</Text>
-          <Text style={styles.roleHeaderCount}>{marketActresses.length}</Text>
-        </View>
-        {marketActresses.map((talent) => (
-          <TalentCard
-            key={talent.id}
-            talent={talent}
-            manager={manager}
-            activeProject={activeProject}
-            openNegotiationModal={negModal.open}
-            attachTalent={attachTalent}
-            showCountdown
-          />
-        ))}
+        {marketActors.length > 0 && (
+          <>
+            <View style={styles.roleHeaderActor}>
+              <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
+              <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
+            </View>
+            {marketActors.map((talent) => (
+              <TalentCard
+                key={talent.id}
+                talent={talent}
+                manager={manager}
+                activeProject={activeProject}
+                openNegotiationModal={negModal.open}
+                attachTalent={attachTalent}
+                showCountdown
+              />
+            ))}
+          </>
+        )}
+        {marketActresses.length > 0 && (
+          <>
+            <View style={styles.roleHeaderActor}>
+              <Text style={styles.roleHeaderText}>ACTRESSES IN MARKET</Text>
+              <Text style={styles.roleHeaderCount}>{marketActresses.length}</Text>
+            </View>
+            {marketActresses.map((talent) => (
+              <TalentCard
+                key={talent.id}
+                talent={talent}
+                manager={manager}
+                activeProject={activeProject}
+                openNegotiationModal={negModal.open}
+                attachTalent={attachTalent}
+                showCountdown
+              />
+            ))}
+          </>
+        )}
 
         {/*  Your Roster  */}
-        {rosterTalent.length > 0 && (
+        {activeProject && (
           <>
             <View style={styles.roleHeaderRoster}>
               <Text style={styles.roleHeaderText}>YOUR ROSTER</Text>
               <Text style={styles.roleHeaderCount}>{rosterTalent.length}</Text>
             </View>
+            {rosterTalent.length === 0 && (
+              <GlassCard variant="elevated">
+                <Text style={styles.empty}>No talent is attached to this project yet.</Text>
+              </GlassCard>
+            )}
             {rosterDirectors.map((talent) => <TalentCard
               key={talent.id}
               talent={talent}
