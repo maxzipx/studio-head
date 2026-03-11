@@ -1,6 +1,7 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import type {
   DecisionCategory,
+  FoundingProfile,
   IpKind,
   MilestoneRecord,
   MovieGenre,
@@ -103,6 +104,14 @@ export interface SpecializationProfile {
   distributionLeverage: number;
 }
 
+export interface FoundingProfileModifiers {
+  negotiationChanceBonus: number;
+  trackingConfidenceBonus: number;
+  franchiseMomentumBonus: number;
+  awardsCampaignBonus: number;
+  festivalBuzzBonus: number;
+}
+
 export function specializationProfile(focus: StudioSpecialization): SpecializationProfile {
   if (focus === 'blockbuster') {
     return { openingMultiplier: 1.09, criticalDelta: -3, burnMultiplier: 1.03, awardsBoost: -4, distributionLeverage: 0.025 };
@@ -114,6 +123,52 @@ export function specializationProfile(focus: StudioSpecialization): Specializati
     return { openingMultiplier: 0.95, criticalDelta: 1, burnMultiplier: 0.92, awardsBoost: 2, distributionLeverage: -0.005 };
   }
   return { openingMultiplier: 1, criticalDelta: 0, burnMultiplier: 1, awardsBoost: 0, distributionLeverage: 0 };
+}
+
+export function foundingProfileModifiers(profile: FoundingProfile): FoundingProfileModifiers {
+  if (profile === 'starDriven') {
+    return {
+      negotiationChanceBonus: 0.035,
+      trackingConfidenceBonus: 0,
+      franchiseMomentumBonus: 0,
+      awardsCampaignBonus: 0,
+      festivalBuzzBonus: 0,
+    };
+  }
+  if (profile === 'dataDriven') {
+    return {
+      negotiationChanceBonus: 0,
+      trackingConfidenceBonus: 0.045,
+      franchiseMomentumBonus: 0,
+      awardsCampaignBonus: 0,
+      festivalBuzzBonus: 0,
+    };
+  }
+  if (profile === 'franchiseVision') {
+    return {
+      negotiationChanceBonus: 0,
+      trackingConfidenceBonus: 0,
+      franchiseMomentumBonus: 3,
+      awardsCampaignBonus: 0,
+      festivalBuzzBonus: 0,
+    };
+  }
+  if (profile === 'culturalBrand') {
+    return {
+      negotiationChanceBonus: 0,
+      trackingConfidenceBonus: 0,
+      franchiseMomentumBonus: 0,
+      awardsCampaignBonus: 4,
+      festivalBuzzBonus: 3,
+    };
+  }
+  return {
+    negotiationChanceBonus: 0,
+    trackingConfidenceBonus: 0,
+    franchiseMomentumBonus: 0,
+    awardsCampaignBonus: 0,
+    festivalBuzzBonus: 0,
+  };
 }
 
 export function buildIpTemplate(kind: IpKind): {

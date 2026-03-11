@@ -68,6 +68,45 @@ describe('persistence restore', () => {
     expect(invalidRestored.turnLengthWeeks).toBe(2);
   });
 
+  it('serializes and restores founding setup fields', () => {
+    const manager = new StudioManager();
+    manager.foundingProfile = 'dataDriven';
+    manager.needsFoundingSetup = false;
+    manager.foundingSetupCompletedWeek = 3;
+    manager.studioChronicle.unshift({
+      id: 'chron-founding',
+      week: 3,
+      type: 'studioFounding',
+      headline: 'Studio charter set.',
+      impact: 'positive',
+    });
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.foundingProfile).toBe('dataDriven');
+    expect(restored.needsFoundingSetup).toBe(false);
+    expect(restored.foundingSetupCompletedWeek).toBe(3);
+    expect(restored.studioChronicle.some((entry) => entry.type === 'studioFounding')).toBe(true);
+  });
+
+  it('restores missing founding fields from legacy saves with safe defaults', () => {
+    const manager = new StudioManager();
+    manager.foundingProfile = 'starDriven';
+    manager.needsFoundingSetup = false;
+    manager.foundingSetupCompletedWeek = 2;
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete snapshot.foundingProfile;
+    delete snapshot.needsFoundingSetup;
+    delete snapshot.foundingSetupCompletedWeek;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.foundingProfile).toBe('none');
+    expect(restored.needsFoundingSetup).toBe(false);
+    expect(restored.foundingSetupCompletedWeek).toBeNull();
+  });
+
   it('backfills and normalizes editorial fields on restored projects', () => {
     const manager = new StudioManager();
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;

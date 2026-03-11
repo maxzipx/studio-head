@@ -264,6 +264,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    completeFoundingSetup: (specialization, foundingProfile) => {
+      runWhenHydrated(() => {
+        const result = manager.completeFoundingSetup({ specialization, foundingProfile });
+        saveAndTick(result.message);
+      });
+    },
     investDepartment: (track) => {
       runWhenHydrated(() => {
         const result = manager.investDepartment(track);

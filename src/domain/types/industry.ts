@@ -15,6 +15,7 @@ export type StudioTier =
   | 'globalPowerhouse';
 
 export type StudioSpecialization = 'balanced' | 'blockbuster' | 'prestige' | 'indie';
+export type FoundingProfile = 'none' | 'starDriven' | 'dataDriven' | 'franchiseVision' | 'culturalBrand';
 
 export type DepartmentTrack = 'development' | 'production' | 'distribution';
 
@@ -121,7 +122,8 @@ export type ChronicleEntryType =
   | 'tierAdvance'
   | 'awardsOutcome'
   | 'festivalOutcome'
-  | 'crisisResolved';
+  | 'crisisResolved'
+  | 'studioFounding';
 
 export type ChronicleEntryImpact = 'positive' | 'negative' | 'neutral';
 

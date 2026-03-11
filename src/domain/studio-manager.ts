@@ -50,10 +50,12 @@ import {
   buildIpTemplate,
   clamp,
   createInitialGenreCycles,
+  foundingProfileModifiers,
   initialBudgetForGenre,
   specializationProfile,
   TIER_RANK,
   type ArcOutcomeModifiers,
+  type FoundingProfileModifiers,
   type SpecializationProfile,
 } from './studio-manager.constants';
 import { STUDIO_TIER_LABELS } from './types';
@@ -67,6 +69,7 @@ import type {
   DistributionOffer,
   DepartmentTrack,
   EventTemplate,
+  FoundingProfile,
   FranchiseTrack,
   FranchiseProjectionModifiers,
   FranchiseStrategy,
@@ -155,6 +158,9 @@ export class StudioManager {
   studioSpecialization: StudioSpecialization = 'balanced';
   pendingSpecialization: StudioSpecialization = 'balanced';
   specializationCommittedWeek: number | null = null;
+  foundingProfile: FoundingProfile = 'none';
+  needsFoundingSetup = true;
+  foundingSetupCompletedWeek: number | null = null;
   departmentLevels: Record<DepartmentTrack, number> = {
     development: 0,
     production: 0,
@@ -280,6 +286,10 @@ export class StudioManager {
 
   get specializationProfile(): SpecializationProfile {
     return specializationProfile(this.studioSpecialization);
+  }
+
+  get foundingProfileEffects(): FoundingProfileModifiers {
+    return foundingProfileModifiers(this.foundingProfile);
   }
 
   private initializeMajorIpCommitment(ip: OwnedIp): { required: number; deadlineWeek: number } | null {
@@ -459,6 +469,29 @@ export class StudioManager {
           ? `${next} specialization staged. ${Math.round(switchCost / 1_000_000)}M will be charged on End Turn if committed.`
           : `${next} specialization staged. First specialization commitment is free on End Turn.`,
     };
+  }
+
+  completeFoundingSetup(input: {
+    specialization: StudioSpecialization;
+    foundingProfile: FoundingProfile;
+  }): { success: boolean; message: string } {
+    if (!this.needsFoundingSetup) {
+      return { success: false, message: 'Studio charter is already set.' };
+    }
+
+    this.studioSpecialization = input.specialization;
+    this.pendingSpecialization = input.specialization;
+    this.specializationCommittedWeek = this.currentWeek;
+    this.foundingProfile = input.foundingProfile;
+    this.needsFoundingSetup = false;
+    this.foundingSetupCompletedWeek = this.currentWeek;
+    this.addChronicleEntry({
+      week: this.currentWeek,
+      type: 'studioFounding',
+      headline: `Studio charter set: ${input.specialization} specialization, ${input.foundingProfile} founding profile.`,
+      impact: 'positive',
+    });
+    return { success: true, message: 'Studio charter set.' };
   }
 
   investDepartment(track: DepartmentTrack): { success: boolean; message: string } {

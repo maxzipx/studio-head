@@ -1,4 +1,4 @@
-import type { DepartmentTrack, FranchiseStrategy, NegotiationAction, StudioSpecialization } from '../domain/types';
+import type { DepartmentTrack, FoundingProfile, FranchiseStrategy, NegotiationAction, StudioSpecialization } from '../domain/types';
 import { StudioManager } from '../domain/studio-manager';
 
 type SelectableFranchiseStrategy = Exclude<FranchiseStrategy, 'none'>;
@@ -48,6 +48,7 @@ export interface GameContextValue {
   acquireIpRights: (ipId: string) => void;
   developFromIp: (ipId: string) => void;
   setStudioSpecialization: (focus: StudioSpecialization) => void;
+  completeFoundingSetup: (specialization: StudioSpecialization, foundingProfile: FoundingProfile) => void;
   investDepartment: (track: DepartmentTrack) => void;
   signExclusivePartner: (partner: string) => void;
   poachExecutiveTeam: () => void;

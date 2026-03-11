@@ -43,6 +43,43 @@ describe('StudioManager', () => {
     expect(manager.turnLengthWeeks).toBe(2);
   });
 
+  it('completes founding setup by committing specialization and founding profile immediately', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    const result = manager.completeFoundingSetup({
+      specialization: 'prestige',
+      foundingProfile: 'culturalBrand',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Studio charter set.');
+    expect(manager.studioSpecialization).toBe('prestige');
+    expect(manager.pendingSpecialization).toBe('prestige');
+    expect(manager.specializationCommittedWeek).toBe(manager.currentWeek);
+    expect(manager.foundingProfile).toBe('culturalBrand');
+    expect(manager.needsFoundingSetup).toBe(false);
+    expect(manager.foundingSetupCompletedWeek).toBe(manager.currentWeek);
+    expect(manager.studioChronicle[0]?.type).toBe('studioFounding');
+  });
+
+  it('refuses to complete founding setup more than once', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    manager.completeFoundingSetup({
+      specialization: 'balanced',
+      foundingProfile: 'starDriven',
+    });
+    const second = manager.completeFoundingSetup({
+      specialization: 'indie',
+      foundingProfile: 'dataDriven',
+    });
+
+    expect(second.success).toBe(false);
+    expect(second.message).toContain('already set');
+    expect(manager.studioSpecialization).toBe('balanced');
+    expect(manager.foundingProfile).toBe('starDriven');
+  });
+
   it('stops auto-advance when a new decision replaces an expired one at the same queue size', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1 });
     (manager as unknown as { eventDeck: unknown[] }).eventDeck = [

@@ -69,6 +69,17 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     manager.pendingSpecialization = manager.studioSpecialization;
   }
   if (!Number.isFinite(manager.specializationCommittedWeek)) manager.specializationCommittedWeek = null;
+  if (
+    manager.foundingProfile !== 'none' &&
+    manager.foundingProfile !== 'starDriven' &&
+    manager.foundingProfile !== 'dataDriven' &&
+    manager.foundingProfile !== 'franchiseVision' &&
+    manager.foundingProfile !== 'culturalBrand'
+  ) {
+    manager.foundingProfile = 'none';
+  }
+  if (typeof manager.needsFoundingSetup !== 'boolean') manager.needsFoundingSetup = false;
+  if (!Number.isFinite(manager.foundingSetupCompletedWeek)) manager.foundingSetupCompletedWeek = null;
   if (!isRecord(manager.departmentLevels)) {
     manager.departmentLevels = { development: 0, production: 0, distribution: 0 };
   }
@@ -514,7 +525,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .map((entry) => ({
       id: typeof entry.id === 'string' ? entry.id : `chron-${Math.random().toString(36).slice(2, 10)}`,
       week: Number.isFinite(entry.week) ? Math.max(1, Math.round(entry.week as number)) : manager.currentWeek,
-      type: (['filmRelease', 'arcResolution', 'tierAdvance', 'awardsOutcome', 'festivalOutcome', 'crisisResolved'] as string[]).includes(entry.type as string)
+      type: (['filmRelease', 'arcResolution', 'tierAdvance', 'awardsOutcome', 'festivalOutcome', 'crisisResolved', 'studioFounding'] as string[]).includes(entry.type as string)
         ? (entry.type as ChronicleEntryType)
         : ('filmRelease' as ChronicleEntryType),
       headline: String(entry.headline).slice(0, 200),
@@ -666,6 +677,9 @@ const SERIALIZE_MANAGER_KEYS = [
   'studioSpecialization',
   'pendingSpecialization',
   'specializationCommittedWeek',
+  'foundingProfile',
+  'needsFoundingSetup',
+  'foundingSetupCompletedWeek',
   'departmentLevels',
   'exclusiveDistributionPartner',
   'exclusivePartnerUntilWeek',
@@ -702,6 +716,15 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
     if (Object.hasOwn(input, key)) {
       target[key] = input[key];
     }
+  }
+  if (!Object.hasOwn(input, 'foundingProfile')) {
+    manager.foundingProfile = 'none';
+  }
+  if (!Object.hasOwn(input, 'needsFoundingSetup')) {
+    manager.needsFoundingSetup = false;
+  }
+  if (!Object.hasOwn(input, 'foundingSetupCompletedWeek')) {
+    manager.foundingSetupCompletedWeek = null;
   }
 
   // Migrate old saves that had studioHeat but no reputation
