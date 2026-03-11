@@ -484,6 +484,7 @@ export function startSequelForManager(
     marketingBudget: 0,
     releaseWindow: null,
     releaseWeek: null,
+    releaseWeekLocked: false,
     distributionPartner: null,
     studioRevenueShare: 0.52,
     projectedROI: clamp(baseProject.projectedROI * (1.02 - eligibility.projectedFatigue * 0.003), 0.75, 2.8),

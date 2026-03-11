@@ -36,6 +36,7 @@ type AdvanceProject = {
   marketingBudget: number;
   releaseWindow: string | null;
   releaseWeek: number | null;
+  releaseWeekLocked: boolean;
 };
 
 type CastStatus = { actorCount: number; actressCount: number; total: number };
@@ -68,6 +69,8 @@ export function advanceBlockers(
   } else if (project.phase === 'distribution') {
     if (project.scheduledWeeksRemaining > 0) blockers.push(`${project.scheduledWeeksRemaining}w setup remaining`);
     if (!project.releaseWindow) blockers.push('Distribution deal not selected');
+    if (!project.releaseWeek) blockers.push('Release week not set');
+    if (project.releaseWeek && !project.releaseWeekLocked) blockers.push(`Release week W${project.releaseWeek} still needs confirmation`);
     if (project.releaseWeek && currentWeek < project.releaseWeek) blockers.push(`Release date is week ${project.releaseWeek} (now week ${currentWeek})`);
   }
   return blockers;

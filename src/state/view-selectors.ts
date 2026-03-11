@@ -78,6 +78,7 @@ export interface SlateViewState {
   advancePhase: GameState['advancePhase'];
   passScript: GameState['passScript'];
   setReleaseWeek: GameState['setReleaseWeek'];
+  confirmReleaseWeek: GameState['confirmReleaseWeek'];
   acceptOffer: GameState['acceptOffer'];
   counterOffer: GameState['counterOffer'];
   walkAwayOffer: GameState['walkAwayOffer'];
@@ -96,6 +97,7 @@ export function selectSlateView(state: GameState): SlateViewState {
     advancePhase: state.advancePhase,
     passScript: state.passScript,
     setReleaseWeek: state.setReleaseWeek,
+    confirmReleaseWeek: state.confirmReleaseWeek,
     acceptOffer: state.acceptOffer,
     counterOffer: state.counterOffer,
     walkAwayOffer: state.walkAwayOffer,
@@ -194,6 +196,7 @@ export interface ProjectDetailViewState {
   lastMessage: string | null;
   advancePhase: GameState['advancePhase'];
   setReleaseWeek: GameState['setReleaseWeek'];
+  confirmReleaseWeek: GameState['confirmReleaseWeek'];
   acceptOffer: GameState['acceptOffer'];
   counterOffer: GameState['counterOffer'];
   walkAwayOffer: GameState['walkAwayOffer'];
@@ -220,6 +223,7 @@ export function selectProjectDetailView(state: GameState): ProjectDetailViewStat
     lastMessage: state.lastMessage,
     advancePhase: state.advancePhase,
     setReleaseWeek: state.setReleaseWeek,
+    confirmReleaseWeek: state.confirmReleaseWeek,
     acceptOffer: state.acceptOffer,
     counterOffer: state.counterOffer,
     walkAwayOffer: state.walkAwayOffer,

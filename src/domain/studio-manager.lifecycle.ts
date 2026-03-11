@@ -16,7 +16,26 @@ export function setProjectReleaseWeekForManager(
     return { success: false, message: 'Project is not in distribution.' };
   }
   project.releaseWeek = clamp(Math.round(releaseWeek), manager.currentWeek + 1, manager.currentWeek + 52);
+  project.releaseWeekLocked = true;
   return { success: true, message: `${project.title} release moved to week ${project.releaseWeek}.` };
+}
+
+export function confirmProjectReleaseWeekForManager(
+  manager: StudioManager,
+  projectId: string
+): { success: boolean; message: string } {
+  const project = manager.activeProjects.find((item) => item.id === projectId);
+  if (!project || project.phase !== 'distribution') {
+    return { success: false, message: 'Project is not in distribution.' };
+  }
+  if (project.releaseWeek === null) {
+    return { success: false, message: 'Set a release week before confirming it.' };
+  }
+  if (project.releaseWeekLocked) {
+    return { success: false, message: `${project.title} release week is already locked.` };
+  }
+  project.releaseWeekLocked = true;
+  return { success: true, message: `${project.title} release week locked for week ${project.releaseWeek}.` };
 }
 
 export function advanceProjectPhaseForManager(manager: StudioManager, projectId: string): { success: boolean; message: string } {
@@ -71,6 +90,7 @@ export function advanceProjectPhaseForManager(manager: StudioManager, projectId:
     project.phase = 'distribution';
     project.releaseWindow = null;
     project.releaseWeek = manager.currentWeek + 4;
+    project.releaseWeekLocked = false;
     project.scheduledWeeksRemaining = 3;
     generateDistributionOffersForManager(manager, project.id);
     return { success: true, message: `${project.title} moved to Distribution.` };
@@ -82,6 +102,9 @@ export function advanceProjectPhaseForManager(manager: StudioManager, projectId:
     }
     if (!project.releaseWindow) {
       return { success: false, message: 'Select a distribution deal first.' };
+    }
+    if (!project.releaseWeekLocked || project.releaseWeek === null) {
+      return { success: false, message: 'Confirm a release week before releasing.' };
     }
     if (project.releaseWeek && manager.currentWeek < project.releaseWeek) {
       return { success: false, message: `${project.title} is scheduled for week ${project.releaseWeek}. End Turn to reach release.` };
@@ -129,6 +152,7 @@ export function acceptDistributionOfferForManager(
   project.studioRevenueShare = Math.min(offer.revenueShareToStudio, project.studioRevenueShare);
   if (!project.releaseWeek) {
     project.releaseWeek = manager.currentWeek + 4;
+    project.releaseWeekLocked = false;
   }
   project.marketingBudget += offer.pAndACommitment;
   project.hypeScore = clamp(project.hypeScore + 6, 0, 100);

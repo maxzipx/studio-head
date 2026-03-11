@@ -230,6 +230,7 @@ export interface MovieProject {
   marketingBudget: number;
   releaseWindow: ReleaseWindow | null;
   releaseWeek: number | null;
+  releaseWeekLocked: boolean;
   distributionPartner: string | null;
   studioRevenueShare: number;
   projectedROI: number;

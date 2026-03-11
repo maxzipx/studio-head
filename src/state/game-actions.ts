@@ -114,6 +114,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    confirmReleaseWeek: (projectId: string) => {
+      runWhenHydrated(() => {
+        const result = manager.confirmProjectReleaseWeek(projectId);
+        saveAndTick(result.message);
+      });
+    },
     acceptOffer: (projectId: string, offerId: string) => {
       runWhenHydrated(() => {
         const result = manager.acceptDistributionOffer(projectId, offerId);

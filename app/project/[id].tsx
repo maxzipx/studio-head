@@ -40,6 +40,7 @@ export default function ProjectDetailScreen() {
     advancePhase,
     setReleaseWeek,
     acceptOffer,
+    confirmReleaseWeek,
     counterOffer,
     walkAwayOffer,
     runMarketingPush,
@@ -121,6 +122,8 @@ export default function ProjectDetailScreen() {
   const franchiseStatus = manager.getFranchiseStatus(project.id);
   const sequelEligibility = project.phase === 'released' ? manager.getSequelEligibility(project.id) : null;
   const releaseReport = manager.getLatestReleaseReport(project.id);
+  const releasePlanStatus =
+    project.releaseWeek === null ? 'Week not set' : project.releaseWeekLocked ? `Locked week ${project.releaseWeek}` : `Suggested week ${project.releaseWeek} awaiting confirmation`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -590,6 +593,7 @@ export default function ProjectDetailScreen() {
       <GlassCard variant={offers.length > 0 ? 'gold' : 'default'}>
         <SectionLabel label="Release Plan" />
         <Text style={styles.bodyText}>Week: {project.releaseWeek ?? '—'}</Text>
+        <Text style={styles.bodyText}>Status: {releasePlanStatus}</Text>
         <Text style={styles.bodyText}>Window: {project.releaseWindow ?? 'Not selected'}</Text>
         <Text style={styles.bodyText}>Partner: {project.distributionPartner ?? 'None'}</Text>
         <Text style={styles.bodyText}>Marketing: {money(project.marketingBudget)}</Text>
@@ -621,6 +625,14 @@ export default function ProjectDetailScreen() {
               onPress={() => runTrackingLeverage(project.id)}
               disabled={!canTrackingLeverage}
             />
+            {project.releaseWeek && !project.releaseWeekLocked ? (
+              <PremiumButton
+                variant="gold-outline"
+                size="sm"
+                label="Confirm Suggested Week"
+                onPress={() => confirmReleaseWeek(project.id)}
+              />
+            ) : null}
             {(project.trackingLeverageAmount ?? 0) > 0 ? (
               <Text style={styles.mutedText}>
                 Leveraged: {money(project.trackingLeverageAmount ?? 0)} · Confidence {Math.round((project.trackingConfidence ?? 0) * 100)}%

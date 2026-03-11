@@ -1501,6 +1501,7 @@ describe('StudioManager', () => {
     project.releaseWindow = 'wideTheatrical';
     project.scheduledWeeksRemaining = 0;
     project.releaseWeek = manager.currentWeek + 2;
+    project.releaseWeekLocked = true;
 
     const blocked = manager.advanceProjectPhase(project.id);
     expect(blocked.success).toBe(false);
@@ -1898,6 +1899,7 @@ describe('StudioManager', () => {
     manager.acceptDistributionOffer(project!.id, offer.id);
     project!.scheduledWeeksRemaining = 0;
     project!.releaseWeek = manager.currentWeek;
+    project!.releaseWeekLocked = true;
     manager.advanceProjectPhase(project!.id);
 
     expect(project!.phase).toBe('released');
@@ -1939,6 +1941,7 @@ describe('StudioManager', () => {
     manager.acceptDistributionOffer(project!.id, offer.id);
     project!.scheduledWeeksRemaining = 0;
     project!.releaseWeek = manager.currentWeek;
+    project!.releaseWeekLocked = true;
     manager.advanceProjectPhase(project!.id);
 
     const reveal = manager.getNextReleaseReveal();
@@ -2068,6 +2071,7 @@ describe('StudioManager', () => {
     const project = manager.activeProjects[0];
     project.phase = 'distribution';
     project.releaseWeek = manager.currentWeek + 6;
+    project.releaseWeekLocked = true;
 
     const events: string[] = [];
     (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
@@ -2173,9 +2177,91 @@ describe('StudioManager', () => {
     manager.advanceProjectPhase(project!.id);
 
     expect(project!.phase).toBe('distribution');
+    expect(project!.releaseWeekLocked).toBe(false);
+    expect(manager.confirmProjectReleaseWeek(project!.id).success).toBe(true);
     manager.endWeek();
     const conflict = manager.pendingCrises.find((item) => item.kind === 'releaseConflict');
     expect(conflict).toBeTruthy();
+  });
+
+  it('leaves the default distribution release week unlocked until confirmed', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.95, rivalRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'postProduction';
+    project!.marketingBudget = 1_000_000;
+    project!.scheduledWeeksRemaining = 0;
+
+    const result = manager.advanceProjectPhase(project!.id);
+
+    expect(result.success).toBe(true);
+    expect(project!.phase).toBe('distribution');
+    expect(project!.releaseWeek).toBe(manager.currentWeek + 4);
+    expect(project!.releaseWeekLocked).toBe(false);
+  });
+
+  it('locks the suggested release week when confirmed and when manually moved', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWeek = manager.currentWeek + 4;
+    project.releaseWeekLocked = false;
+
+    const confirm = manager.confirmProjectReleaseWeek(project.id);
+    expect(confirm.success).toBe(true);
+    expect(project.releaseWeekLocked).toBe(true);
+
+    project.releaseWeekLocked = false;
+    const move = manager.setProjectReleaseWeek(project.id, project.releaseWeek! + 1);
+    expect(move.success).toBe(true);
+    expect(project.releaseWeek).toBe(manager.currentWeek + 5);
+    expect(project.releaseWeekLocked).toBe(true);
+  });
+
+  it('blocks release advancement until the release week is locked', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0.95 });
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.scheduledWeeksRemaining = 0;
+    project.releaseWindow = 'wideTheatrical';
+    project.releaseWeek = manager.currentWeek;
+    project.releaseWeekLocked = false;
+
+    const blocked = manager.advanceProjectPhase(project.id);
+    expect(blocked.success).toBe(false);
+    expect(blocked.message).toContain('Confirm a release week');
+
+    project.releaseWeekLocked = true;
+    const released = manager.advanceProjectPhase(project.id);
+    expect(released.success).toBe(true);
+    expect(project.phase).toBe('released');
+  });
+
+  it('suppresses release collisions until a distribution week is locked', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-1',
+        name: 'Test Blockbuster',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
+      },
+    ];
+    const target = manager.activeProjects[0];
+    target.phase = 'distribution';
+    target.releaseWeek = manager.currentWeek + 4;
+    target.releaseWeekLocked = false;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    expect(manager.pendingCrises.some((item) => item.kind === 'releaseConflict')).toBe(false);
+
+    target.releaseWeekLocked = true;
+    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    expect(manager.pendingCrises.some((item) => item.kind === 'releaseConflict')).toBe(true);
   });
 
   it('applies calendar pressure when rival release overlaps week', () => {
@@ -2334,6 +2420,7 @@ describe('StudioManager', () => {
     const target = manager.activeProjects[0];
     target.phase = 'distribution';
     target.releaseWeek = manager.currentWeek + 4;
+    target.releaseWeekLocked = true;
     const events: string[] = [];
 
     (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
@@ -2387,6 +2474,7 @@ describe('StudioManager', () => {
     const target = manager.activeProjects[0];
     target.phase = 'distribution';
     target.releaseWeek = manager.currentWeek + 4;
+    target.releaseWeekLocked = true;
 
     const events: string[] = [];
     (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);

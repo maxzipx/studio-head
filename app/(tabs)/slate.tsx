@@ -25,6 +25,7 @@ export default function SlateScreen() {
     advancePhase,
     passScript,
     setReleaseWeek,
+    confirmReleaseWeek,
     acceptOffer,
     counterOffer,
     walkAwayOffer,
@@ -125,7 +126,7 @@ export default function SlateScreen() {
             <Text style={styles.helpTitle}>How the Slate Works</Text>
             <Text style={styles.helpBody}>Projects move through pipeline phases automatically if they meet requirements. Without a director, required actor/actress mix, and script quality {'>='} 6.0, projects are blocked in development.</Text>
             <Text style={styles.helpBody}>During production, they burn through your cash buffer weekly based on budget size. Run out of cash, and your studio goes bankrupt.</Text>
-            <Text style={styles.helpBody}>In distribution, you will receive competing acquisition offers from rival distributors with guarantees, P&A, and rev-share. Releasing a film against crowded rival release weeks significantly hurts box office returns.</Text>
+            <Text style={styles.helpBody}>In distribution, you will receive competing acquisition offers from rival distributors with guarantees, P&A, and rev-share. Suggested release weeks must be confirmed before rivals can force a collision or the film can release.</Text>
           </GlassCard>
         )}
 
@@ -323,6 +324,12 @@ export default function SlateScreen() {
             : distribution.map((project) => {
               const offers = manager.getOffersForProject(project.id);
               const pressure = pressureForWeek(project.releaseWeek);
+              const releaseWeekLabel =
+                project.releaseWeek === null
+                  ? 'Not set'
+                  : project.releaseWeekLocked
+                    ? `Locked W${project.releaseWeek}`
+                    : `Suggested W${project.releaseWeek}`;
               return (
                 <GlassCard key={project.id} variant="gold" style={{ gap: spacing.sp2 }}>
                   <View style={styles.cardHeader}>
@@ -337,6 +344,13 @@ export default function SlateScreen() {
                     <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodyBold }}>
                       {project.releaseWeek ?? '—'}
                     </Text>
+                  </Text>
+                  <Text style={styles.metaText}>
+                    {project.releaseWeek === null
+                      ? 'Release status: week not set'
+                      : project.releaseWeekLocked
+                        ? `Release status: locked for week ${project.releaseWeek}`
+                        : `Release status: suggested week ${project.releaseWeek} still needs confirmation`}
                   </Text>
 
                   <View style={styles.actions}>
@@ -357,6 +371,14 @@ export default function SlateScreen() {
                       style={styles.flexBtn}
                     />
                   </View>
+                  {project.releaseWeek && !project.releaseWeekLocked ? (
+                    <PremiumButton
+                      label="Confirm Suggested Week"
+                      onPress={() => confirmReleaseWeek(project.id)}
+                      variant="gold-outline"
+                      size="sm"
+                    />
+                  ) : null}
 
                   {offers.map((offer) => (
                     <GlassCard key={offer.id} variant="elevated" style={{ gap: spacing.sp2 }}>

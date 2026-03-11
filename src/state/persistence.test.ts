@@ -82,6 +82,20 @@ describe('persistence restore', () => {
     expect(project.postPolishPasses).toBe(2);
   });
 
+  it('restores missing release week lock flags as unlocked suggested dates', () => {
+    const manager = new StudioManager();
+    manager.activeProjects[0].phase = 'distribution';
+    manager.activeProjects[0].releaseWeek = manager.currentWeek + 4;
+    manager.activeProjects[0].releaseWeekLocked = true;
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete (snapshot.activeProjects as Record<string, unknown>[])[0].releaseWeekLocked;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.activeProjects[0].releaseWeek).toBe(manager.currentWeek + 4);
+    expect(restored.activeProjects[0].releaseWeekLocked).toBe(false);
+  });
+
   it('migrates legacy talent relationship state into memory model', () => {
     const manager = new StudioManager();
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;

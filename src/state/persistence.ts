@@ -241,6 +241,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     ) {
       project.releaseWindow = null;
     }
+    if (typeof project.releaseWeekLocked !== 'boolean') project.releaseWeekLocked = false;
     if (!Number.isFinite(project.editorialScore)) project.editorialScore = 5;
     project.editorialScore = Math.min(10, Math.max(0, project.editorialScore));
     if (!Number.isFinite(project.postPolishPasses)) project.postPolishPasses = 0;

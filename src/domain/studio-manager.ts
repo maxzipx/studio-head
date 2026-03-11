@@ -770,6 +770,7 @@ export class StudioManager {
       marketingBudget: 0,
       releaseWindow: null,
       releaseWeek: null,
+      releaseWeekLocked: false,
       distributionPartner: null,
       studioRevenueShare: 0.52,
       projectedROI: 1,
@@ -949,6 +950,10 @@ export class StudioManager {
     return this.lifecycleService.setProjectReleaseWeek(projectId, releaseWeek);
   }
 
+  confirmProjectReleaseWeek(projectId: string): { success: boolean; message: string } {
+    return this.lifecycleService.confirmProjectReleaseWeek(projectId);
+  }
+
   getOffersForProject(projectId: string): DistributionOffer[] {
     return this.distributionOffers.filter((offer) => offer.projectId === projectId);
   }
@@ -1051,6 +1056,10 @@ export class StudioManager {
     return this.franchiseService.getFranchiseProjectionModifiers(project, releaseWeek);
   }
 
+  hasLockedReleaseWeek(project: MovieProject): boolean {
+    return project.phase === 'distribution' && project.releaseWeek !== null && project.releaseWeekLocked;
+  }
+
   acquireScript(scriptId: string): { success: boolean; message: string; projectId?: string } {
     const majorLock = this.getBlockingMajorIpCommitment();
     if (majorLock) {
@@ -1102,6 +1111,7 @@ export class StudioManager {
       marketingBudget: 0,
       releaseWindow: null,
       releaseWeek: null,
+      releaseWeekLocked: false,
       distributionPartner: null,
       studioRevenueShare: 0.52,
       projectedROI: 1,

@@ -23,6 +23,7 @@ export interface GameContextValue {
   dismissNegotiation: (projectId: string, talentId: string) => void;
   advancePhase: (projectId: string) => void;
   setReleaseWeek: (projectId: string, releaseWeek: number) => void;
+  confirmReleaseWeek: (projectId: string) => void;
   acceptOffer: (projectId: string, offerId: string) => void;
   counterOffer: (projectId: string, offerId: string) => void;
   walkAwayOffer: (projectId: string) => void;

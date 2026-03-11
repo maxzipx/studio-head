@@ -19,7 +19,7 @@ function capitalize(str: string): string {
 }
 
 export default function DistributionScreen() {
-  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, advancePhase, lastMessage } = useGameStore(useShallow((state) => {
+  const { manager, acceptOffer, counterOffer, walkAwayOffer, setReleaseWeek, confirmReleaseWeek, advancePhase, lastMessage } = useGameStore(useShallow((state) => {
     const mgr = state.manager;
     return {
       manager: mgr,
@@ -27,13 +27,14 @@ export default function DistributionScreen() {
       counterOffer: state.counterOffer,
       walkAwayOffer: state.walkAwayOffer,
       setReleaseWeek: state.setReleaseWeek,
+      confirmReleaseWeek: state.confirmReleaseWeek,
       advancePhase: state.advancePhase,
       lastMessage: state.lastMessage,
       distributionSignature: mgr.activeProjects
         .filter((p) => p.phase === 'distribution')
         .map(
           (p) =>
-            `${p.id}:${p.scheduledWeeksRemaining}:${p.releaseWeek}:${p.releaseWindow ?? 'none'}:${p.budget.actualSpend}:` +
+            `${p.id}:${p.scheduledWeeksRemaining}:${p.releaseWeek}:${p.releaseWeekLocked}:${p.releaseWindow ?? 'none'}:${p.budget.actualSpend}:` +
             `${p.studioRevenueShare}:${p.marketingBudget}`
         )
         .join('|'),
@@ -56,7 +57,7 @@ export default function DistributionScreen() {
     };
   }));
   const [showHelp, setShowHelp] = useState(false);
-  const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
+      const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
       rival: rival.name,
@@ -125,6 +126,8 @@ export default function DistributionScreen() {
         const minWeek = manager.currentWeek + 1;
         const maxWeek = manager.currentWeek + 52;
         const releaseWeek = project.releaseWeek;
+        const releaseWeekStatusLabel =
+          releaseWeek === null ? 'Not set' : project.releaseWeekLocked ? `Locked week W${releaseWeek}` : `Suggested week W${releaseWeek}`;
         const previousWeek = releaseWeek ? Math.max(minWeek, releaseWeek - 1) : null;
         const nextWeek = releaseWeek ? Math.min(maxWeek, releaseWeek + 1) : null;
         const projectionPrevious =
@@ -143,8 +146,13 @@ export default function DistributionScreen() {
             ok: !!project.releaseWindow,
           },
           {
-            label: releaseWeek ? `Release week set (W${releaseWeek})` : 'Release week not set',
-            ok: !!releaseWeek,
+            label:
+              releaseWeek === null
+                ? 'Release week not set'
+                : project.releaseWeekLocked
+                  ? `Release week locked (W${releaseWeek})`
+                  : `Release week still needs confirmation (W${releaseWeek})`,
+            ok: !!releaseWeek && project.releaseWeekLocked,
           },
           {
             label: hasProjection ? 'Opening forecast available' : 'Opening forecast unavailable',
@@ -164,7 +172,7 @@ export default function DistributionScreen() {
             <Text style={styles.projectTitle}>{project.title}</Text>
             <Text style={styles.meta}>Weeks Remaining: {project.scheduledWeeksRemaining}</Text>
             <Text style={styles.meta}>Chosen Window: {project.releaseWindow ?? 'None selected'}</Text>
-            <Text style={styles.meta}>Release Week: {project.releaseWeek ?? '-'}</Text>
+            <Text style={styles.meta}>Release Plan: {releaseWeekStatusLabel}</Text>
             <Text style={[styles.meta, { color: pressure.color }]}>Calendar Pressure: {pressure.label}</Text>
             {projection ? (
               <Text style={styles.meta}>
@@ -219,6 +227,11 @@ export default function DistributionScreen() {
                 <Text style={styles.buttonText}>Week +1</Text>
               </Pressable>
             </View>
+            {releaseWeek && !project.releaseWeekLocked ? (
+              <Pressable style={styles.button} onPress={() => confirmReleaseWeek(project.id)}>
+                <Text style={styles.buttonText}>Confirm Suggested Week</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable
               style={[styles.releaseButton, !canRelease ? styles.buttonDisabled : null]}

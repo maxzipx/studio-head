@@ -3,6 +3,7 @@ import type { MovieProject } from '../types';
 import {
   acceptDistributionOfferForManager,
   advanceProjectPhaseForManager,
+  confirmProjectReleaseWeekForManager,
   counterDistributionOfferForManager,
   estimateReleaseRunWeeksForManager,
   generateDistributionOffersForManager,
@@ -16,6 +17,10 @@ export class ProjectLifecycleService {
 
   setProjectReleaseWeek(projectId: string, releaseWeek: number): { success: boolean; message: string } {
     return setProjectReleaseWeekForManager(this.manager, projectId, releaseWeek);
+  }
+
+  confirmProjectReleaseWeek(projectId: string): { success: boolean; message: string } {
+    return confirmProjectReleaseWeekForManager(this.manager, projectId);
   }
 
   advanceProjectPhase(projectId: string): { success: boolean; message: string } {

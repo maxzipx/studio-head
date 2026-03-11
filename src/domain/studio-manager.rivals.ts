@@ -74,6 +74,10 @@ function getGenreDemandForManager(manager: StudioManager, genre: MovieGenre): nu
   return 1;
 }
 
+function hasLockedDistributionRelease(manager: StudioManager, project: MovieProject): boolean {
+  return manager.hasLockedReleaseWeek(project);
+}
+
 function weightedGenrePickForManager(
   manager: StudioManager,
   entries: { genre: MovieGenre; weight: number }[]
@@ -275,9 +279,7 @@ export function processRivalTalentAcquisitionsForManager(manager: StudioManager,
 }
 
 export function processRivalCalendarMovesForManager(manager: StudioManager, events: string[]): void {
-  const playerDistribution = manager.activeProjects.filter(
-    (project) => project.phase === 'distribution' && project.releaseWeek !== null
-  );
+  const playerDistribution = manager.activeProjects.filter((project) => hasLockedDistributionRelease(manager, project));
   for (const rival of manager.rivals) {
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.calendarMoveChance) continue;
@@ -368,7 +370,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
     if (manager.rivalRng() > profile.signatureMoveChance) continue;
 
     if (rival.personality === 'blockbusterFactory') {
-      const target = manager.activeProjects.find((project) => project.phase === 'distribution' && project.releaseWeek !== null);
+      const target = manager.activeProjects.find((project) => hasLockedDistributionRelease(manager, project));
       if (target?.releaseWeek) {
         const tentpoleGenre = pickGenreForRivalRelease(manager, rival);
         rival.upcomingReleases.unshift({
@@ -494,9 +496,11 @@ function buildRivalSignatureCrisis(
   if (profile.conflictPush < 0.35) return null;
 
   // Find the player's most visible project to target
-  const target = manager.activeProjects
-    .filter((p) => p.phase !== 'released')
-    .sort((a, b) => b.hypeScore - a.hypeScore)[0];
+  const targetPool =
+    rival.personality === 'blockbusterFactory'
+      ? manager.activeProjects.filter((project) => hasLockedDistributionRelease(manager, project))
+      : manager.activeProjects.filter((project) => project.phase !== 'released');
+  const target = targetPool.sort((a, b) => b.hypeScore - a.hypeScore)[0];
   if (!target) return null;
 
   // Find attached star talent for personalization
@@ -655,7 +659,7 @@ export function processRivalSignatureCrisesForManager(manager: StudioManager, ev
 
 export function checkRivalReleaseResponsesForManager(manager: StudioManager, releasedProject: MovieProject, events: string[]): void {
   const nextDistributionProject = manager.activeProjects
-    .filter((project) => project.id !== releasedProject.id && project.phase === 'distribution' && project.releaseWeek !== null)
+    .filter((project) => project.id !== releasedProject.id && hasLockedDistributionRelease(manager, project))
     .sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
   const nextPipelineProject = manager.activeProjects
     .filter((project) => project.id !== releasedProject.id && project.phase !== 'released')
@@ -1135,5 +1139,4 @@ export function pickTalentForRivalForManager(
   }
   return sorted[0] ?? null;
 }
-
 
