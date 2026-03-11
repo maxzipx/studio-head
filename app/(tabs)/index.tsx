@@ -27,6 +27,7 @@ import {
   TIER_LABELS,
   TIER_NEXT_GOAL,
 } from '@/src/ui/hq/hq-helpers';
+import { FoundingSetupOverlay } from '@/src/ui/hq/FoundingSetupOverlay';
 import { ReleaseRevealModal } from '@/src/ui/hq/ReleaseRevealModal';
 import { styles } from '@/src/ui/hq/hq-styles';
 import { colors, spacing, typography } from '@/src/ui/tokens';
@@ -47,6 +48,7 @@ export default function HQScreen() {
     upgradeMarketingTeam,
     upgradeStudioCapacity,
     setStudioSpecialization,
+    completeFoundingSetup,
     investDepartment,
     signExclusivePartner,
     poachExecutiveTeam,
@@ -68,6 +70,7 @@ export default function HQScreen() {
       upgradeMarketingTeam: state.upgradeMarketingTeam,
       upgradeStudioCapacity: state.upgradeStudioCapacity,
       setStudioSpecialization: state.setStudioSpecialization,
+      completeFoundingSetup: state.completeFoundingSetup,
       investDepartment: state.investDepartment,
       signExclusivePartner: state.signExclusivePartner,
       poachExecutiveTeam: state.poachExecutiveTeam,
@@ -78,7 +81,8 @@ export default function HQScreen() {
         `${mgr.isBankrupt ? 1 : 0}:${mgr.bankruptcyReason ?? 'none'}:${mgr.consecutiveLowCashWeeks}:${mgr.studioName}:` +
         `${mgr.studioTier}:${mgr.studioSpecialization}:${mgr.legacyScore}:${mgr.lifetimeProfit}:${mgr.lifetimeRevenue}:` +
         `${mgr.lifetimeExpenses}:${mgr.marketingTeamLevel}:${mgr.projectCapacityUsed}:${mgr.projectCapacityLimit}:` +
-        `${mgr.executiveNetworkLevel}:${mgr.decisionQueue.length}:${mgr.pendingCrises.length}:${mgr.activeProjects.length}`,
+        `${mgr.executiveNetworkLevel}:${mgr.decisionQueue.length}:${mgr.pendingCrises.length}:${mgr.activeProjects.length}:` +
+        `${mgr.foundingProfile}:${mgr.needsFoundingSetup ? 1 : 0}:${mgr.foundingSetupCompletedWeek ?? -1}`,
       repSignature:
         `${mgr.reputation.critics}:${mgr.reputation.talent}:${mgr.reputation.distributor}:${mgr.reputation.audience}`,
       projectsSignature: mgr.activeProjects
@@ -877,6 +881,10 @@ export default function HQScreen() {
         isFinalReveal={isFinalReveal}
         revealReport={revealReport}
         dismissReleaseReveal={dismissReleaseReveal}
+      />
+      <FoundingSetupOverlay
+        visible={manager.needsFoundingSetup}
+        onComplete={(specialization, foundingProfile) => completeFoundingSetup(specialization, foundingProfile)}
       />
     </View>
   );

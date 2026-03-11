@@ -1,5 +1,5 @@
-import type { OutcomeType } from '@/src/ui/components';
 import type { ReleaseReport } from '@/src/domain/types';
+import type { OutcomeType } from '@/src/ui/components';
 
 // Re-export shared utilities so existing imports from hq-helpers keep working.
 export { capitalize, money, signedMoney, stanceLabel, stanceColor } from '@/src/ui/helpers/formatting';
@@ -61,6 +61,7 @@ export const CHRONICLE_ICONS: Record<string, string> = {
   awardsOutcome: '🏆',
   festivalOutcome: '🎪',
   crisisResolved: '🔧',
+  studioFounding: '🏛️',
 };
 
 export const SPECIALIZATION_OPTIONS: { key: 'balanced' | 'blockbuster' | 'prestige' | 'indie'; label: string }[] = [
@@ -71,4 +72,3 @@ export const SPECIALIZATION_OPTIONS: { key: 'balanced' | 'blockbuster' | 'presti
 ];
 
 export const PARTNER_OPTIONS = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
-
