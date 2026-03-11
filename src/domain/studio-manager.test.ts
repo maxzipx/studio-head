@@ -80,6 +80,53 @@ describe('StudioManager', () => {
     expect(manager.foundingProfile).toBe('starDriven');
   });
 
+  it('gives star-driven studios a modest talent negotiation edge', () => {
+    const base = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });
+    const boosted = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });
+    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
+
+    const baseProject = base.activeProjects.find((project) => project.phase === 'development');
+    const boostedProject = boosted.activeProjects.find((project) => project.phase === 'development');
+    const baseTalent = base.talentPool.find((talent) => talent.role === 'leadActor');
+    const boostedTalent = boosted.talentPool.find((talent) => talent.role === 'leadActor');
+    expect(baseProject).toBeTruthy();
+    expect(boostedProject).toBeTruthy();
+    expect(baseTalent).toBeTruthy();
+    expect(boostedTalent).toBeTruthy();
+
+    const baseChance = base.getNegotiationChance(baseTalent!.id, baseProject!.id) ?? 0;
+    const boostedChance = boosted.getNegotiationChance(boostedTalent!.id, boostedProject!.id) ?? 0;
+
+    expect(boostedChance).toBeGreaterThan(baseChance);
+  });
+
+  it('gives data-driven studios stronger tracking confidence', () => {
+    const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, rivalRng: () => 1, talentSeed: 17 });
+    const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, rivalRng: () => 1, talentSeed: 17 });
+    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+
+    const baseProject = base.activeProjects[0];
+    const boostedProject = boosted.activeProjects[0];
+    for (const project of [baseProject, boostedProject]) {
+      project.phase = 'distribution';
+      project.releaseWeek = 6;
+      project.releaseWeekLocked = true;
+      project.releaseWindow = 'wideTheatrical';
+      project.marketingBudget = 900_000;
+      project.studioRevenueShare = 0.6;
+    }
+
+    const baseResult = base.runTrackingLeverage(baseProject.id);
+    const boostedResult = boosted.runTrackingLeverage(boostedProject.id);
+
+    expect(baseResult.success).toBe(true);
+    expect(boostedResult.success).toBe(true);
+    expect(boostedProject.trackingConfidence ?? 0).toBeGreaterThan(baseProject.trackingConfidence ?? 0);
+    expect((boostedProject.trackingLeverageAmount ?? 0)).toBeGreaterThan(baseProject.trackingLeverageAmount ?? 0);
+  });
+
   it('stops auto-advance when a new decision replaces an expired one at the same queue size', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1 });
     (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
@@ -493,6 +540,31 @@ describe('StudioManager', () => {
     expect(sequel?.franchiseCarryoverHype).toBeGreaterThan(0);
     expect(manager.franchises.length).toBe(1);
     expect(manager.franchises[0].activeProjectId).toBe(sequel?.id);
+  });
+
+  it('gives franchise-vision studios a momentum edge when spinning up sequels', () => {
+    const base = new StudioManager({ crisisRng: () => 0.95, talentSeed: 88 });
+    const boosted = new StudioManager({ crisisRng: () => 0.95, talentSeed: 88 });
+    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
+
+    const baseProject = base.activeProjects[0];
+    const boostedProject = boosted.activeProjects[0];
+    for (const project of [baseProject, boostedProject]) {
+      project.phase = 'released';
+      project.releaseResolved = true;
+      project.releaseWeek = 3;
+      project.criticalScore = 75;
+      project.audienceScore = 79;
+      project.projectedROI = 1.6;
+    }
+
+    const baseResult = base.startSequel(baseProject.id);
+    const boostedResult = boosted.startSequel(boostedProject.id);
+
+    expect(baseResult.success).toBe(true);
+    expect(boostedResult.success).toBe(true);
+    expect(boosted.franchises[0]?.momentum ?? 0).toBeGreaterThan(base.franchises[0]?.momentum ?? 0);
   });
 
   it('blocks opening a second sequel while one franchise project is still active', () => {
@@ -2067,6 +2139,38 @@ describe('StudioManager', () => {
     expect(manager.awardsSeasonsProcessed.includes(1)).toBe(true);
   });
 
+  it('gives cultural-brand studios a higher awards campaign score', () => {
+    const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 9 });
+    const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 9 });
+    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+
+    const baseProject = base.activeProjects[0];
+    const boostedProject = boosted.activeProjects[0];
+    for (const project of [baseProject, boostedProject]) {
+      project.phase = 'released';
+      project.releaseResolved = true;
+      project.releaseWeek = 12;
+      project.criticalScore = 86;
+      project.scriptQuality = 8.1;
+      project.conceptStrength = 8;
+      project.prestige = 82;
+      project.controversy = 4;
+      project.awardsNominations = 0;
+      project.awardsWins = 0;
+    }
+    base.currentWeek = 51;
+    boosted.currentWeek = 51;
+
+    base.endWeek();
+    boosted.endWeek();
+
+    const baseScore = base.awardsHistory[0]?.results.find((result) => result.projectId === baseProject.id)?.score ?? 0;
+    const boostedScore = boosted.awardsHistory[0]?.results.find((result) => result.projectId === boostedProject.id)?.score ?? 0;
+
+    expect(boostedScore).toBeGreaterThan(baseScore);
+  });
+
   it('limits prestige rival poaches to directors', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
     manager.rivals = [
@@ -2403,6 +2507,43 @@ describe('StudioManager', () => {
     expect(['selected', 'buzzed']).toContain(project.festivalStatus);
     expect(project.festivalBuzz).toBeGreaterThan(0);
     expect(manager.reputation.critics).toBeGreaterThan(criticsBefore);
+  });
+
+  it('gives cultural-brand studios a small festival edge on marginal submissions', () => {
+    const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.425, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 23 });
+    const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.425, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 23 });
+    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+
+    const baseProject = base.activeProjects[0];
+    const boostedProject = boosted.activeProjects[0];
+    for (const [manager, project] of [
+      [base, baseProject] as const,
+      [boosted, boostedProject] as const,
+    ]) {
+      manager.genreCycles[project.genre].demand = 1;
+      manager.genreCycles[project.genre].momentum = 0;
+      manager.genreCycles[project.genre].shockDirection = null;
+      manager.genreCycles[project.genre].shockLabel = null;
+      manager.genreCycles[project.genre].shockStrength = null;
+      manager.genreCycles[project.genre].shockUntilWeek = null;
+      project.phase = 'postProduction';
+      project.criticalScore = 50;
+      project.scriptQuality = 2;
+      project.prestige = 10;
+      project.originality = 18;
+      project.controversy = 0;
+      project.festivalBuzz = 0;
+      project.festivalStatus = 'submitted';
+      project.festivalTarget = 'Toronto';
+      project.festivalResolutionWeek = manager.currentWeek;
+    }
+
+    base.endWeek();
+    boosted.endWeek();
+
+    expect(baseProject.festivalStatus).toBe('snubbed');
+    expect(['selected', 'buzzed']).toContain(boostedProject.festivalStatus);
   });
 
   it('applies rival personality pressure to matching arc families', () => {

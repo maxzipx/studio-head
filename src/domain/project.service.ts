@@ -1,7 +1,7 @@
 import { ACTION_BALANCE, FESTIVAL_RULES } from './balance-constants';
-import { clamp } from './studio-manager.constants';
+import { clamp, type FoundingProfileModifiers } from './studio-manager.constants';
 import { removeProjectFromFranchiseForManager } from './studio-manager.franchise.actions';
-import type { MovieProject, DistributionOffer, CrisisEvent, DecisionItem, DepartmentTrack } from './types';
+import type { CrisisEvent, DecisionItem, DepartmentTrack, DistributionOffer, MovieProject } from './types';
 
 export interface ProjectManagerAdapter {
     activeProjects: MovieProject[];
@@ -9,6 +9,7 @@ export interface ProjectManagerAdapter {
     currentWeek: number;
     marketingTeamLevel: number;
     departmentLevels: Record<DepartmentTrack, number>;
+    foundingProfileEffects: FoundingProfileModifiers;
     distributionOffers: DistributionOffer[];
     pendingCrises: CrisisEvent[];
     decisionQueue: DecisionItem[];
@@ -75,7 +76,7 @@ export function runTestScreeningForManager(manager: ProjectManagerAdapter, proje
 
     const projection = manager.getProjectedForProject(projectId);
     if (!projection) return { success: false, message: 'Projection unavailable.' };
-    const confidence = clamp(0.58 + manager.marketingTeamLevel * 0.08, 0.6, 0.9);
+    const confidence = clamp(0.58 + manager.marketingTeamLevel * 0.08 + manager.foundingProfileEffects.trackingConfidenceBonus, 0.6, 0.9);
     const variance = (1 - confidence) * 18;
     const offset = (manager.eventRng() - 0.5) * variance;
     const center = clamp(projection.critical + offset, 20, 95);
@@ -134,7 +135,7 @@ export function runTrackingLeverageForManager(manager: ProjectManagerAdapter, pr
     const projection = manager.getProjectedForProject(project.id);
     if (!projection) return { success: false, message: 'Tracking unavailable right now.' };
 
-    const confidence = clamp(0.57 + manager.marketingTeamLevel * 0.075, 0.6, 0.9);
+    const confidence = clamp(0.57 + manager.marketingTeamLevel * 0.075 + manager.foundingProfileEffects.trackingConfidenceBonus, 0.6, 0.9);
     const projectedOpening = projection.openingHigh * (0.86 + confidence * 0.24);
     const leverageCap = projectedOpening * project.studioRevenueShare * ACTION_BALANCE.TRACKING_LEVERAGE_SHARE_CAP;
     const advance = Math.round(leverageCap);

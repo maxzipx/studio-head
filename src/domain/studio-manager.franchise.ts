@@ -169,12 +169,12 @@ function toRomanNumeral(value: number): string {
   return output || 'I';
 }
 
-function deriveMomentum(base: MovieProject, priorFatigue: number): number {
+function deriveMomentum(base: MovieProject, priorFatigue: number, foundingBonus = 0): number {
   const audience = base.audienceScore ?? 50;
   const critics = base.criticalScore ?? 50;
   const roi = base.projectedROI ?? 1;
   return clamp(
-    46 + (audience - 50) * 0.55 + (critics - 50) * 0.28 + (roi - 1) * 18 - priorFatigue * 0.18,
+    46 + (audience - 50) * 0.55 + (critics - 50) * 0.28 + (roi - 1) * 18 + foundingBonus - priorFatigue * 0.18,
     10,
     95
   );
@@ -283,7 +283,7 @@ function ensureFranchiseForBase(manager: StudioManager, baseProject: MovieProjec
     }
   }
 
-  const initialMomentum = deriveMomentum(baseProject, 8);
+  const initialMomentum = deriveMomentum(baseProject, 8, manager.foundingProfileEffects.franchiseMomentumBonus);
   const initialFatigue = deriveFatigue(baseProject, 8, 1);
   const franchise: FranchiseTrack = {
     id: createId('franchise'),
@@ -347,7 +347,7 @@ export function getSequelEligibilityForManager(manager: StudioManager, projectId
     : null;
   const priorReleases = Math.max(1, existingFranchise?.releasedProjectIds.length ?? 1);
   const priorFatigue = existingFranchise?.fatigue ?? 8;
-  const projectedMomentum = deriveMomentum(baseProject, priorFatigue);
+  const projectedMomentum = deriveMomentum(baseProject, priorFatigue, manager.foundingProfileEffects.franchiseMomentumBonus);
   const projectedFatigue = deriveFatigue(baseProject, priorFatigue, priorReleases);
   const carryoverHype = deriveCarryoverHype(baseProject, projectedMomentum, projectedFatigue);
   const upfrontCost = deriveUpfrontSequelCost(baseProject.genre);

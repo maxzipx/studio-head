@@ -402,7 +402,10 @@ export class ReleaseService {
     }
 
     const awardsArc = this.manager.storyArcs['awards-circuit'];
-    const baseCampaignBoost = (this.manager.hasStoryFlag('awards_campaign') ? 8 : 0) + this.manager.specializationProfile.awardsBoost;
+    const baseCampaignBoost =
+      (this.manager.hasStoryFlag('awards_campaign') ? 8 : 0) +
+      this.manager.specializationProfile.awardsBoost +
+      this.manager.foundingProfileEffects.awardsCampaignBonus;
     const baselineFestivalBoost = this.manager.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
@@ -531,6 +534,7 @@ export class ReleaseService {
         project.prestige * 0.2 +
         project.originality * 0.18 +
         project.festivalBuzz * 0.12 +
+        this.manager.foundingProfileEffects.festivalBuzzBonus +
         cycleBoost -
         project.controversy * 0.15,
         0,
