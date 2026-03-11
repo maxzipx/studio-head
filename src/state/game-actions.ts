@@ -19,7 +19,7 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         const advanced = summary.week - startWeek;
         const paused = summary.hasPendingCrises && advanced < manager.turnLengthWeeks;
         saveAndTick(
-          `Turn advanced ${advanced} week${advanced === 1 ? '' : 's'}.${paused ? ' Paused by a blocking crisis.' : ''}`,
+          `Turn progressed ${advanced} week${advanced === 1 ? '' : 's'} out of 2.${paused ? ' Paused before the second week by a blocking crisis.' : ''}`,
           { clearMessage: true }
         );
       });
@@ -27,12 +27,6 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     advanceToNextDecision: () => {
       runWhenHydrated(() => {
         const result = manager.advanceUntilDecision();
-        saveAndTick(result.message);
-      });
-    },
-    setTurnLength: (weeks: 1 | 2) => {
-      runWhenHydrated(() => {
-        const result = manager.setTurnLengthWeeks(weeks);
         saveAndTick(result.message);
       });
     },

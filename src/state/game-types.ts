@@ -9,7 +9,6 @@ export interface GameContextValue {
   lastMessage: string | null;
   endWeek: () => void;
   advanceToNextDecision: () => void;
-  setTurnLength: (weeks: 1 | 2) => void;
   resolveCrisis: (crisisId: string, optionId: string) => void;
   resolveDecision: (decisionId: string, optionId: string) => void;
   dismissDecision: (decisionId: string) => void;

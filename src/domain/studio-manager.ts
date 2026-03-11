@@ -120,7 +120,7 @@ export class StudioManager {
   consecutiveLowCashWeeks = 0;
   firstSessionComplete = false;
   currentWeek = 1;
-  turnLengthWeeks: 1 | 2 = TURN_RULES.MIN_WEEKS;
+  turnLengthWeeks: 2 = TURN_RULES.WEEKS_PER_TURN;
   pendingCrises: CrisisEvent[] = [];
   distributionOffers: DistributionOffer[] = [];
   pendingReleaseReveals: string[] = [];
@@ -428,15 +428,6 @@ export class StudioManager {
 
   get canEndWeek(): boolean {
     return this.pendingCrises.length === 0;
-  }
-
-  setTurnLengthWeeks(weeks: number): { success: boolean; message: string } {
-    const normalized = Math.round(weeks);
-    if (normalized !== TURN_RULES.MIN_WEEKS && normalized !== TURN_RULES.MAX_WEEKS) {
-      return { success: false, message: `Turn length must be ${TURN_RULES.MIN_WEEKS} or ${TURN_RULES.MAX_WEEKS} weeks.` };
-    }
-    this.turnLengthWeeks = normalized;
-    return { success: true, message: `Turn length set to ${normalized} week${normalized === 1 ? '' : 's'}.` };
   }
 
   setStudioName(name: string): { success: boolean; message: string } {
@@ -1390,7 +1381,7 @@ export class StudioManager {
       throw new Error('Resolve all crises before ending the week.');
     }
 
-    const targetWeeks = this.turnLengthWeeks;
+    const targetWeeks = TURN_RULES.WEEKS_PER_TURN;
     const cashBefore = this.cash;
     const combinedEvents: string[] = [];
 

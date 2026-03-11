@@ -53,7 +53,7 @@ describe('persistence restore', () => {
     expect(() => restored.endWeek()).not.toThrow();
   });
 
-  it('normalizes invalid turn length while preserving valid values', () => {
+  it('normalizes restored turn length to the fixed two-week cadence', () => {
     const manager = new StudioManager();
     manager.turnLengthWeeks = 2;
     const validSnapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
@@ -65,7 +65,7 @@ describe('persistence restore', () => {
       turnLengthWeeks: 7,
     } as ReturnType<typeof serializeStudioManager>;
     const invalidRestored = restoreStudioManager(invalidSnapshot);
-    expect(invalidRestored.turnLengthWeeks).toBe(1);
+    expect(invalidRestored.turnLengthWeeks).toBe(2);
   });
 
   it('backfills and normalizes editorial fields on restored projects', () => {

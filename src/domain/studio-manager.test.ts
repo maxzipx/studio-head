@@ -16,22 +16,19 @@ describe('StudioManager', () => {
     expect(summary.events.length).toBeGreaterThan(0);
   });
 
-  it('advances two weeks when turn length is set to two', () => {
+  it('advances two weeks by default', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 1 });
-    const result = manager.setTurnLengthWeeks(2);
     const startingWeek = manager.currentWeek;
 
     const summary = manager.endTurn();
 
-    expect(result.success).toBe(true);
     expect(manager.currentWeek).toBe(startingWeek + 2);
     expect(summary.week).toBe(manager.currentWeek);
     expect(summary.events.length).toBeGreaterThan(0);
   });
 
-  it('pauses a two-week turn when a blocking crisis appears after week one', () => {
+  it('pauses the fixed two-week turn when a blocking crisis appears after week one', () => {
     const manager = new StudioManager({ crisisRng: () => 0, eventRng: () => 1, rivalRng: () => 1 });
-    manager.setTurnLengthWeeks(2);
     const startingWeek = manager.currentWeek;
 
     const summary = manager.endTurn();
@@ -41,15 +38,8 @@ describe('StudioManager', () => {
     expect(summary.events.some((entry) => entry.includes('Turn paused'))).toBe(true);
   });
 
-  it('validates turn length input to 1 or 2 weeks', () => {
+  it('uses a fixed two-week turn length', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
-
-    const invalid = manager.setTurnLengthWeeks(3);
-    expect(invalid.success).toBe(false);
-    expect(manager.turnLengthWeeks).toBe(1);
-
-    const valid = manager.setTurnLengthWeeks(2);
-    expect(valid.success).toBe(true);
     expect(manager.turnLengthWeeks).toBe(2);
   });
 

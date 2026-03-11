@@ -228,9 +228,8 @@ function simulateTenYears(seed: number): RunMetrics {
     negotiationRng: rng,
     rivalRng: rng,
   });
-  manager.setTurnLengthWeeks(1);
 
-  const totalTurns = 520;
+  const totalTurns = 260;
   let pendingCrisesTotal = 0;
   let maxPendingCrises = 0;
   let turnsExecuted = 0;
@@ -295,17 +294,17 @@ describe('long-run balance harness', () => {
 
     expect(summary).toMatchInlineSnapshot(`
       {
-        "avgPendingCrisesMean": 0.83,
-        "awardsNomMean": 30.88,
-        "awardsWinMean": 3.46,
-        "bankruptRate": 0.667,
-        "cashMax": 122408789,
-        "cashMedian": 0,
+        "avgPendingCrisesMean": 1.24,
+        "awardsNomMean": 19.63,
+        "awardsWinMean": 2.38,
+        "bankruptRate": 0.458,
+        "cashMax": 53177661,
+        "cashMedian": 2496546,
         "cashMin": 0,
-        "heatMean": 93.08,
+        "heatMean": 94.33,
         "maxPendingCrises": 5,
-        "releasedMean": 14.08,
-        "releasedMin": 3,
+        "releasedMean": 10.13,
+        "releasedMin": 2,
       }
     `);
 

@@ -39,7 +39,6 @@ export default function HQScreen() {
     dismissInboxNotification,
     endWeek,
     advanceToNextDecision,
-    setTurnLength,
     resolveCrisis,
     resolveDecision,
     dismissDecision,
@@ -61,7 +60,6 @@ export default function HQScreen() {
       dismissInboxNotification: state.dismissInboxNotification,
       endWeek: state.endWeek,
       advanceToNextDecision: state.advanceToNextDecision,
-      setTurnLength: state.setTurnLength,
       resolveCrisis: state.resolveCrisis,
       resolveDecision: state.resolveDecision,
       dismissDecision: state.dismissDecision,
@@ -76,7 +74,7 @@ export default function HQScreen() {
       startNewRun: state.startNewRun,
       lastMessage: state.lastMessage,
       statusSignature:
-        `${mgr.currentWeek}:${mgr.turnLengthWeeks}:${mgr.canEndWeek ? 1 : 0}:${mgr.cash}:${mgr.studioHeat}:` +
+        `${mgr.currentWeek}:${mgr.canEndWeek ? 1 : 0}:${mgr.cash}:${mgr.studioHeat}:` +
         `${mgr.isBankrupt ? 1 : 0}:${mgr.bankruptcyReason ?? 'none'}:${mgr.consecutiveLowCashWeeks}:${mgr.studioName}:` +
         `${mgr.studioTier}:${mgr.studioSpecialization}:${mgr.legacyScore}:${mgr.lifetimeProfit}:${mgr.lifetimeRevenue}:` +
         `${mgr.lifetimeExpenses}:${mgr.marketingTeamLevel}:${mgr.projectCapacityUsed}:${mgr.projectCapacityLimit}:` +
@@ -249,7 +247,7 @@ export default function HQScreen() {
             {[
               'Inbox decisions expire - resolve them within the listed weeks or lose the opportunity.',
               'Projects need a Director plus the required Actor/Actress mix and Script Quality >= 6.0 to advance.',
-              'End Turn advances time. Crises must be cleared first. Each turn costs cash from production burn.',
+              'End turn progresses 2 weeks. Crises must be cleared first. Each turn costs cash from production burn.',
               'Reputation has four pillars: Critics, Talent, Distributor, and Audience. Each is affected differently.',
             ].map((tip, i) => (
               <Text key={i} style={[styles.body, { color: colors.accentGreen }]}>- {tip}</Text>
@@ -269,7 +267,7 @@ export default function HQScreen() {
                 <Text style={styles.body}>Use End Turn to progress pipeline phases and market cycles.</Text>
                 <Text style={styles.body}>Studio identity changes commit on End Turn; keep cash reserved for pivots.</Text>
                 <Text style={styles.body}>Before greenlight, attach a director and satisfy each project&apos;s actor/actress requirements.</Text>
-                <Text style={styles.body}>Monitor Inbox each week. Crises block advancement until resolved.</Text>
+                <Text style={styles.body}>Monitor Inbox often. Crises block the 2-week turn until resolved.</Text>
               </GlassCard>
             ) : null}
           </>
@@ -661,32 +659,6 @@ export default function HQScreen() {
             />
           </View>
 
-          {/* Turn Length */}
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: spacing.sp3, gap: spacing.sp2 }}>
-            <SectionLabel label="Turn Length" />
-            <Text style={styles.muted}>Current: {manager.turnLengthWeeks} week{manager.turnLengthWeeks === 1 ? '' : 's'} per turn</Text>
-            <View style={styles.actionsRow}>
-              {([
-                { weeks: 1 as const, desc: 'More control, safer pacing' },
-                { weeks: 2 as const, desc: 'Faster flow, bigger swings' },
-              ] as const).map(({ weeks, desc }) => (
-                <Pressable
-                  key={weeks}
-                  style={[
-                    styles.turnBtn,
-                    manager.turnLengthWeeks === weeks ? styles.turnBtnActive : null,
-                  ]}
-                  disabled={isGameOver}
-                  onPress={() => setTurnLength(weeks)}
-                >
-                  <Text style={[styles.optionTitle, manager.turnLengthWeeks === weeks ? { color: colors.goldMid } : null]}>
-                    {weeks} Week{weeks > 1 ? 's' : ''}
-                  </Text>
-                  <Text style={styles.optionBody}>{desc}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
         </CollapsibleCard>
 
         {/* Story Arcs */}
@@ -890,7 +862,7 @@ export default function HQScreen() {
           style={styles.footerBtn}
         />
         <PremiumButton
-          label={isGameOver ? 'Game Over' : manager.canEndWeek ? `End Turn (${manager.turnLengthWeeks}w)` : 'Resolve Crisis First'}
+          label={isGameOver ? 'Game Over' : manager.canEndWeek ? 'End turn (progress 2 weeks)' : 'Resolve Crisis First'}
           onPress={endWeek}
           disabled={!canEnd}
           variant="primary"
