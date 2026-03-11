@@ -1,6 +1,7 @@
 import { createStore } from 'zustand';
 import { StudioManager } from '../domain/studio-manager';
 import {
+    hydrateManagerData,
     loadManagerFromStorage,
     saveSerializedManagerToStorage,
     serializeStudioManager
@@ -105,8 +106,11 @@ export const createGameStore = () => {
                 const loaded = await loadManagerFromStorage();
                 if (loaded) {
                     // Keep a stable manager instance because actions are bound to it.
-                    // Hydrate by copying loaded state into the existing manager.
-                    Object.assign(manager, loaded);
+                    // Hydrate by copying only data fields — NOT service instances.
+                    // Object.assign would overwrite the private service fields with
+                    // instances bound to `loaded`, causing all service operations to
+                    // silently work on a shadow copy the store never sees.
+                    hydrateManagerData(manager, loaded);
                     set({ isHydrated: true, tick: get().tick + 1 });
                 } else {
                     set({ isHydrated: true, tick: get().tick + 1 });

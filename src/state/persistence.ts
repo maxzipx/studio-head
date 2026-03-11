@@ -662,7 +662,7 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
 }
 
-const SERIALIZE_MANAGER_KEYS = [
+export const SERIALIZE_MANAGER_KEYS = [
   'studioName',
   'cash',
   'reputation',
@@ -738,6 +738,34 @@ export function serializeStudioManager(manager: StudioManager): StoredManager {
   }
 
   return serialized;
+}
+
+/**
+ * Copies only data fields from `source` into `target`, leaving target's service
+ * bindings intact. Use this instead of Object.assign when hydrating a manager
+ * whose services must stay bound to `target` (not the source).
+ *
+ * Object.assign would overwrite the private service fields (eventService,
+ * releaseService, etc.) with instances that hold `this.manager = source`.
+ * Once any service replaces an array field on `source` the two managers diverge
+ * silently, causing decisions and script offers to work on a shadow copy that
+ * the store and UI never see.
+ */
+export function hydrateManagerData(target: StudioManager, source: StudioManager): void {
+  const src = source as unknown as Record<string, unknown>;
+  const tgt = target as unknown as Record<string, unknown>;
+  for (const key of SERIALIZE_MANAGER_KEYS) {
+    tgt[key] = src[key];
+  }
+  // lastEventWeek is a readonly Map — mutate it in-place rather than replacing the reference.
+  const srcMap = src.lastEventWeek as Map<string, number> | undefined;
+  const tgtMap = tgt.lastEventWeek as Map<string, number>;
+  tgtMap.clear();
+  if (srcMap instanceof Map) {
+    for (const [k, v] of srcMap) {
+      tgtMap.set(k, v);
+    }
+  }
 }
 
 export function restoreStudioManager(input: StoredManager): StudioManager {

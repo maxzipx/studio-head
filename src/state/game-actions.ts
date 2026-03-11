@@ -1,4 +1,5 @@
 import { StudioManager } from '../domain/studio-manager';
+import { hydrateManagerData } from './persistence';
 
 import type { GameActions } from './game-types';
 
@@ -314,7 +315,8 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
           startWithSeedProjects: false,
           includeOpeningDecisions: false,
         });
-        Object.assign(manager, freshManager);
+        hydrateManagerData(manager, freshManager);
+        manager.newlyAcquiredProjectId = null;
         saveAndTick('Started a new run.');
       }, { allowWhenBankrupt: true });
     },
