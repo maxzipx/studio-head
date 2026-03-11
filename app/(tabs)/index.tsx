@@ -39,6 +39,7 @@ export default function HQScreen() {
   const router = useRouter();
   const {
     manager,
+    tick,
     dismissReleaseReveal,
     dismissInboxNotification,
     endWeek,
@@ -64,6 +65,7 @@ export default function HQScreen() {
     const mgr = state.manager;
     return {
       manager: mgr,
+      tick: state.tick,
       dismissReleaseReveal: state.dismissReleaseReveal,
       dismissInboxNotification: state.dismissInboxNotification,
       endWeek: state.endWeek,

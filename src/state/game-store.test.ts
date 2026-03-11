@@ -89,4 +89,27 @@ describe('game store autosave queue', () => {
     expect(latestSave.manager?.tutorialCompleted).toBe(false);
     expect(latestSave.manager?.tutorialDismissed).toBe(false);
   });
+
+  it('ticks and advances tutorial state through store actions', async () => {
+    setItemMock.mockResolvedValue(undefined);
+
+    const store = createGameStore();
+    store.setState({ isHydrated: true });
+    const state = store.getState();
+
+    state.completeFoundingSetup('balanced', 'dataDriven');
+    const afterFoundingTick = store.getState().tick;
+
+    state.advanceTutorial();
+    await flushPromises();
+
+    expect(store.getState().manager.tutorialState).toBe('strategy');
+    expect(store.getState().tick).toBeGreaterThan(afterFoundingTick);
+
+    const latestSave = JSON.parse(setItemMock.mock.calls.at(-1)?.[1] ?? '{}') as {
+      manager?: { tutorialState?: string };
+    };
+
+    expect(latestSave.manager?.tutorialState).toBe('strategy');
+  });
 });

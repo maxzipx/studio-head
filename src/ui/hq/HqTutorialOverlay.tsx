@@ -191,7 +191,7 @@ export function HqTutorialOverlay({ manager, visible, onAdvance, onSkip, onOpenS
   return (
     <View style={styles.overlay}>
       <View style={styles.dimLayer} />
-      <GlassCard variant="elevated" style={styles.card}>
+      <GlassCard key={manager.tutorialState} variant="elevated" style={styles.card}>
         <LinearGradient colors={[colors.navyPrimary + '22', 'transparent']} style={styles.topGlow} pointerEvents="none" />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.kicker}>Studio Briefing</Text>
