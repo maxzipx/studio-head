@@ -1,0 +1,14 @@
+# Local Expo state should never be part of the remote build archive.
+.expo/
+.eas-inspect-ios-archive/
+.eas-inspect-ios-prebuild/
+log*.txt
+
+# VCS and editor metadata are unnecessary in EAS build uploads.
+.git/
+.vscode/
+
+# Local dependencies and caches are restored on the builder.
+node_modules/
+dist/
+web-build/
