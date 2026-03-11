@@ -270,6 +270,24 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    advanceTutorial: () => {
+      runWhenHydrated(() => {
+        const result = manager.advanceTutorial();
+        saveAndTick(result.message);
+      }, { allowWhenBankrupt: true });
+    },
+    dismissTutorial: () => {
+      runWhenHydrated(() => {
+        const result = manager.dismissTutorial();
+        saveAndTick(result.message);
+      }, { allowWhenBankrupt: true });
+    },
+    restartTutorial: () => {
+      runWhenHydrated(() => {
+        const result = manager.restartTutorial();
+        saveAndTick(result.message);
+      }, { allowWhenBankrupt: true });
+    },
     investDepartment: (track) => {
       runWhenHydrated(() => {
         const result = manager.investDepartment(track);

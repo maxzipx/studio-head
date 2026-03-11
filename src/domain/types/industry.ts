@@ -16,6 +16,7 @@ export type StudioTier =
 
 export type StudioSpecialization = 'balanced' | 'blockbuster' | 'prestige' | 'indie';
 export type FoundingProfile = 'none' | 'starDriven' | 'dataDriven' | 'franchiseVision' | 'culturalBrand';
+export type TutorialState = 'none' | 'hqIntro' | 'strategy' | 'firstProject' | 'marketing' | 'talent' | 'risk' | 'complete';
 
 export type DepartmentTrack = 'development' | 'production' | 'distribution';
 

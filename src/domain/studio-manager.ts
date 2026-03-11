@@ -99,6 +99,7 @@ import type {
   TalentInteractionKind,
   TalentRole,
   TalentTrustLevel,
+  TutorialState,
   WeekSummary,
 } from './types';
 
@@ -161,6 +162,9 @@ export class StudioManager {
   foundingProfile: FoundingProfile = 'none';
   needsFoundingSetup = true;
   foundingSetupCompletedWeek: number | null = null;
+  tutorialState: TutorialState = 'hqIntro';
+  tutorialCompleted = false;
+  tutorialDismissed = false;
   departmentLevels: Record<DepartmentTrack, number> = {
     development: 0,
     production: 0,
@@ -290,6 +294,87 @@ export class StudioManager {
 
   get foundingProfileEffects(): FoundingProfileModifiers {
     return foundingProfileModifiers(this.foundingProfile);
+  }
+
+  isTutorialEligible(): boolean {
+    return !this.needsFoundingSetup && !this.tutorialCompleted && !this.tutorialDismissed;
+  }
+
+  hasCreatedFirstProject(): boolean {
+    return this.activeProjects.length > 0 || this.releaseReports.length > 0;
+  }
+
+  beginTutorialIfEligible(): { success: boolean; message: string } {
+    if (!this.isTutorialEligible()) {
+      return { success: false, message: 'Tutorial is not eligible for this run.' };
+    }
+
+    if (this.tutorialState === 'none' || this.tutorialState === 'complete') {
+      this.tutorialState = 'hqIntro';
+    }
+
+    return { success: true, message: 'HQ tutorial active.' };
+  }
+
+  advanceTutorial(nextState?: TutorialState): { success: boolean; message: string } {
+    if (this.tutorialDismissed || this.tutorialCompleted || this.tutorialState === 'complete') {
+      return { success: false, message: 'Tutorial already complete.' };
+    }
+
+    if (!this.isTutorialEligible()) {
+      return { success: false, message: 'Tutorial is not available yet.' };
+    }
+
+    const sequence: TutorialState[] = ['hqIntro', 'strategy', 'firstProject', 'marketing', 'talent', 'risk', 'complete'];
+    const currentIndex = sequence.indexOf(this.tutorialState);
+    if (currentIndex === -1) {
+      this.tutorialState = 'hqIntro';
+      return { success: true, message: 'Tutorial restarted from HQ.' };
+    }
+
+    const targetState = nextState ?? sequence[currentIndex + 1] ?? 'complete';
+    if (!sequence.includes(targetState)) {
+      return { success: false, message: 'Invalid tutorial step.' };
+    }
+
+    const targetIndex = sequence.indexOf(targetState);
+    if (targetIndex > currentIndex + 1) {
+      return { success: false, message: 'Tutorial step is out of sequence.' };
+    }
+    if (targetIndex <= currentIndex) {
+      return { success: false, message: 'Tutorial step already reached.' };
+    }
+    if (this.tutorialState === 'firstProject' && targetState === 'marketing' && !this.hasCreatedFirstProject()) {
+      return { success: false, message: 'Create your first film before continuing.' };
+    }
+
+    if (targetState === 'complete') {
+      this.tutorialState = 'complete';
+      this.tutorialCompleted = true;
+      this.tutorialDismissed = false;
+      return { success: true, message: 'Tutorial complete. HQ fully unlocked.' };
+    }
+
+    this.tutorialState = targetState;
+    return { success: true, message: 'Tutorial step advanced.' };
+  }
+
+  dismissTutorial(): { success: boolean; message: string } {
+    this.tutorialDismissed = true;
+    this.tutorialCompleted = false;
+    this.tutorialState = 'complete';
+    return { success: true, message: 'Tutorial dismissed.' };
+  }
+
+  restartTutorial(): { success: boolean; message: string } {
+    if (this.needsFoundingSetup) {
+      return { success: false, message: 'Complete founding setup before replaying the tutorial.' };
+    }
+
+    this.tutorialDismissed = false;
+    this.tutorialCompleted = false;
+    this.tutorialState = 'hqIntro';
+    return { success: true, message: 'Tutorial restarted.' };
   }
 
   private initializeMajorIpCommitment(ip: OwnedIp): { required: number; deadlineWeek: number } | null {
@@ -491,6 +576,7 @@ export class StudioManager {
       headline: `Studio charter set: ${input.specialization} specialization, ${input.foundingProfile} founding profile.`,
       impact: 'positive',
     });
+    this.beginTutorialIfEligible();
     return { success: true, message: 'Studio charter set.' };
   }
 
@@ -835,6 +921,9 @@ export class StudioManager {
     };
     this.activeProjects.push(project);
     ip.usedProjectId = project.id;
+    if (this.tutorialState === 'firstProject') {
+      this.advanceTutorial();
+    }
     return { success: true, message: `${project.title} entered development from ${ip.name}.`, projectId: project.id };
   }
 
@@ -1210,6 +1299,9 @@ export class StudioManager {
       projectId: project.id,
     });
     if (this.currentWeek % 7 === 0) this.refreshIpMarketplace();
+    if (this.tutorialState === 'firstProject') {
+      this.advanceTutorial();
+    }
     return { success: true, message: `Script acquired: "${pitch.title}" added to your slate.`, projectId: project.id };
   }
 

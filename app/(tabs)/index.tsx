@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -28,12 +29,14 @@ import {
   TIER_NEXT_GOAL,
 } from '@/src/ui/hq/hq-helpers';
 import { FoundingSetupOverlay } from '@/src/ui/hq/FoundingSetupOverlay';
+import { HqTutorialOverlay } from '@/src/ui/hq/HqTutorialOverlay';
 import { ReleaseRevealModal } from '@/src/ui/hq/ReleaseRevealModal';
 import { styles } from '@/src/ui/hq/hq-styles';
 import { colors, spacing, typography } from '@/src/ui/tokens';
 import { useShallow } from 'zustand/react/shallow';
 
 export default function HQScreen() {
+  const router = useRouter();
   const {
     manager,
     dismissReleaseReveal,
@@ -49,6 +52,9 @@ export default function HQScreen() {
     upgradeStudioCapacity,
     setStudioSpecialization,
     completeFoundingSetup,
+    advanceTutorial,
+    dismissTutorial,
+    restartTutorial,
     investDepartment,
     signExclusivePartner,
     poachExecutiveTeam,
@@ -71,6 +77,9 @@ export default function HQScreen() {
       upgradeStudioCapacity: state.upgradeStudioCapacity,
       setStudioSpecialization: state.setStudioSpecialization,
       completeFoundingSetup: state.completeFoundingSetup,
+      advanceTutorial: state.advanceTutorial,
+      dismissTutorial: state.dismissTutorial,
+      restartTutorial: state.restartTutorial,
       investDepartment: state.investDepartment,
       signExclusivePartner: state.signExclusivePartner,
       poachExecutiveTeam: state.poachExecutiveTeam,
@@ -82,7 +91,8 @@ export default function HQScreen() {
         `${mgr.studioTier}:${mgr.studioSpecialization}:${mgr.legacyScore}:${mgr.lifetimeProfit}:${mgr.lifetimeRevenue}:` +
         `${mgr.lifetimeExpenses}:${mgr.marketingTeamLevel}:${mgr.projectCapacityUsed}:${mgr.projectCapacityLimit}:` +
         `${mgr.executiveNetworkLevel}:${mgr.decisionQueue.length}:${mgr.pendingCrises.length}:${mgr.activeProjects.length}:` +
-        `${mgr.foundingProfile}:${mgr.needsFoundingSetup ? 1 : 0}:${mgr.foundingSetupCompletedWeek ?? -1}`,
+        `${mgr.foundingProfile}:${mgr.needsFoundingSetup ? 1 : 0}:${mgr.foundingSetupCompletedWeek ?? -1}:` +
+        `${mgr.tutorialState}:${mgr.tutorialCompleted ? 1 : 0}:${mgr.tutorialDismissed ? 1 : 0}`,
       repSignature:
         `${mgr.reputation.critics}:${mgr.reputation.talent}:${mgr.reputation.distributor}:${mgr.reputation.audience}`,
       projectsSignature: mgr.activeProjects
@@ -221,6 +231,13 @@ export default function HQScreen() {
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
   const [confirmNewRun, setConfirmNewRun] = useState(false);
   const [showHqHelp, setShowHqHelp] = useState(false);
+  const tutorialVisible =
+    !manager.needsFoundingSetup &&
+    !manager.tutorialCompleted &&
+    !manager.tutorialDismissed &&
+    manager.tutorialState !== 'none' &&
+    manager.tutorialState !== 'complete' &&
+    !reveal;
 
   useEffect(() => {
     setStudioNameDraft(manager.studioName);
@@ -259,12 +276,24 @@ export default function HQScreen() {
           </GlassCard>
         ) : (
           <>
-            <PremiumButton
-              label={showHqHelp ? 'Hide HQ Help' : 'HQ Help'}
-              onPress={() => setShowHqHelp((value) => !value)}
-              variant="ghost"
-              size="sm"
-            />
+            <View style={styles.actionsRow}>
+              <PremiumButton
+                label={showHqHelp ? 'Hide HQ Help' : 'HQ Help'}
+                onPress={() => setShowHqHelp((value) => !value)}
+                variant="ghost"
+                size="sm"
+                style={styles.choiceBtn}
+              />
+              {!manager.needsFoundingSetup && !tutorialVisible ? (
+                <PremiumButton
+                  label="Replay Tutorial"
+                  onPress={restartTutorial}
+                  variant="ghost"
+                  size="sm"
+                  style={styles.choiceBtn}
+                />
+              ) : null}
+            </View>
             {showHqHelp ? (
               <GlassCard variant="elevated">
                 <SectionLabel label="HQ Help" />
@@ -885,6 +914,13 @@ export default function HQScreen() {
       <FoundingSetupOverlay
         visible={manager.needsFoundingSetup}
         onComplete={(specialization, foundingProfile) => completeFoundingSetup(specialization, foundingProfile)}
+      />
+      <HqTutorialOverlay
+        manager={manager}
+        visible={tutorialVisible}
+        onAdvance={advanceTutorial}
+        onSkip={dismissTutorial}
+        onOpenSlate={() => router.push('/slate')}
       />
     </View>
   );

@@ -49,6 +49,9 @@ export interface GameContextValue {
   developFromIp: (ipId: string) => void;
   setStudioSpecialization: (focus: StudioSpecialization) => void;
   completeFoundingSetup: (specialization: StudioSpecialization, foundingProfile: FoundingProfile) => void;
+  advanceTutorial: () => void;
+  dismissTutorial: () => void;
+  restartTutorial: () => void;
   investDepartment: (track: DepartmentTrack) => void;
   signExclusivePartner: (partner: string) => void;
   poachExecutiveTeam: () => void;

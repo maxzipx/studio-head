@@ -80,6 +80,30 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
   if (typeof manager.needsFoundingSetup !== 'boolean') manager.needsFoundingSetup = false;
   if (!Number.isFinite(manager.foundingSetupCompletedWeek)) manager.foundingSetupCompletedWeek = null;
+  if (
+    manager.tutorialState !== 'none' &&
+    manager.tutorialState !== 'hqIntro' &&
+    manager.tutorialState !== 'strategy' &&
+    manager.tutorialState !== 'firstProject' &&
+    manager.tutorialState !== 'marketing' &&
+    manager.tutorialState !== 'talent' &&
+    manager.tutorialState !== 'risk' &&
+    manager.tutorialState !== 'complete'
+  ) {
+    manager.tutorialState = manager.tutorialCompleted || manager.tutorialDismissed ? 'complete' : 'hqIntro';
+  }
+  if (typeof manager.tutorialCompleted !== 'boolean') manager.tutorialCompleted = manager.tutorialState === 'complete';
+  if (typeof manager.tutorialDismissed !== 'boolean') manager.tutorialDismissed = false;
+  if (manager.tutorialDismissed) {
+    manager.tutorialState = 'complete';
+    manager.tutorialCompleted = false;
+  } else if (manager.tutorialCompleted || manager.tutorialState === 'complete') {
+    manager.tutorialState = 'complete';
+    manager.tutorialCompleted = true;
+    manager.tutorialDismissed = false;
+  } else if (manager.tutorialState === 'none') {
+    manager.tutorialState = 'hqIntro';
+  }
   if (!isRecord(manager.departmentLevels)) {
     manager.departmentLevels = { development: 0, production: 0, distribution: 0 };
   }
@@ -680,6 +704,9 @@ const SERIALIZE_MANAGER_KEYS = [
   'foundingProfile',
   'needsFoundingSetup',
   'foundingSetupCompletedWeek',
+  'tutorialState',
+  'tutorialCompleted',
+  'tutorialDismissed',
   'departmentLevels',
   'exclusiveDistributionPartner',
   'exclusivePartnerUntilWeek',
@@ -725,6 +752,15 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
   }
   if (!Object.hasOwn(input, 'foundingSetupCompletedWeek')) {
     manager.foundingSetupCompletedWeek = null;
+  }
+  if (
+    !Object.hasOwn(input, 'tutorialState') &&
+    !Object.hasOwn(input, 'tutorialCompleted') &&
+    !Object.hasOwn(input, 'tutorialDismissed')
+  ) {
+    manager.tutorialState = 'complete';
+    manager.tutorialCompleted = true;
+    manager.tutorialDismissed = false;
   }
 
   // Migrate old saves that had studioHeat but no reputation

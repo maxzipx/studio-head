@@ -107,6 +107,53 @@ describe('persistence restore', () => {
     expect(restored.foundingSetupCompletedWeek).toBeNull();
   });
 
+  it('serializes and restores tutorial state fields', () => {
+    const manager = new StudioManager();
+    manager.tutorialState = 'talent';
+    manager.tutorialCompleted = false;
+    manager.tutorialDismissed = false;
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.tutorialState).toBe('talent');
+    expect(restored.tutorialCompleted).toBe(false);
+    expect(restored.tutorialDismissed).toBe(false);
+  });
+
+  it('restores missing tutorial fields from legacy saves as already completed', () => {
+    const manager = new StudioManager();
+    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete snapshot.tutorialState;
+    delete snapshot.tutorialCompleted;
+    delete snapshot.tutorialDismissed;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.tutorialState).toBe('complete');
+    expect(restored.tutorialCompleted).toBe(true);
+    expect(restored.tutorialDismissed).toBe(false);
+  });
+
+  it('sanitizes malformed tutorial state into a safe terminal combination', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager> & {
+      tutorialState: unknown;
+      tutorialCompleted: unknown;
+      tutorialDismissed: unknown;
+    };
+    snapshot.tutorialState = 'bad-state';
+    snapshot.tutorialCompleted = true;
+    snapshot.tutorialDismissed = true;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.tutorialState).toBe('complete');
+    expect(restored.tutorialCompleted).toBe(false);
+    expect(restored.tutorialDismissed).toBe(true);
+  });
+
   it('backfills and normalizes editorial fields on restored projects', () => {
     const manager = new StudioManager();
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;

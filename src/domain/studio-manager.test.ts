@@ -80,6 +80,117 @@ describe('StudioManager', () => {
     expect(manager.foundingProfile).toBe('starDriven');
   });
 
+  it('keeps the tutorial ineligible until founding setup is complete', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    expect(manager.isTutorialEligible()).toBe(false);
+
+    const advance = manager.advanceTutorial();
+    expect(advance.success).toBe(false);
+    expect(manager.tutorialState).toBe('hqIntro');
+  });
+
+  it('activates the HQ tutorial when founding setup completes', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    manager.completeFoundingSetup({ specialization: 'indie', foundingProfile: 'dataDriven' });
+
+    expect(manager.isTutorialEligible()).toBe(true);
+    expect(manager.tutorialState).toBe('hqIntro');
+    expect(manager.tutorialCompleted).toBe(false);
+    expect(manager.tutorialDismissed).toBe(false);
+  });
+
+  it('advances tutorial steps in sequence and blocks first-project progression without a created film', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
+
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialState).toBe('strategy');
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialState).toBe('firstProject');
+
+    const blocked = manager.advanceTutorial();
+    expect(blocked.success).toBe(false);
+    expect(blocked.message).toContain('Create your first film');
+    expect(manager.tutorialState).toBe('firstProject');
+  });
+
+  it('dismisses and restarts tutorial state consistently', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+
+    const dismissed = manager.dismissTutorial();
+    expect(dismissed.success).toBe(true);
+    expect(manager.tutorialDismissed).toBe(true);
+    expect(manager.tutorialCompleted).toBe(false);
+    expect(manager.tutorialState).toBe('complete');
+
+    const restarted = manager.restartTutorial();
+    expect(restarted.success).toBe(true);
+    expect(manager.tutorialDismissed).toBe(false);
+    expect(manager.tutorialCompleted).toBe(false);
+    expect(manager.tutorialState).toBe('hqIntro');
+  });
+
+  it('rejects tutorial restart before founding setup is complete', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    const result = manager.restartTutorial();
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('founding setup');
+  });
+
+  it('advances the tutorial after acquiring the first script project', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+    manager.advanceTutorial();
+    manager.advanceTutorial();
+    expect(manager.tutorialState).toBe('firstProject');
+
+    const script = manager.scriptMarket[0];
+    const result = manager.acquireScript(script.id);
+
+    expect(result.success).toBe(true);
+    expect(manager.tutorialState).toBe('marketing');
+  });
+
+  it('advances the tutorial after opening a first project from owned IP', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
+    manager.advanceTutorial();
+    manager.advanceTutorial();
+    manager.cash = 100_000_000;
+    manager.refreshIpMarketplace();
+    const ip = manager.ownedIps.find((entry) => !entry.major) ?? manager.ownedIps[0];
+    expect(ip).toBeTruthy();
+
+    const rights = manager.acquireIpRights(ip!.id);
+    expect(rights.success).toBe(true);
+
+    const developed = manager.developProjectFromIp(ip!.id);
+
+    expect(developed.success).toBe(true);
+    expect(manager.tutorialState).toBe('marketing');
+  });
+
+  it('marks the tutorial complete after the final step', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    manager.completeFoundingSetup({ specialization: 'prestige', foundingProfile: 'culturalBrand' });
+
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.advanceTutorial().success).toBe(true);
+
+    expect(manager.tutorialState).toBe('complete');
+    expect(manager.tutorialCompleted).toBe(true);
+    expect(manager.tutorialDismissed).toBe(false);
+  });
+
   it('gives star-driven studios a modest talent negotiation edge', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });

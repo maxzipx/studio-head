@@ -58,4 +58,35 @@ describe('game store autosave queue', () => {
     resolvers.shift()?.();
     await flushPromises();
   });
+
+  it('persists tutorial dismiss and replay actions through saveAndTick', async () => {
+    setItemMock.mockResolvedValue(undefined);
+
+    const store = createGameStore();
+    store.setState({ isHydrated: true });
+    const state = store.getState();
+
+    state.completeFoundingSetup('balanced', 'dataDriven');
+    await flushPromises();
+    expect(store.getState().manager.tutorialState).toBe('hqIntro');
+
+    state.dismissTutorial();
+    await flushPromises();
+    expect(store.getState().manager.tutorialDismissed).toBe(true);
+    expect(store.getState().manager.tutorialState).toBe('complete');
+
+    state.restartTutorial();
+    await flushPromises();
+
+    const latestSave = JSON.parse(setItemMock.mock.calls.at(-1)?.[1] ?? '{}') as {
+      manager?: { tutorialState?: string; tutorialCompleted?: boolean; tutorialDismissed?: boolean };
+    };
+
+    expect(store.getState().manager.tutorialState).toBe('hqIntro');
+    expect(store.getState().manager.tutorialCompleted).toBe(false);
+    expect(store.getState().manager.tutorialDismissed).toBe(false);
+    expect(latestSave.manager?.tutorialState).toBe('hqIntro');
+    expect(latestSave.manager?.tutorialCompleted).toBe(false);
+    expect(latestSave.manager?.tutorialDismissed).toBe(false);
+  });
 });
