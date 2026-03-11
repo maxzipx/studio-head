@@ -920,6 +920,7 @@ export default function HQScreen() {
       <HqTutorialOverlay
         manager={manager}
         visible={tutorialVisible}
+        tick={tick}
         onAdvance={advanceTutorial}
         onSkip={dismissTutorial}
         onOpenSlate={() => router.push('/slate')}

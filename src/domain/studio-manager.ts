@@ -344,9 +344,7 @@ export class StudioManager {
     if (targetIndex <= currentIndex) {
       return { success: false, message: 'Tutorial step already reached.' };
     }
-    if (this.tutorialState === 'firstProject' && targetState === 'marketing' && !this.hasCreatedFirstProject()) {
-      return { success: false, message: 'Create your first film before continuing.' };
-    }
+
 
     if (targetState === 'complete') {
       this.tutorialState = 'complete';

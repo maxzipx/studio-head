@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { STUDIO_STARTING } from '@/src/domain/balance-constants';
@@ -11,6 +12,7 @@ import { colors, radius, spacing, typography } from '@/src/ui/tokens';
 interface HqTutorialOverlayProps {
   manager: StudioManager;
   visible: boolean;
+  tick: number;
   onAdvance: () => void;
   onSkip: () => void;
   onOpenSlate: () => void;
@@ -55,7 +57,7 @@ function foundingProfileFrame(manager: StudioManager): string {
   }
 }
 
-function buildStepContent(manager: StudioManager): TutorialStepContent {
+function buildStepContentForState(manager: StudioManager, tutorialState: string): TutorialStepContent {
   const specializationLabel = FOUNDING_SPECIALIZATION_OPTIONS.find((option) => option.key === manager.studioSpecialization)?.label ?? 'Balanced';
   const foundingProfileLabel =
     FOUNDING_PROFILE_OPTIONS.find((option) => option.key === manager.foundingProfile)?.label ?? 'Independent';
@@ -63,7 +65,7 @@ function buildStepContent(manager: StudioManager): TutorialStepContent {
   const firstProjectReady = manager.hasCreatedFirstProject();
   const aggressiveEarlyCash = manager.currentWeek <= 12 && manager.cash < STUDIO_STARTING.CASH * 0.7;
 
-  switch (manager.tutorialState) {
+  switch (tutorialState) {
     case 'hqIntro':
       return {
         title: 'HQ is where the studio actually gets run.',
@@ -105,8 +107,8 @@ function buildStepContent(manager: StudioManager): TutorialStepContent {
               'Disciplined budgets, identity fit, and the right talent package usually matter more than trying to look bigger than you are.',
             ]
           : [
-              'Your first film is not just a release. It is the market’s first answer to what kind of studio you are and whether you can execute on your own thesis.',
-              'Start in the Slate. Early studios usually benefit from disciplined budgets, a project that matches their identity, and talent choices that do more than inflate spend.',
+              "Your first film is not just a release. It is the market\u2019s first answer to what kind of studio you are and whether you can execute on your own thesis.",
+              'Head to the Slate tab when you are ready to acquire a script or develop from IP. Early studios usually benefit from disciplined budgets, a project that matches their identity, and talent choices that do more than inflate spend.',
             ],
         contextLabel: 'What to watch',
         contextItems: [
@@ -114,8 +116,8 @@ function buildStepContent(manager: StudioManager): TutorialStepContent {
           'Ambition is useful only if the studio survives its first sequence of bets.',
           'The right attachment can change the entire profile of a modest film.',
         ],
-        primaryLabel: firstProjectReady ? 'Continue' : 'Open the Slate',
-        primaryAction: firstProjectReady ? 'advance' : 'openSlate',
+        primaryLabel: 'Continue',
+        primaryAction: 'advance',
       };
     case 'marketing':
       return {
@@ -182,16 +184,23 @@ function buildStepContent(manager: StudioManager): TutorialStepContent {
   }
 }
 
-export function HqTutorialOverlay({ manager, visible, onAdvance, onSkip, onOpenSlate }: HqTutorialOverlayProps) {
-  if (!visible) return null;
+export function HqTutorialOverlay({ manager, visible, tick, onAdvance, onSkip, onOpenSlate }: HqTutorialOverlayProps) {
+  // useMemo keyed on tick to force recomputation when the mutable manager changes
+  const { stepContent, stepNumber, currentState } = useMemo(() => {
+    const state = manager.tutorialState;
+    return {
+      stepContent: buildStepContentForState(manager, state),
+      stepNumber: Math.max(1, STEP_ORDER.indexOf(state as (typeof STEP_ORDER)[number]) + 1),
+      currentState: state,
+    };
+  }, [tick, manager]);
 
-  const stepContent = buildStepContent(manager);
-  const stepNumber = Math.max(1, STEP_ORDER.indexOf(manager.tutorialState as (typeof STEP_ORDER)[number]) + 1);
+  if (!visible) return null;
 
   return (
     <View style={styles.overlay}>
       <View style={styles.dimLayer} />
-      <GlassCard key={manager.tutorialState} variant="elevated" style={styles.card}>
+      <GlassCard variant="elevated" style={styles.card}>
         <LinearGradient colors={[colors.navyPrimary + '22', 'transparent']} style={styles.topGlow} pointerEvents="none" />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.kicker}>Studio Briefing</Text>

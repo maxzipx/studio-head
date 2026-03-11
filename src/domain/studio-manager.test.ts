@@ -101,7 +101,7 @@ describe('StudioManager', () => {
     expect(manager.tutorialDismissed).toBe(false);
   });
 
-  it('advances tutorial steps in sequence and blocks first-project progression without a created film', () => {
+  it('advances tutorial steps in sequence through firstProject without requiring a created film', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
     manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
 
@@ -110,10 +110,9 @@ describe('StudioManager', () => {
     expect(manager.advanceTutorial().success).toBe(true);
     expect(manager.tutorialState).toBe('firstProject');
 
-    const blocked = manager.advanceTutorial();
-    expect(blocked.success).toBe(false);
-    expect(blocked.message).toContain('Create your first film');
-    expect(manager.tutorialState).toBe('firstProject');
+    const advanced = manager.advanceTutorial();
+    expect(advanced.success).toBe(true);
+    expect(manager.tutorialState).toBe('marketing');
   });
 
   it('dismisses and restarts tutorial state consistently', () => {
