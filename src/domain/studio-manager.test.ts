@@ -133,6 +133,16 @@ describe('StudioManager', () => {
     expect(manager.tutorialState).toBe('hqIntro');
   });
 
+  it('refuses to dismiss tutorial when it is not active', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
+
+    const result = manager.dismissTutorial();
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('not currently active');
+    expect(manager.tutorialDismissed).toBe(false);
+  });
+
   it('rejects tutorial restart before founding setup is complete', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 

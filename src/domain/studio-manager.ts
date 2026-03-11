@@ -360,6 +360,9 @@ export class StudioManager {
   }
 
   dismissTutorial(): { success: boolean; message: string } {
+    if (!this.isTutorialEligible() || this.tutorialState === 'none' || this.tutorialState === 'complete') {
+      return { success: false, message: 'Tutorial is not currently active.' };
+    }
     this.tutorialDismissed = true;
     this.tutorialCompleted = false;
     this.tutorialState = 'complete';

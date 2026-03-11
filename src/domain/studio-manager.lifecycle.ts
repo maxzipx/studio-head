@@ -16,6 +16,8 @@ export function setProjectReleaseWeekForManager(
     return { success: false, message: 'Project is not in distribution.' };
   }
   project.releaseWeek = clamp(Math.round(releaseWeek), manager.currentWeek + 1, manager.currentWeek + 52);
+  // Moving the week is treated as an explicit release choice, so nudging the
+  // date also confirms it instead of requiring a second tap.
   project.releaseWeekLocked = true;
   return { success: true, message: `${project.title} release moved to week ${project.releaseWeek}.` };
 }

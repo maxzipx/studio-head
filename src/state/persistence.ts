@@ -80,6 +80,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
   if (typeof manager.needsFoundingSetup !== 'boolean') manager.needsFoundingSetup = false;
   if (!Number.isFinite(manager.foundingSetupCompletedWeek)) manager.foundingSetupCompletedWeek = null;
+  // Tutorial restore intentionally happens in three passes: validate the enum,
+  // derive missing booleans from that sanitized state, then normalize the
+  // combination into one terminal shape. Reordering these steps changes
+  // migration behavior for malformed or legacy saves.
   if (
     manager.tutorialState !== 'none' &&
     manager.tutorialState !== 'hqIntro' &&
