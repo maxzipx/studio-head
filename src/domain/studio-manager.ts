@@ -528,7 +528,7 @@ export class StudioManager {
     return { success: true, message: `Executive network upgraded to level ${next}.` };
   }
 
-  advanceUntilDecision(maxWeeks = 26): {
+  advanceUntilDecision(maxWeeks = TURN_RULES.NEXT_DECISION_MAX_SKIP_WEEKS): {
     success: boolean;
     advancedWeeks: number;
     reason: 'decision' | 'crisis' | 'release' | 'limit' | 'blocked' | 'bankrupt';
@@ -601,7 +601,7 @@ export class StudioManager {
       success: true,
       advancedWeeks: this.currentWeek - weekStart,
       reason: 'limit',
-      message: `Auto-advanced ${this.currentWeek - weekStart} week(s) with no new blocker.`,
+      message: `Auto-advanced ${this.currentWeek - weekStart} week(s) with no new inbox change.`,
     };
   }
 

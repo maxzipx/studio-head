@@ -8,6 +8,7 @@ export const STUDIO_STARTING = {
 export const TURN_RULES = {
   MIN_WEEKS: 1,
   MAX_WEEKS: 2,
+  NEXT_DECISION_MAX_SKIP_WEEKS: 8,
 } as const;
 
 export const BANKRUPTCY_RULES = {

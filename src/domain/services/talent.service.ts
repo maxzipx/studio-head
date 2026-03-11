@@ -465,6 +465,90 @@ export class TalentService {
     talent.marketWindowExpiresWeek = this.manager.currentWeek + this.marketWindowDuration(talent.starPower);
   }
 
+  private getVisibleLeadTalent(role: 'leadActor' | 'leadActress'): Talent[] {
+    return this.manager.talentPool.filter(
+      (talent) =>
+        talent.role === role &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
+  }
+
+  private getVisibleLeadCount(role: 'leadActor' | 'leadActress'): number {
+    return this.getVisibleLeadTalent(role).length;
+  }
+
+  private getEligibleLeadPool(role: 'leadActor' | 'leadActress'): Talent[] {
+    return this.manager.talentPool.filter((talent) => talent.role === role);
+  }
+
+  private hasEligibleLeadSupply(role: 'leadActor' | 'leadActress'): boolean {
+    return this.getEligibleLeadPool(role).some((talent) => this.isTalentMarketEligible(talent));
+  }
+
+  private getVisibleLeadTotal(): number {
+    return this.getVisibleLeadCount('leadActor') + this.getVisibleLeadCount('leadActress');
+  }
+
+  private clearVisibleLeadSlot(role: 'leadActor' | 'leadActress'): boolean {
+    const candidate = this.getVisibleLeadTalent(role)
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.marketWindowExpiresWeek ?? Number.MAX_SAFE_INTEGER) -
+          (b.marketWindowExpiresWeek ?? Number.MAX_SAFE_INTEGER)
+      )[0];
+    if (!candidate) return false;
+    candidate.marketWindowExpiresWeek = null;
+    return true;
+  }
+
+  private ensureLeadRoleFloor(role: 'leadActor' | 'leadActress'): boolean {
+    if (this.getVisibleLeadCount(role) > 0 || !this.hasEligibleLeadSupply(role)) return false;
+    const oppositeRole = role === 'leadActor' ? 'leadActress' : 'leadActor';
+    if (
+      this.getVisibleLeadTotal() >= TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS &&
+      this.getVisibleLeadCount(oppositeRole) > 0 &&
+      !this.clearVisibleLeadSlot(oppositeRole)
+    ) {
+      return false;
+    }
+    return this.addNextEligibleFromPool(this.getEligibleLeadPool(role), role);
+  }
+
+  private addBalancedLeadEntrant(): boolean {
+    if (this.getVisibleLeadTotal() >= TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS) return false;
+
+    const actorCount = this.getVisibleLeadCount('leadActor');
+    const actressCount = this.getVisibleLeadCount('leadActress');
+    const preferActor =
+      actorCount < actressCount ||
+      (actorCount === actressCount && this.manager.marketActorIdx % 2 === 0);
+    const primaryRole = preferActor ? 'leadActor' : 'leadActress';
+    const secondaryRole = preferActor ? 'leadActress' : 'leadActor';
+
+    let added = this.addNextEligibleFromPool(this.getEligibleLeadPool(primaryRole), primaryRole);
+    if (!added) {
+      added = this.addNextEligibleFromPool(this.getEligibleLeadPool(secondaryRole), secondaryRole);
+    }
+    if (added) {
+      this.manager.marketActorIdx += 1;
+    }
+    return added;
+  }
+
+  private rebalanceLeadMarket(): void {
+    this.ensureLeadRoleFloor('leadActor');
+    this.ensureLeadRoleFloor('leadActress');
+
+    let additionsRemaining = TALENT_MARKET_RULES.WEEKLY_ACTOR_TRICKLE;
+    while (additionsRemaining > 0) {
+      const added = this.addBalancedLeadEntrant();
+      if (!added) break;
+      additionsRemaining -= 1;
+    }
+  }
+
   private addNextEligibleFromPool(
     pool: Talent[],
     role: 'director' | 'leadActor' | 'leadActress'
@@ -506,12 +590,8 @@ export class TalentService {
 
   private trickleNewMarketEntrants(): void {
     const directors = this.manager.talentPool.filter((t) => t.role === 'director');
-    const actors = this.manager.talentPool.filter((t) => t.role === 'leadActor' || t.role === 'leadActress');
 
     const visibleDirectors = directors.filter(
-      (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
-    ).length;
-    const visibleActors = actors.filter(
       (t) => t.marketWindowExpiresWeek !== null && t.availability === 'available'
     ).length;
 
@@ -529,21 +609,7 @@ export class TalentService {
         dirToAdd--;
       }
     }
-
-    let actToAdd = Math.min(
-      Math.max(0, TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS - visibleActors),
-      TALENT_MARKET_RULES.WEEKLY_ACTOR_TRICKLE
-    );
-    attempts = 0;
-    while (actToAdd > 0 && attempts < actors.length) {
-      const candidate = actors[this.manager.marketActorIdx % actors.length];
-      this.manager.marketActorIdx++;
-      attempts++;
-      if (candidate && this.isTalentMarketEligible(candidate)) {
-        this.addTalentToMarket(candidate);
-        actToAdd--;
-      }
-    }
+    this.rebalanceLeadMarket();
   }
 
   private populateInitialMarket(): void {

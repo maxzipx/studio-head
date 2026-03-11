@@ -113,6 +113,91 @@ describe('StudioManager', () => {
     expect(manager.decisionQueue.some((item) => item.title === 'Replacement Decision')).toBe(true);
   });
 
+  it('stops auto-advance on the next inbox change using the default limit', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, rivalRng: () => 1 });
+    (manager as unknown as { eventDeck: unknown[] }).eventDeck = [
+      {
+        id: 'auto-advance-replacement',
+        category: 'operations',
+        scope: 'studio',
+        title: 'Replacement Event',
+        decisionTitle: 'Replacement Decision',
+        body: 'replacement',
+        cooldownWeeks: 1,
+        baseWeight: 10,
+        minWeek: 1,
+        buildDecision: ({ idFactory }: { idFactory: (prefix: string) => string }) => ({
+          id: idFactory('decision'),
+          projectId: null,
+          title: 'Replacement Decision',
+          body: 'replacement',
+          weeksUntilExpiry: 2,
+          options: [
+            {
+              id: idFactory('opt'),
+              label: 'Ok',
+              preview: 'ok',
+              cashDelta: 0,
+              scriptQualityDelta: 0,
+              hypeDelta: 0,
+            },
+          ],
+        }),
+      },
+    ];
+    manager.decisionQueue = [
+      {
+        id: 'expiring-decision',
+        projectId: null,
+        title: 'Expiring Decision',
+        body: 'expiring',
+        weeksUntilExpiry: 0,
+        options: [
+          {
+            id: 'expiring-opt',
+            label: 'Ok',
+            preview: 'ok',
+            cashDelta: 0,
+            scriptQualityDelta: 0,
+            hypeDelta: 0,
+          },
+        ],
+      },
+    ];
+
+    const result = manager.advanceUntilDecision();
+
+    expect(result.success).toBe(true);
+    expect(result.reason).toBe('decision');
+    expect(result.advancedWeeks).toBe(1);
+    expect(manager.currentWeek).toBe(2);
+  });
+
+  it('caps auto-advance to 8 weeks when nothing new enters the inbox', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      eventRng: () => 0.999,
+      rivalRng: () => 0.999,
+      negotiationRng: () => 0.999,
+      startWithSeedProjects: false,
+      includeOpeningDecisions: false,
+    });
+    manager.currentWeek = 4;
+    manager.decisionQueue = [];
+    manager.inboxNotifications = [];
+    manager.pendingReleaseReveals = [];
+    manager.pendingFinalReleaseReveals = [];
+    manager.activeProjects = [];
+
+    const result = manager.advanceUntilDecision();
+
+    expect(result.success).toBe(true);
+    expect(result.reason).toBe('limit');
+    expect(result.advancedWeeks).toBe(8);
+    expect(manager.currentWeek).toBe(12);
+    expect(result.message).toContain('no new inbox change');
+  });
+
   it('blocks endWeek when unresolved crises exist', () => {
     const manager = new StudioManager({ crisisRng: () => 0.0 });
     manager.endWeek();
@@ -1574,6 +1659,87 @@ describe('StudioManager', () => {
     expect(visibleActresses).toBeGreaterThan(0);
     expect(visibleDirectors).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_DIRECTORS);
     expect(visibleLeadTotal).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
+  });
+
+  it('restores at least one visible actress after actresses disappear from the visible market', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+    for (const talent of manager.talentPool) {
+      if (talent.role === 'leadActress' && talent.marketWindowExpiresWeek !== null) {
+        talent.marketWindowExpiresWeek = null;
+      }
+    }
+
+    manager.refreshTalentMarket();
+
+    const visibleActresses = manager.talentPool.filter(
+      (talent) =>
+        talent.role === 'leadActress' &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
+    expect(visibleActresses.length).toBeGreaterThan(0);
+  });
+
+  it('restores at least one visible actor after actors disappear from the visible market', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+    for (const talent of manager.talentPool) {
+      if (talent.role === 'leadActor' && talent.marketWindowExpiresWeek !== null) {
+        talent.marketWindowExpiresWeek = null;
+      }
+    }
+
+    manager.refreshTalentMarket();
+
+    const visibleActors = manager.talentPool.filter(
+      (talent) =>
+        talent.role === 'leadActor' &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
+    expect(visibleActors.length).toBeGreaterThan(0);
+  });
+
+  it('rebalances a monopolized visible lead market without exceeding the cap', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.42 });
+    const visibleActors = manager.talentPool.filter(
+      (talent) =>
+        talent.role === 'leadActor' &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
+    const hiddenActors = manager.talentPool.filter(
+      (talent) =>
+        talent.role === 'leadActor' &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek === null
+    );
+
+    for (const talent of manager.talentPool) {
+      if (talent.role === 'leadActress') {
+        talent.marketWindowExpiresWeek = null;
+      }
+    }
+
+    const actorTarget = TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS;
+    const actorSlotsNeeded = Math.max(0, actorTarget - visibleActors.length);
+    for (const actor of hiddenActors.slice(0, actorSlotsNeeded)) {
+      actor.marketWindowExpiresWeek = manager.currentWeek + 4;
+    }
+
+    manager.refreshTalentMarket();
+
+    const totalVisibleLeads = manager.talentPool.filter(
+      (talent) =>
+        (talent.role === 'leadActor' || talent.role === 'leadActress') &&
+        talent.availability === 'available' &&
+        talent.marketWindowExpiresWeek !== null
+    );
+    const actorCount = totalVisibleLeads.filter((talent) => talent.role === 'leadActor').length;
+    const actressCount = totalVisibleLeads.filter((talent) => talent.role === 'leadActress').length;
+
+    expect(actorCount).toBeGreaterThan(0);
+    expect(actressCount).toBeGreaterThan(0);
+    expect(totalVisibleLeads.length).toBeLessThanOrEqual(TALENT_MARKET_RULES.MAX_VISIBLE_ACTORS);
   });
 
   it('seeds expanded actor pools with realistic full names and repeated components', () => {
