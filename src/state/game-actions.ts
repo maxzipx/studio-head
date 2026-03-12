@@ -247,6 +247,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
         saveAndTick(result.message);
       });
     },
+    foundAnimationDivision: () => {
+      runWhenHydrated(() => {
+        const result = manager.foundAnimationDivision();
+        saveAndTick(result.message);
+      });
+    },
     acquireIpRights: (ipId: string) => {
       runWhenHydrated(() => {
         const result = manager.acquireIpRights(ipId);

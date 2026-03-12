@@ -112,4 +112,25 @@ describe('game store autosave queue', () => {
 
     expect(latestSave.manager?.tutorialState).toBe('strategy');
   });
+
+  it('persists animation division unlock through the store action layer', async () => {
+    setItemMock.mockResolvedValue(undefined);
+
+    const store = createGameStore();
+    store.setState({ isHydrated: true });
+    const state = store.getState();
+    const startingCash = state.manager.cash;
+
+    state.foundAnimationDivision();
+    await flushPromises();
+
+    const latestSave = JSON.parse(setItemMock.mock.calls.at(-1)?.[1] ?? '{}') as {
+      manager?: { animationDivisionUnlocked?: boolean; cash?: number };
+    };
+
+    expect(store.getState().manager.animationDivisionUnlocked).toBe(true);
+    expect(store.getState().manager.cash).toBe(startingCash - 8_000_000);
+    expect(latestSave.manager?.animationDivisionUnlocked).toBe(true);
+    expect(latestSave.manager?.cash).toBe(startingCash - 8_000_000);
+  });
 });

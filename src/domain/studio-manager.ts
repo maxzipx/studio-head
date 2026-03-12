@@ -103,6 +103,8 @@ import type {
   WeekSummary,
 } from './types';
 
+const ANIMATION_DIVISION_FOUNDING_COST = 8_000_000;
+
 export class StudioManager {
   readonly crisisRng: () => number;
   readonly eventRng: () => number;
@@ -162,6 +164,7 @@ export class StudioManager {
   foundingProfile: FoundingProfile = 'none';
   needsFoundingSetup = true;
   foundingSetupCompletedWeek: number | null = null;
+  animationDivisionUnlocked = false;
   tutorialState: TutorialState = 'hqIntro';
   tutorialCompleted = false;
   tutorialDismissed = false;
@@ -769,6 +772,23 @@ export class StudioManager {
     this.studioCapacityUpgrades = next;
     this.evaluateBankruptcy();
     return { success: true, message: `Studio capacity expanded. Active slot cap is now ${this.projectCapacityLimit}.` };
+  }
+
+  foundAnimationDivision(): { success: boolean; message: string } {
+    if (this.animationDivisionUnlocked) {
+      return { success: false, message: 'Animation Division is already founded.' };
+    }
+    if (this.cash < ANIMATION_DIVISION_FOUNDING_COST) {
+      return {
+        success: false,
+        message: 'Insufficient cash to found Animation Division (8M needed).',
+      };
+    }
+
+    this.adjustCash(-ANIMATION_DIVISION_FOUNDING_COST);
+    this.animationDivisionUnlocked = true;
+    this.evaluateBankruptcy();
+    return { success: true, message: 'Animation Division founded.' };
   }
 
   refreshIpMarketplace(forceMajor = false): void {

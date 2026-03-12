@@ -45,6 +45,7 @@ export interface GameContextValue {
   runTrackingLeverage: (projectId: string) => void;
   upgradeMarketingTeam: () => void;
   upgradeStudioCapacity: () => void;
+  foundAnimationDivision: () => void;
   acquireIpRights: (ipId: string) => void;
   developFromIp: (ipId: string) => void;
   setStudioSpecialization: (focus: StudioSpecialization) => void;

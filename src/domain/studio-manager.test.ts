@@ -81,6 +81,39 @@ describe('StudioManager', () => {
     expect(manager.foundingProfile).toBe('starDriven');
   });
 
+  it('founds the animation division once and deducts the unlock cost', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    const cashBefore = manager.cash;
+
+    const result = manager.foundAnimationDivision();
+
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Animation Division founded.');
+    expect(manager.animationDivisionUnlocked).toBe(true);
+    expect(manager.cash).toBe(cashBefore - 8_000_000);
+  });
+
+  it('refuses to found the animation division twice', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    manager.foundAnimationDivision();
+
+    const result = manager.foundAnimationDivision();
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('already founded');
+  });
+
+  it('refuses to found the animation division without enough cash', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95 });
+    manager.cash = 7_999_999;
+
+    const result = manager.foundAnimationDivision();
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('8M needed');
+    expect(manager.animationDivisionUnlocked).toBe(false);
+  });
+
   it('keeps the tutorial ineligible until founding setup is complete', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 

@@ -107,6 +107,27 @@ describe('persistence restore', () => {
     expect(restored.foundingSetupCompletedWeek).toBeNull();
   });
 
+  it('serializes and restores animation division unlock state', () => {
+    const manager = new StudioManager();
+    manager.animationDivisionUnlocked = true;
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.animationDivisionUnlocked).toBe(true);
+  });
+
+  it('restores missing animation division unlock from legacy saves as false', () => {
+    const manager = new StudioManager();
+    manager.animationDivisionUnlocked = true;
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete snapshot.animationDivisionUnlocked;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.animationDivisionUnlocked).toBe(false);
+  });
+
   it('serializes and restores tutorial state fields', () => {
     const manager = new StudioManager();
     manager.tutorialState = 'talent';
