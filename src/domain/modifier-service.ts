@@ -65,6 +65,41 @@ export function getExecutiveNetworkModifiers(context: ExecutiveModifierContext):
   };
 }
 
+export function getTrackingConfidenceModifier(context: StudioModifierContext): number {
+  return computeStudioModifiers(context).foundingProfileEffects.trackingConfidenceBonus;
+}
+
+export function getTalentNegotiationChanceModifier(
+  context: StudioModifierContext & ExecutiveModifierContext
+): number {
+  return (
+    computeStudioModifiers(context).foundingProfileEffects.negotiationChanceBonus +
+    getExecutiveNetworkModifiers(context).negotiationChanceBonus
+  );
+}
+
+export function getAwardsCampaignModifier(context: StudioModifierContext): number {
+  return computeStudioModifiers(context).foundingProfileEffects.awardsCampaignBonus;
+}
+
+export function getFestivalBuzzModifier(context: StudioModifierContext): number {
+  return computeStudioModifiers(context).foundingProfileEffects.festivalBuzzBonus;
+}
+
+export function getFranchiseMomentumModifier(context: StudioModifierContext): number {
+  return computeStudioModifiers(context).foundingProfileEffects.franchiseMomentumBonus;
+}
+
+export function getReleaseSpecializationModifiers(context: StudioModifierContext): SpecializationProfile {
+  return computeStudioModifiers(context).specializationProfile;
+}
+
+export function getDistributionCounterLeverageModifier(
+  context: DepartmentModifierContext & ExecutiveModifierContext
+): number {
+  return getDepartmentModifiers(context).counterOfferLeverage + getExecutiveNetworkModifiers(context).counterOfferLeverage;
+}
+
 export function computeArcOutcomeModifiers(context: ArcModifierContext): ArcOutcomeModifiers {
   const modifiers: ArcOutcomeModifiers = {
     talentLeverage: 0,

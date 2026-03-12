@@ -17,10 +17,13 @@ import type { StudioManager } from '../studio-manager';
 import {
   clamp,
   MILESTONE_LABELS,
-  phaseBurnMultiplier,
   releaseOutcomeFromRoi,
 } from '../studio-manager.constants';
-import { computeStudioModifiers } from '../modifier-service';
+import {
+  getAwardsCampaignModifier,
+  getFestivalBuzzModifier,
+  getReleaseSpecializationModifiers,
+} from '../modifier-service';
 import { estimateWeeklyBurnForStudio, projectedBurnForProjectForStudio } from '../studio-selectors';
 import type {
   ChronicleEntry,
@@ -72,7 +75,7 @@ export class ReleaseService {
     openingHigh: number;
     roi: number;
   } {
-    const studioModifiers = computeStudioModifiers(this.manager);
+    const specializationModifiers = getReleaseSpecializationModifiers(this.manager);
     const director = this.manager.talentPool.find((item) => item.id === project.directorId);
     const lead = this.manager.talentPool
       .filter((item) => project.castIds.includes(item.id) && (item.role === 'leadActor' || item.role === 'leadActress'))
@@ -88,7 +91,7 @@ export class ReleaseService {
       crisisPenalty: project.productionStatus === 'inCrisis' ? 8 : 0,
       chemistryPenalty: 0,
     });
-    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta + studioModifiers.specializationProfile.criticalDelta, 0, 100);
+    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta + specializationModifiers.criticalDelta, 0, 100);
 
     const opening = projectedOpeningWeekendRange({
       genre: project.genre,
@@ -99,7 +102,7 @@ export class ReleaseService {
       seasonalMultiplier: this.manager.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
-    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * studioModifiers.specializationProfile.openingMultiplier;
+    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * specializationModifiers.openingMultiplier;
     const openingLow = opening.low * combinedOpeningMultiplier;
     const openingHigh = opening.high * combinedOpeningMultiplier;
     const openingMid = opening.midpoint * combinedOpeningMultiplier;
@@ -394,11 +397,10 @@ export class ReleaseService {
     }
 
     const awardsArc = this.manager.storyArcs['awards-circuit'];
-    const studioModifiers = computeStudioModifiers(this.manager);
     const baseCampaignBoost =
       (this.manager.hasStoryFlag('awards_campaign') ? 8 : 0) +
-      studioModifiers.specializationProfile.awardsBoost +
-      studioModifiers.foundingProfileEffects.awardsCampaignBonus;
+      getReleaseSpecializationModifiers(this.manager).awardsBoost +
+      getAwardsCampaignModifier(this.manager);
     const baselineFestivalBoost = this.manager.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
@@ -527,7 +529,7 @@ export class ReleaseService {
         project.prestige * 0.2 +
         project.originality * 0.18 +
         project.festivalBuzz * 0.12 +
-        computeStudioModifiers(this.manager).foundingProfileEffects.festivalBuzzBonus +
+        getFestivalBuzzModifier(this.manager) +
         cycleBoost -
         project.controversy * 0.15,
         0,

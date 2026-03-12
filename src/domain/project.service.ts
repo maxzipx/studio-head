@@ -1,5 +1,5 @@
 import { ACTION_BALANCE, FESTIVAL_RULES } from './balance-constants';
-import { computeStudioModifiers, getDepartmentModifiers } from './modifier-service';
+import { getDepartmentModifiers, getTrackingConfidenceModifier } from './modifier-service';
 import { clamp } from './studio-manager.constants';
 import { removeProjectFromFranchiseForManager } from './studio-manager.franchise.actions';
 import type { CrisisEvent, DecisionItem, DepartmentTrack, DistributionOffer, FoundingProfile, MovieProject } from './types';
@@ -79,7 +79,7 @@ export function runTestScreeningForManager(manager: ProjectManagerAdapter, proje
     const projection = manager.getProjectedForProject(projectId);
     if (!projection) return { success: false, message: 'Projection unavailable.' };
     const confidence = clamp(
-        0.58 + manager.marketingTeamLevel * 0.08 + computeStudioModifiers(manager).foundingProfileEffects.trackingConfidenceBonus,
+        0.58 + manager.marketingTeamLevel * 0.08 + getTrackingConfidenceModifier(manager),
         0.6,
         0.9
     );
@@ -142,7 +142,7 @@ export function runTrackingLeverageForManager(manager: ProjectManagerAdapter, pr
     if (!projection) return { success: false, message: 'Tracking unavailable right now.' };
 
     const confidence = clamp(
-        0.57 + manager.marketingTeamLevel * 0.075 + computeStudioModifiers(manager).foundingProfileEffects.trackingConfidenceBonus,
+        0.57 + manager.marketingTeamLevel * 0.075 + getTrackingConfidenceModifier(manager),
         0.6,
         0.9
     );

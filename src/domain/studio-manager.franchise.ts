@@ -1,6 +1,6 @@
 import { PROJECT_BALANCE } from './balance-constants';
 import { createId } from './id';
-import { computeStudioModifiers } from './modifier-service';
+import { getFranchiseMomentumModifier } from './modifier-service';
 import type {
   CastRequirements,
   FranchiseStatusSnapshot,
@@ -284,7 +284,7 @@ function ensureFranchiseForBase(manager: StudioManager, baseProject: MovieProjec
     }
   }
 
-  const initialMomentum = deriveMomentum(baseProject, 8, computeStudioModifiers(manager).foundingProfileEffects.franchiseMomentumBonus);
+  const initialMomentum = deriveMomentum(baseProject, 8, getFranchiseMomentumModifier(manager));
   const initialFatigue = deriveFatigue(baseProject, 8, 1);
   const franchise: FranchiseTrack = {
     id: createId('franchise'),
@@ -348,7 +348,7 @@ export function getSequelEligibilityForManager(manager: StudioManager, projectId
     : null;
   const priorReleases = Math.max(1, existingFranchise?.releasedProjectIds.length ?? 1);
   const priorFatigue = existingFranchise?.fatigue ?? 8;
-  const projectedMomentum = deriveMomentum(baseProject, priorFatigue, computeStudioModifiers(manager).foundingProfileEffects.franchiseMomentumBonus);
+  const projectedMomentum = deriveMomentum(baseProject, priorFatigue, getFranchiseMomentumModifier(manager));
   const projectedFatigue = deriveFatigue(baseProject, priorFatigue, priorReleases);
   const carryoverHype = deriveCarryoverHype(baseProject, projectedMomentum, projectedFatigue);
   const upfrontCost = deriveUpfrontSequelCost(baseProject.genre);
