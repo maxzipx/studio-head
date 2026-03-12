@@ -9,6 +9,12 @@ import type {
 } from './types';
 import { createId } from './id';
 import { TALENT_LIFECYCLE } from './balance-constants';
+import {
+  TALENT_GEN_CONFIG,
+  TALENT_GENRES,
+  TALENT_POOL_SIZES,
+  getTalentRoleProfile,
+} from './data/talent-gen-config';
 import { reserveSeededTalentName } from './talent-names';
 
 function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
@@ -36,21 +42,6 @@ function createInitialRivalMemory(
     interactionHistory: [],
   };
 }
-
-const TALENT_GENRES: MovieGenre[] = [
-  'action',
-  'drama',
-  'comedy',
-  'horror',
-  'thriller',
-  'sciFi',
-  'animation',
-  'documentary',
-];
-
-const DIRECTOR_POOL_SIZE = 60;
-const LEAD_ACTOR_POOL_SIZE = 135;
-const LEAD_ACTRESS_POOL_SIZE = 135;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -95,23 +86,50 @@ function pickDistinctGenres(seedIndex: number, seedOffset: number): [MovieGenre,
 
 function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): Partial<Record<MovieGenre, number>> {
   const seedOffset = worldSeed % TALENT_GENRES.length;
-  const worldSalt = (worldSeed % 97) * 0.07;
+  const worldSalt = (worldSeed % 97) * TALENT_GEN_CONFIG.nameSeed.genreWorldSaltScale;
   const [primary, secondary, tertiary, wildcard] = pickDistinctGenres(seedIndex, seedOffset);
-  const primaryBase = role === 'director' ? 0.8 : 0.76;
-  const secondaryBase = role === 'director' ? 0.67 : 0.64;
-  const tertiaryBase = role === 'director' ? 0.56 : 0.54;
+  const roleProfile = TALENT_GEN_CONFIG.genreFit[getTalentRoleProfile(role)];
 
   return {
-    [primary]: roundTo(clampNumber(primaryBase + seededUnit(seedIndex, 31 + worldSalt) * 0.2, 0.72, 0.98), 2),
-    [secondary]: roundTo(clampNumber(secondaryBase + seededUnit(seedIndex, 32 + worldSalt) * 0.18, 0.55, 0.9), 2),
-    [tertiary]: roundTo(clampNumber(tertiaryBase + seededUnit(seedIndex, 33 + worldSalt) * 0.16, 0.45, 0.82), 2),
-    [wildcard]: roundTo(clampNumber(0.42 + seededUnit(seedIndex, 34 + worldSalt) * 0.22, 0.35, 0.75), 2),
+    [primary]: roundTo(
+      clampNumber(
+        roleProfile.primary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[0] + worldSalt) * TALENT_GEN_CONFIG.genreFit.primarySpread,
+        TALENT_GEN_CONFIG.genreFit.clamp.primary[0],
+        TALENT_GEN_CONFIG.genreFit.clamp.primary[1]
+      ),
+      2
+    ),
+    [secondary]: roundTo(
+      clampNumber(
+        roleProfile.secondary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[1] + worldSalt) * TALENT_GEN_CONFIG.genreFit.secondarySpread,
+        TALENT_GEN_CONFIG.genreFit.clamp.secondary[0],
+        TALENT_GEN_CONFIG.genreFit.clamp.secondary[1]
+      ),
+      2
+    ),
+    [tertiary]: roundTo(
+      clampNumber(
+        roleProfile.tertiary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[2] + worldSalt) * TALENT_GEN_CONFIG.genreFit.tertiarySpread,
+        TALENT_GEN_CONFIG.genreFit.clamp.tertiary[0],
+        TALENT_GEN_CONFIG.genreFit.clamp.tertiary[1]
+      ),
+      2
+    ),
+    [wildcard]: roundTo(
+      clampNumber(
+        TALENT_GEN_CONFIG.genreFit.wildcardBase +
+          seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[3] + worldSalt) * TALENT_GEN_CONFIG.genreFit.wildcardSpread,
+        TALENT_GEN_CONFIG.genreFit.clamp.wildcard[0],
+        TALENT_GEN_CONFIG.genreFit.clamp.wildcard[1]
+      ),
+      2
+    ),
   };
 }
 
 function pickAgentTier(starPower: number, reputation: number, seedIndex: number, worldSeed: number): Talent['agentTier'] {
-  const worldSalt = (worldSeed % 83) * 0.09;
-  const agencyScore = starPower * 6 + reputation * 0.52 + seededUnit(seedIndex, 44 + worldSalt) * 10;
+  const worldSalt = (worldSeed % 83) * TALENT_GEN_CONFIG.nameSeed.agentWorldSaltScale;
+  const agencyScore = starPower * 6 + reputation * 0.52 + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.agentTier + worldSalt) * 10;
   if (agencyScore >= 105) return 'aea';
   if (agencyScore >= 94) return 'wma';
   if (agencyScore >= 84) return 'tca';
@@ -119,60 +137,104 @@ function pickAgentTier(starPower: number, reputation: number, seedIndex: number,
 }
 
 function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number, usedNames: Set<string>): Talent {
-  const worldSalt = (worldSeed % 251) * 0.11;
+  const worldSalt = (worldSeed % 251) * TALENT_GEN_CONFIG.nameSeed.worldSaltScale;
+  const roleProfile = getTalentRoleProfile(role);
   const starPower = roundTo(
     clampNumber(
-      4.1 + seededUnit(seedIndex, 11 + worldSalt) * 5.7 + (role === 'director' ? 0.35 : 0),
-      3.8,
-      9.9
+      TALENT_GEN_CONFIG.starPower.base +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.starPower + worldSalt) * TALENT_GEN_CONFIG.starPower.spread +
+        (role === 'director' ? TALENT_GEN_CONFIG.starPower.directorBonus : 0),
+      TALENT_GEN_CONFIG.starPower.clamp[0],
+      TALENT_GEN_CONFIG.starPower.clamp[1]
     ),
     1
   );
 
   const craftScore = roundTo(
     clampNumber(
-      4.6 + seededUnit(seedIndex, 12 + worldSalt) * 5.1 + (role === 'director' ? 0.85 : 0),
-      4,
-      9.9
+      TALENT_GEN_CONFIG.craftScore.base +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.craftScore + worldSalt) * TALENT_GEN_CONFIG.craftScore.spread +
+        (role === 'director' ? TALENT_GEN_CONFIG.craftScore.directorBonus : 0),
+      TALENT_GEN_CONFIG.craftScore.clamp[0],
+      TALENT_GEN_CONFIG.craftScore.clamp[1]
     ),
     1
   );
 
   const egoLevel = roundTo(
     clampNumber(
-      2 + seededUnit(seedIndex, 13 + worldSalt) * 7.4 + (role === 'leadActor' || role === 'leadActress' ? 0.45 : 0),
-      1.8,
-      9.8
+      TALENT_GEN_CONFIG.egoLevel.base +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.egoLevel + worldSalt) * TALENT_GEN_CONFIG.egoLevel.spread +
+        (roleProfile === 'cast' ? TALENT_GEN_CONFIG.egoLevel.leadBonus : 0),
+      TALENT_GEN_CONFIG.egoLevel.clamp[0],
+      TALENT_GEN_CONFIG.egoLevel.clamp[1]
     ),
     1
   );
 
   const reputation = Math.round(
-    clampNumber(45 + seededUnit(seedIndex, 14 + worldSalt) * 46 + (role === 'director' ? 3 : 0), 40, 96)
+    clampNumber(
+      TALENT_GEN_CONFIG.reputation.base +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.reputation + worldSalt) * TALENT_GEN_CONFIG.reputation.spread +
+        (role === 'director' ? TALENT_GEN_CONFIG.reputation.directorBonus : 0),
+      TALENT_GEN_CONFIG.reputation.clamp[0],
+      TALENT_GEN_CONFIG.reputation.clamp[1]
+    )
   );
-  const studioRelationship = roundTo(clampNumber(0.05 + seededUnit(seedIndex, 15 + worldSalt) * 0.57, 0.02, 0.75), 2);
+  const studioRelationship = roundTo(
+    clampNumber(
+      TALENT_GEN_CONFIG.studioRelationship.base +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.studioRelationship + worldSalt) * TALENT_GEN_CONFIG.studioRelationship.spread,
+      TALENT_GEN_CONFIG.studioRelationship.clamp[0],
+      TALENT_GEN_CONFIG.studioRelationship.clamp[1]
+    ),
+    2
+  );
 
   const baseSalary =
     role === 'director'
-      ? roundMoney(550_000 + craftScore * 220_000 + starPower * 95_000 + seededUnit(seedIndex, 16 + worldSalt) * 500_000)
-      : roundMoney(650_000 + starPower * 260_000 + craftScore * 110_000 + seededUnit(seedIndex, 16 + worldSalt) * 650_000);
+      ? roundMoney(
+          TALENT_GEN_CONFIG.salary.director.base +
+            craftScore * TALENT_GEN_CONFIG.salary.director.craftScale +
+            starPower * TALENT_GEN_CONFIG.salary.director.starScale +
+            seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.salary + worldSalt) * TALENT_GEN_CONFIG.salary.director.spread
+        )
+      : roundMoney(
+          TALENT_GEN_CONFIG.salary.cast.base +
+            starPower * TALENT_GEN_CONFIG.salary.cast.starScale +
+            craftScore * TALENT_GEN_CONFIG.salary.cast.craftScale +
+            seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.salary + worldSalt) * TALENT_GEN_CONFIG.salary.cast.spread
+        );
 
   const backendPoints = roundTo(
-    clampNumber(0.6 + starPower * 0.28 + craftScore * 0.12 + seededUnit(seedIndex, 17 + worldSalt) * 0.9, 0.5, 5.5),
+    clampNumber(
+      TALENT_GEN_CONFIG.backendPoints.base +
+        starPower * TALENT_GEN_CONFIG.backendPoints.starScale +
+        craftScore * TALENT_GEN_CONFIG.backendPoints.craftScale +
+        seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.backendPoints + worldSalt) * TALENT_GEN_CONFIG.backendPoints.spread,
+      TALENT_GEN_CONFIG.backendPoints.clamp[0],
+      TALENT_GEN_CONFIG.backendPoints.clamp[1]
+    ),
     1
   );
 
   const perksCost = roundMoney(
-    50_000 + egoLevel * 55_000 + starPower * 22_000 + seededUnit(seedIndex, 18 + worldSalt) * 120_000
+    TALENT_GEN_CONFIG.perksCost.base +
+      egoLevel * TALENT_GEN_CONFIG.perksCost.egoScale +
+      starPower * TALENT_GEN_CONFIG.perksCost.starScale +
+      seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.perksCost + worldSalt) * TALENT_GEN_CONFIG.perksCost.spread
   );
 
   // Age: Box-Muller approximation using two seeded uniform samples.
   // Higher craftScore nudges age older; high starPower + low craft nudges younger.
-  const u1 = Math.max(0.0001, seededUnit(seedIndex, 50 + worldSalt));
-  const u2 = seededUnit(seedIndex, 51 + worldSalt);
+  const u1 = Math.max(0.0001, seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.ageU1 + worldSalt));
+  const u2 = seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.ageU2 + worldSalt);
   const normalSample = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  const craftAgeBias = (craftScore - 6) * 1.5;
-  const starYouthBias = starPower > 7 && craftScore < 6 ? -5 : 0;
+  const craftAgeBias = (craftScore - 6) * TALENT_GEN_CONFIG.age.craftBiasScale;
+  const starYouthBias =
+    starPower > TALENT_GEN_CONFIG.age.starYouthStarThreshold && craftScore < TALENT_GEN_CONFIG.age.starYouthCraftThreshold
+      ? TALENT_GEN_CONFIG.age.starYouthBias
+      : 0;
   const rawAge = TALENT_LIFECYCLE.SEED_MEAN_AGE + normalSample * TALENT_LIFECYCLE.SEED_AGE_STDDEV + craftAgeBias + starYouthBias;
   const age = clampNumber(Math.round(rawAge), TALENT_LIFECYCLE.SEED_MIN_AGE, TALENT_LIFECYCLE.SEED_MAX_AGE);
   const birthWeek = -(age * 52);
@@ -215,17 +277,17 @@ export function createSeedTalentPool(worldSeed = 0): Talent[] {
   const usedNames = new Set<string>();
   let seedIndex = 0;
 
-  for (let i = 0; i < DIRECTOR_POOL_SIZE; i += 1) {
+  for (let i = 0; i < TALENT_POOL_SIZES.director; i += 1) {
     talentPool.push(buildTalentSeed(seedIndex, 'director', normalizedSeed, usedNames));
     seedIndex += 1;
   }
 
-  for (let i = 0; i < LEAD_ACTOR_POOL_SIZE; i += 1) {
+  for (let i = 0; i < TALENT_POOL_SIZES.leadActor; i += 1) {
     talentPool.push(buildTalentSeed(seedIndex, 'leadActor', normalizedSeed, usedNames));
     seedIndex += 1;
   }
 
-  for (let i = 0; i < LEAD_ACTRESS_POOL_SIZE; i += 1) {
+  for (let i = 0; i < TALENT_POOL_SIZES.leadActress; i += 1) {
     talentPool.push(buildTalentSeed(seedIndex, 'leadActress', normalizedSeed, usedNames));
     seedIndex += 1;
   }

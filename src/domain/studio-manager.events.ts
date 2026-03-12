@@ -1,4 +1,10 @@
 import { EVENT_BALANCE, SEASONAL_RULES } from './balance-constants';
+import {
+  CRISIS_GENERATION_RULES,
+  EVENT_GENERATION_RULES,
+  EVENT_WEIGHT_RULES,
+  SCRIPT_MARKET_REFILL_RULES,
+} from './data/event-eligibility-config';
 import { isTierMet, isTierExceeded } from './studio-manager.constants';
 import { createId } from './id';
 import { createSeedScriptMarket } from './seeds';
@@ -36,9 +42,9 @@ function pickScriptByDemandForManager(manager: StudioManager, pool: ScriptPitch[
   weighted.sort((a, b) => b.weight - a.weight);
 
   // Keep some randomness, but strongly bias toward hot genres so cycles affect the script market.
-  if (manager.eventRng() < 0.45) {
+  if (manager.eventRng() < SCRIPT_MARKET_REFILL_RULES.topDemandBiasChance) {
     const maxWeight = weighted[0]?.weight ?? 0;
-    const topTier = weighted.filter((entry) => entry.weight >= maxWeight - 0.01);
+    const topTier = weighted.filter((entry) => entry.weight >= maxWeight - SCRIPT_MARKET_REFILL_RULES.topDemandWeightWindow);
     const topIdx = Math.floor(manager.eventRng() * topTier.length);
     return topTier[topIdx]?.item ?? null;
   }
@@ -86,7 +92,7 @@ export function tickScriptMarketExpiryForManager(manager: StudioManager, events:
 }
 
 export function refillScriptMarketForManager(manager: StudioManager, events: string[]): void {
-  const targetOffers = 4;
+  const targetOffers = SCRIPT_MARKET_REFILL_RULES.targetOffers;
   if (manager.scriptMarket.length >= targetOffers) return;
 
   const catalog = createSeedScriptMarket().filter(
@@ -111,23 +117,37 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
     let askingPrice = source.askingPrice;
 
     if (tier === 'bargain') {
-      const qualityPenalty = 0.5 + manager.eventRng() * 0.2;
-      const conceptPenalty = 0.5 + manager.eventRng() * 0.2;
-      const priceMultiplier = 0.1 + manager.eventRng() * 0.1;
+      const qualityPenalty =
+        SCRIPT_MARKET_REFILL_RULES.bargain.qualityPenaltyBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.bargain.qualityPenaltySpread;
+      const conceptPenalty =
+        SCRIPT_MARKET_REFILL_RULES.bargain.conceptPenaltyBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.bargain.conceptPenaltySpread;
+      const priceMultiplier =
+        SCRIPT_MARKET_REFILL_RULES.bargain.priceMultiplierBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.bargain.priceMultiplierSpread;
       scriptQuality = clamp(source.scriptQuality * qualityPenalty, 1, 9.9);
       conceptStrength = clamp(source.conceptStrength * conceptPenalty, 1, 9.9);
       askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
     } else if (tier === 'biddingWar') {
-      const qualityBoost = 1.5 + manager.eventRng() * 1.0;
-      const conceptBoost = 1.5 + manager.eventRng() * 1.0;
-      const priceMultiplier = 2.5 + manager.eventRng() * 1.5;
+      const qualityBoost =
+        SCRIPT_MARKET_REFILL_RULES.biddingWar.qualityBoostBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.biddingWar.qualityBoostSpread;
+      const conceptBoost =
+        SCRIPT_MARKET_REFILL_RULES.biddingWar.conceptBoostBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.biddingWar.conceptBoostSpread;
+      const priceMultiplier =
+        SCRIPT_MARKET_REFILL_RULES.biddingWar.priceMultiplierBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.biddingWar.priceMultiplierSpread;
       scriptQuality = clamp(source.scriptQuality + qualityBoost, 1, 9.8);
       conceptStrength = clamp(source.conceptStrength + conceptBoost, 1, 9.8);
       askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
     } else {
-      const qualityJitter = (manager.eventRng() - 0.5) * 2.0;
-      const conceptJitter = (manager.eventRng() - 0.5) * 2.0;
-      const priceMultiplier = 0.7 + manager.eventRng() * 0.7;
+      const qualityJitter = (manager.eventRng() - 0.5) * SCRIPT_MARKET_REFILL_RULES.standard.qualityJitterSpread;
+      const conceptJitter = (manager.eventRng() - 0.5) * SCRIPT_MARKET_REFILL_RULES.standard.conceptJitterSpread;
+      const priceMultiplier =
+        SCRIPT_MARKET_REFILL_RULES.standard.priceMultiplierBase +
+        manager.eventRng() * SCRIPT_MARKET_REFILL_RULES.standard.priceMultiplierSpread;
       scriptQuality = clamp(source.scriptQuality + qualityJitter, 1, 9.9);
       conceptStrength = clamp(source.conceptStrength + conceptJitter, 1, 9.9);
       askingPrice = Math.max(25_000, Math.round(source.askingPrice * priceMultiplier));
@@ -147,15 +167,15 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
     existingTitles.add(refreshed.title);
     added += 1;
     weightedDemandAccumulator += typeof manager.getGenreDemandMultiplier === 'function' ? manager.getGenreDemandMultiplier(refreshed.genre) : 1;
-    if (added > 12) break;
+    if (added > SCRIPT_MARKET_REFILL_RULES.refillSafetyCap) break;
   }
 
   if (added > 0) {
     const meanDemand = weightedDemandAccumulator / Math.max(1, added);
     const tilt =
-      meanDemand >= 1.08
+      meanDemand >= SCRIPT_MARKET_REFILL_RULES.hotDemandTiltThreshold
         ? 'Market is chasing hotter audience cycles.'
-        : meanDemand <= 0.94
+        : meanDemand <= SCRIPT_MARKET_REFILL_RULES.coldDemandTiltThreshold
           ? 'Market is leaning into contrarian script bets.'
           : 'Market mix is balanced this week.';
     events.push(`${added} new script offer(s) entered the market. ${tilt}`);
@@ -167,12 +187,20 @@ export function rollForCrisesForManager(manager: StudioManager, events: string[]
 
   const weeksSinceLastGeneratedCrisis =
     manager.lastGeneratedCrisisWeek === null ? Number.POSITIVE_INFINITY : manager.currentWeek - manager.lastGeneratedCrisisWeek;
-  const recentCrisisSuppression = weeksSinceLastGeneratedCrisis <= 1 ? 0.4 : 1;
+  const recentCrisisSuppression =
+    weeksSinceLastGeneratedCrisis <= CRISIS_GENERATION_RULES.recentSuppressionWeeks
+      ? CRISIS_GENERATION_RULES.recentSuppressionMultiplier
+      : 1;
 
   for (const project of manager.activeProjects) {
     if (!['preProduction', 'production', 'postProduction'].includes(project.phase)) continue;
     const riskBoost = project.budget.overrunRisk * 0.2;
-    const baseThreshold = project.phase === 'production' ? 0.16 : project.phase === 'postProduction' ? 0.1 : 0.08;
+    const baseThreshold =
+      project.phase === 'production'
+        ? CRISIS_GENERATION_RULES.baseThresholdByPhase.production
+        : project.phase === 'postProduction'
+          ? CRISIS_GENERATION_RULES.baseThresholdByPhase.postProduction
+          : CRISIS_GENERATION_RULES.baseThresholdByPhase.preProduction;
     const rollThreshold = (baseThreshold + riskBoost) * recentCrisisSuppression;
     if (manager.crisisRng() > rollThreshold) continue;
 
@@ -201,7 +229,7 @@ function buildContextSnapshot(manager: StudioManager): BuildDecisionContext {
 }
 
 export function generateEventDecisionsForManager(manager: StudioManager, events: string[]): void {
-  if (manager.decisionQueue.length >= 4) return;
+  if (manager.decisionQueue.length >= EVENT_GENERATION_RULES.maxQueuedDecisions) return;
 
   const queuedTitles = new Set(manager.decisionQueue.map((item) => item.title));
   const candidates = manager.eventDeck
@@ -223,7 +251,7 @@ export function generateEventDecisionsForManager(manager: StudioManager, events:
 
   const context = buildContextSnapshot(manager);
 
-  for (let attempt = 0; attempt < Math.min(3, candidates.length); attempt++) {
+  for (let attempt = 0; attempt < Math.min(EVENT_GENERATION_RULES.maxPickAttempts, candidates.length); attempt++) {
     if (candidates.length === 0) break;
 
     const total = candidates.reduce((sum, item) => sum + item.weight, 0);
@@ -310,17 +338,17 @@ export function eventWeightForManager(manager: StudioManager, event: EventTempla
   if (event.scope === 'project' && candidates.length === 0) return 0;
 
   if (event.scope === 'project') {
-    weight += Math.min(1.3, candidates.length * 0.32);
+    weight += Math.min(EVENT_WEIGHT_RULES.projectScopeWeightCap, candidates.length * EVENT_WEIGHT_RULES.projectScopeWeightStep);
   }
 
-  if (event.category === 'finance' && manager.cash < 25_000_000) {
-    weight += 0.45;
+  if (event.category === 'finance' && manager.cash < EVENT_WEIGHT_RULES.financeLowCashThreshold) {
+    weight += EVENT_WEIGHT_RULES.financeWeightBonus;
   }
   if (event.category === 'marketing' && manager.studioHeat < EVENT_BALANCE.LOW_HEAT_MARKETING_WEIGHT_THRESHOLD) {
-    weight += 0.35;
+    weight += EVENT_WEIGHT_RULES.marketingLowHeatWeightBonus;
   }
   if (event.category === 'operations' && manager.pendingCrises.length > 0) {
-    weight *= 0.75;
+    weight *= EVENT_WEIGHT_RULES.operationsActiveCrisisMultiplier;
   }
   weight += modifiers.categoryBias[event.category] ?? 0;
 
@@ -330,22 +358,22 @@ export function eventWeightForManager(manager: StudioManager, event: EventTempla
   }
 
   if (manager.recentDecisionCategories[0] === event.category) {
-    weight *= 0.7;
+    weight *= EVENT_WEIGHT_RULES.repeatCategoryPenalty;
   }
   if (manager.recentDecisionCategories[0] === event.category && manager.recentDecisionCategories[1] === event.category) {
-    weight *= 0.55;
+    weight *= EVENT_WEIGHT_RULES.repeatCategoryStackPenalty;
   }
 
   // Seasonal weight modifier
   const weekInYear = manager.currentWeek % 52;
   if (weekInYear >= SEASONAL_RULES.AWARDS_SEASON.startWeek && weekInYear <= SEASONAL_RULES.AWARDS_SEASON.endWeek) {
-    if (event.category === 'marketing' || event.id.includes('award')) weight *= 1.4;
+    if (event.category === 'marketing' || event.id.includes('award')) weight *= EVENT_WEIGHT_RULES.awardsSeasonMultiplier;
   }
   if (weekInYear >= SEASONAL_RULES.SUMMER_BLOCKBUSTER.startWeek && weekInYear <= SEASONAL_RULES.SUMMER_BLOCKBUSTER.endWeek) {
-    if (event.category === 'marketing' || event.category === 'finance') weight *= 1.2;
+    if (event.category === 'marketing' || event.category === 'finance') weight *= EVENT_WEIGHT_RULES.summerCampaignMultiplier;
   }
   if (weekInYear >= SEASONAL_RULES.HOLIDAY_CORRIDOR.startWeek && weekInYear <= SEASONAL_RULES.HOLIDAY_CORRIDOR.endWeek) {
-    if (event.category === 'operations') weight *= 1.3;
+    if (event.category === 'operations') weight *= EVENT_WEIGHT_RULES.holidayOperationsMultiplier;
   }
 
   return weight;
