@@ -1793,6 +1793,43 @@ describe('StudioManager', () => {
     expect(manager.scriptMarket.length).toBeLessThanOrEqual(4);
   });
 
+  it('excludes animation scripts from the market before the animation division is unlocked', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.scriptMarket = [];
+    for (const genre of Object.keys(manager.genreCycles) as (keyof typeof manager.genreCycles)[]) {
+      manager.genreCycles[genre].demand = genre === 'animation' ? 1.4 : 0.72;
+      manager.genreCycles[genre].momentum = 0;
+      manager.genreCycles[genre].shockDirection = null;
+      manager.genreCycles[genre].shockLabel = null;
+      manager.genreCycles[genre].shockStrength = null;
+      manager.genreCycles[genre].shockUntilWeek = null;
+    }
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    expect(manager.scriptMarket.every((script) => script.genre !== 'animation')).toBe(true);
+  });
+
+  it('allows animation scripts into the market after the animation division is unlocked', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, startWithSeedProjects: false, includeOpeningDecisions: false });
+    manager.animationDivisionUnlocked = true;
+    manager.scriptMarket = [];
+    for (const genre of Object.keys(manager.genreCycles) as (keyof typeof manager.genreCycles)[]) {
+      manager.genreCycles[genre].demand = genre === 'animation' ? 1.4 : 0.72;
+      manager.genreCycles[genre].momentum = 0;
+      manager.genreCycles[genre].shockDirection = null;
+      manager.genreCycles[genre].shockLabel = null;
+      manager.genreCycles[genre].shockStrength = null;
+      manager.genreCycles[genre].shockUntilWeek = null;
+    }
+
+    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+
+    expect(manager.scriptMarket.length).toBeGreaterThan(0);
+    expect(manager.scriptMarket.some((script) => script.genre === 'animation')).toBe(true);
+  });
+
   it('generates bargain-bin scripts with steep discounts and quality penalties', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0, startWithSeedProjects: false, includeOpeningDecisions: false });
     manager.scriptMarket = [];

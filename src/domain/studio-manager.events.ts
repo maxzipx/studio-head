@@ -89,7 +89,9 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
   const targetOffers = 4;
   if (manager.scriptMarket.length >= targetOffers) return;
 
-  const catalog = createSeedScriptMarket();
+  const catalog = createSeedScriptMarket().filter(
+    (item) => manager.animationDivisionUnlocked || item.genre !== 'animation'
+  );
   const existingTitles = new Set([
     ...manager.scriptMarket.map((item) => item.title),
     ...manager.activeProjects.map((item) => item.title),
