@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "eas-build-pre-install": "node ./scripts/eas-pre-install.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
