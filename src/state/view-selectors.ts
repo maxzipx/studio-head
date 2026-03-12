@@ -1,4 +1,4 @@
-import type { CrisisEvent, DecisionItem, InboxNotification, MovieProject, ReleaseReport } from '../domain/types';
+import type { CrisisEvent, DecisionItem, InboxNotification, MovieProject, ReleaseReport, Talent } from '../domain/types';
 import type { GameState } from './game-store';
 import {
   buildBoxOfficeReleasedSignature,
@@ -53,6 +53,7 @@ export function selectInboxView(state: GameState): InboxViewState {
 export interface BoxOfficeViewState {
   projects: MovieProject[];
   releaseReports: ReleaseReport[];
+  talentPool: Talent[];
   lastMessage: string | null;
   releasedSignature: string;
   reportsSignature: string;
@@ -63,6 +64,7 @@ export function selectBoxOfficeView(state: GameState): BoxOfficeViewState {
   return {
     projects: manager.activeProjects,
     releaseReports: manager.releaseReports,
+    talentPool: manager.talentPool,
     lastMessage: state.lastMessage,
     releasedSignature: buildBoxOfficeReleasedSignature(manager.activeProjects),
     reportsSignature: buildReleaseReportsSignature(manager.releaseReports),

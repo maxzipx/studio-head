@@ -11,6 +11,11 @@ function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
+function formatGenre(genre: string): string {
+  if (genre === 'sciFi') return 'Sci-Fi';
+  return genre.charAt(0).toUpperCase() + genre.slice(1);
+}
+
 function outcomeLabel(roi: number): string {
   if (roi >= 3) return 'BLOCKBUSTER';
   if (roi >= 1) return 'HIT';
@@ -19,12 +24,13 @@ function outcomeLabel(roi: number): string {
 
 export default function BoxOfficeScreen() {
   const router = useRouter();
-  const { projects, releaseReports, lastMessage } = useGameStore(useShallow(selectBoxOfficeView));
+  const { projects, releaseReports, talentPool, lastMessage } = useGameStore(useShallow(selectBoxOfficeView));
 
   const released = projects
     .filter((project) => project.phase === 'released')
     .sort((a, b) => (b.finalBoxOffice ?? 0) - (a.finalBoxOffice ?? 0));
   const reportByProjectId = new Map<string, (typeof releaseReports)[number]>();
+  const talentNameById = new Map(talentPool.map((talent) => [talent.id, talent.name]));
   for (const report of releaseReports) {
     const existing = reportByProjectId.get(report.projectId);
     if (!existing || report.weekResolved > existing.weekResolved) {
@@ -59,6 +65,18 @@ export default function BoxOfficeScreen() {
         const totalGross = report?.totalGross ?? Math.round(project.finalBoxOffice ?? 0);
         const profit = report?.profit ?? Math.round(totalGross * project.studioRevenueShare - totalBudget);
         const roi = report?.roi ?? project.projectedROI;
+        const directorName = project.directorId ? talentNameById.get(project.directorId) : null;
+        const castNames = project.castIds
+          .map((talentId) => talentNameById.get(talentId))
+          .filter((name): name is string => Boolean(name));
+        const metadataParts = [formatGenre(project.genre)];
+        if (directorName) {
+          metadataParts.push(`Dir. ${directorName}`);
+        }
+        if (castNames.length > 0) {
+          metadataParts.push(`Cast: ${castNames.join(', ')}`);
+        }
+        const talentMetadata = metadataParts.join(' · ');
         const openProjectDetail = () => router.push(`/project/${project.id}`);
 
         return (
@@ -66,7 +84,7 @@ export default function BoxOfficeScreen() {
             key={project.id}
             onPress={openProjectDetail}
             style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
-          >
+            >
             <View style={styles.tableRow}>
               <Text style={[styles.bodyStrong, styles.filmCol]}>{project.title}</Text>
               <Text style={styles.body}>{money(totalBudget)}</Text>
@@ -74,6 +92,7 @@ export default function BoxOfficeScreen() {
               <Text style={[styles.body, profit >= 0 ? styles.positive : styles.negative]}>{money(profit)}</Text>
               <Text style={[styles.bodyStrong, roi >= 1 ? styles.positive : styles.negative]}>{outcomeLabel(roi)}</Text>
             </View>
+            <Text style={styles.meta}>{talentMetadata}</Text>
             <Text style={styles.meta}>
               ROI {roi.toFixed(2)}x | Critics {project.criticalScore?.toFixed(0) ?? '--'} | Audience {project.audienceScore?.toFixed(0) ?? '--'}
             </Text>
