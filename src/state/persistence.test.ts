@@ -128,6 +128,32 @@ describe('persistence restore', () => {
     expect(restored.animationDivisionUnlocked).toBe(false);
   });
 
+  it('serializes and restores crisis pacing fields', () => {
+    const manager = new StudioManager();
+    manager.lastGeneratedCrisisWeek = 12;
+    manager.generatedCrisisThisTurn = true;
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.lastGeneratedCrisisWeek).toBe(12);
+    expect(restored.generatedCrisisThisTurn).toBe(true);
+  });
+
+  it('restores missing crisis pacing fields from legacy saves with safe defaults', () => {
+    const manager = new StudioManager();
+    manager.lastGeneratedCrisisWeek = 8;
+    manager.generatedCrisisThisTurn = true;
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete snapshot.lastGeneratedCrisisWeek;
+    delete snapshot.generatedCrisisThisTurn;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.lastGeneratedCrisisWeek).toBeNull();
+    expect(restored.generatedCrisisThisTurn).toBe(false);
+  });
+
   it('serializes and restores tutorial state fields', () => {
     const manager = new StudioManager();
     manager.tutorialState = 'talent';

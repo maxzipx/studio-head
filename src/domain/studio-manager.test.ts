@@ -449,6 +449,61 @@ describe('StudioManager', () => {
     expect(summary.week).toBe(manager.currentWeek);
   });
 
+  it('limits fresh crisis generation to one new blocking crisis per turn window', () => {
+    const manager = new StudioManager({ crisisRng: () => 0, rivalRng: () => 1 });
+    manager.pendingCrises = [];
+    manager.generatedCrisisThisTurn = false;
+    manager.activeProjects = manager.activeProjects.slice(0, 2);
+    for (const project of manager.activeProjects) {
+      project.phase = 'production';
+      project.productionStatus = 'onTrack';
+      project.budget.overrunRisk = 0.6;
+    }
+
+    const events: string[] = [];
+    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+
+    expect(manager.pendingCrises.length).toBe(1);
+    expect(manager.generatedCrisisThisTurn).toBe(true);
+    expect(manager.lastGeneratedCrisisWeek).toBe(manager.currentWeek);
+
+    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+    expect(manager.pendingCrises.length).toBe(1);
+  });
+
+  it('reduces immediate back-to-back crisis generation after a recent crisis week', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.09, rivalRng: () => 1 });
+    const project = manager.activeProjects[0];
+    project.phase = 'production';
+    project.productionStatus = 'onTrack';
+    project.budget.overrunRisk = 0.2;
+    manager.pendingCrises = [];
+    manager.generatedCrisisThisTurn = false;
+    manager.lastGeneratedCrisisWeek = manager.currentWeek - 1;
+
+    const events: string[] = [];
+    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+
+    expect(manager.pendingCrises.length).toBe(0);
+    expect(manager.generatedCrisisThisTurn).toBe(false);
+  });
+
+  it('resets the per-turn crisis generation flag at the start of a new player turn', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      eventRng: () => 0.95,
+      rivalRng: () => 0.95,
+      negotiationRng: () => 0.95,
+      startWithSeedProjects: false,
+      includeOpeningDecisions: false,
+    });
+    manager.generatedCrisisThisTurn = true;
+
+    manager.endTurn();
+
+    expect(manager.generatedCrisisThisTurn).toBe(false);
+  });
+
   it('returns a clear failure result when resolving a stale crisis', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const result = manager.resolveCrisis('missing-crisis', 'missing-option');

@@ -81,6 +81,8 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (typeof manager.needsFoundingSetup !== 'boolean') manager.needsFoundingSetup = false;
   if (!Number.isFinite(manager.foundingSetupCompletedWeek)) manager.foundingSetupCompletedWeek = null;
   if (typeof manager.animationDivisionUnlocked !== 'boolean') manager.animationDivisionUnlocked = false;
+  if (!Number.isFinite(manager.lastGeneratedCrisisWeek)) manager.lastGeneratedCrisisWeek = null;
+  if (typeof manager.generatedCrisisThisTurn !== 'boolean') manager.generatedCrisisThisTurn = false;
   // Tutorial restore intentionally happens in three passes: validate the enum,
   // derive missing booleans from that sanitized state, then normalize the
   // combination into one terminal shape. Reordering these steps changes
@@ -717,6 +719,8 @@ export const SERIALIZE_MANAGER_KEYS = [
   'needsFoundingSetup',
   'foundingSetupCompletedWeek',
   'animationDivisionUnlocked',
+  'lastGeneratedCrisisWeek',
+  'generatedCrisisThisTurn',
   'tutorialState',
   'tutorialCompleted',
   'tutorialDismissed',
@@ -796,6 +800,12 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
   }
   if (!Object.hasOwn(input, 'animationDivisionUnlocked')) {
     manager.animationDivisionUnlocked = false;
+  }
+  if (!Object.hasOwn(input, 'lastGeneratedCrisisWeek')) {
+    manager.lastGeneratedCrisisWeek = null;
+  }
+  if (!Object.hasOwn(input, 'generatedCrisisThisTurn')) {
+    manager.generatedCrisisThisTurn = false;
   }
   if (
     !Object.hasOwn(input, 'tutorialState') &&

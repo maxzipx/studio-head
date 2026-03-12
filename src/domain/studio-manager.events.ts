@@ -163,22 +163,26 @@ export function refillScriptMarketForManager(manager: StudioManager, events: str
 }
 
 export function rollForCrisesForManager(manager: StudioManager, events: string[]): void {
-  const generated: CrisisEvent[] = [];
+  if (manager.generatedCrisisThisTurn) return;
+
+  const weeksSinceLastGeneratedCrisis =
+    manager.lastGeneratedCrisisWeek === null ? Number.POSITIVE_INFINITY : manager.currentWeek - manager.lastGeneratedCrisisWeek;
+  const recentCrisisSuppression = weeksSinceLastGeneratedCrisis <= 1 ? 0.4 : 1;
+
   for (const project of manager.activeProjects) {
     if (!['preProduction', 'production', 'postProduction'].includes(project.phase)) continue;
     const riskBoost = project.budget.overrunRisk * 0.2;
     const baseThreshold = project.phase === 'production' ? 0.16 : project.phase === 'postProduction' ? 0.1 : 0.08;
-    const rollThreshold = baseThreshold + riskBoost;
+    const rollThreshold = (baseThreshold + riskBoost) * recentCrisisSuppression;
     if (manager.crisisRng() > rollThreshold) continue;
 
     const crisis = buildOperationalCrisisForManager(manager, project);
-    generated.push(crisis);
+    manager.pendingCrises.push(crisis);
     project.productionStatus = 'inCrisis';
-  }
-
-  if (generated.length > 0) {
-    manager.pendingCrises.push(...generated);
-    events.push(`${generated.length} crisis event(s) triggered.`);
+    manager.generatedCrisisThisTurn = true;
+    manager.lastGeneratedCrisisWeek = manager.currentWeek;
+    events.push('1 crisis event(s) triggered.');
+    break;
   }
 }
 

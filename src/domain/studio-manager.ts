@@ -165,6 +165,8 @@ export class StudioManager {
   needsFoundingSetup = true;
   foundingSetupCompletedWeek: number | null = null;
   animationDivisionUnlocked = false;
+  lastGeneratedCrisisWeek: number | null = null;
+  generatedCrisisThisTurn = false;
   tutorialState: TutorialState = 'hqIntro';
   tutorialCompleted = false;
   tutorialDismissed = false;
@@ -182,6 +184,7 @@ export class StudioManager {
   marketActorIdx = 0;
   marketLeadActorIdx = 0;
   marketLeadActressIdx = 0;
+  private processingTurn = false;
   private readonly lifecycleService = new ProjectLifecycleService(this);
   private readonly franchiseService = new FranchiseService(this);
   private readonly rivalAiService = new RivalAiService(this);
@@ -1455,6 +1458,9 @@ export class StudioManager {
     if (!this.canEndWeek) {
       throw new Error('Resolve all crises before ending the week.');
     }
+    if (!this.processingTurn) {
+      this.generatedCrisisThisTurn = false;
+    }
     this.newlyAcquiredProjectId = null;
 
     const cashBefore = this.cash;
@@ -1537,6 +1543,9 @@ export class StudioManager {
       throw new Error('Resolve all crises before ending the week.');
     }
 
+    this.generatedCrisisThisTurn = false;
+    this.processingTurn = true;
+
     const targetWeeks = TURN_RULES.WEEKS_PER_TURN;
     const cashBefore = this.cash;
     const combinedEvents: string[] = [];
@@ -1565,13 +1574,17 @@ export class StudioManager {
       }
     }
 
-    for (let step = 0; step < targetWeeks; step += 1) {
-      if (!this.canEndWeek) {
-        combinedEvents.push('Turn paused: resolve crisis before advancing further.');
-        break;
+    try {
+      for (let step = 0; step < targetWeeks; step += 1) {
+        if (!this.canEndWeek) {
+          combinedEvents.push('Turn paused: resolve crisis before advancing further.');
+          break;
+        }
+        const weekly = this.endWeek();
+        combinedEvents.push(...weekly.events);
       }
-      const weekly = this.endWeek();
-      combinedEvents.push(...weekly.events);
+    } finally {
+      this.processingTurn = false;
     }
 
     const summary: WeekSummary = {
@@ -1619,6 +1632,7 @@ export class StudioManager {
   applyWeeklyBurn(): number { return this.releaseService.applyWeeklyBurn(); }
   refillScriptMarket(events: string[]): void { this.eventService.refillScriptMarket(events); }
   tickDecisionExpiry(events: string[]): void { this.eventService.tickDecisionExpiry(events); }
+  rollForCrises(events: string[]): void { this.eventService.rollForCrises(events); }
   processRivalTalentAcquisitions(events: string[]): void { this.rivalAiService.processRivalTalentAcquisitions(events); }
   processRivalCalendarMoves(events: string[]): void { this.rivalAiService.processRivalCalendarMoves(events); }
   processRivalSignatureMoves(events: string[]): void {
