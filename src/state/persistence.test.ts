@@ -154,6 +154,27 @@ describe('persistence restore', () => {
     expect(restored.generatedCrisisThisTurn).toBe(false);
   });
 
+  it('serializes and restores scale overhead cadence state', () => {
+    const manager = new StudioManager();
+    manager.lastScaleOverheadWeek = 27;
+
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.lastScaleOverheadWeek).toBe(27);
+  });
+
+  it('restores missing scale overhead cadence state from legacy saves with a safe default', () => {
+    const manager = new StudioManager();
+    manager.lastScaleOverheadWeek = 27;
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    delete snapshot.lastScaleOverheadWeek;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.lastScaleOverheadWeek).toBe(1);
+  });
+
   it('serializes and restores tutorial state fields', () => {
     const manager = new StudioManager();
     manager.tutorialState = 'talent';

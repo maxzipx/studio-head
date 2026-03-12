@@ -167,6 +167,7 @@ export class StudioManager {
   animationDivisionUnlocked = false;
   lastGeneratedCrisisWeek: number | null = null;
   generatedCrisisThisTurn = false;
+  lastScaleOverheadWeek = 1;
   tutorialState: TutorialState = 'hqIntro';
   tutorialCompleted = false;
   tutorialDismissed = false;
@@ -413,6 +414,10 @@ export class StudioManager {
 
   adjustCash(delta: number): void {
     adjustCashForManager(this, delta);
+  }
+
+  getScaleOverheadCost(): number {
+    return 250_000 * TIER_RANK[this.studioTier] + 100_000 * this.projectCapacityLimit;
   }
 
   getTalentTrustLevel(talent: Talent): TalentTrustLevel {
@@ -1470,6 +1475,12 @@ export class StudioManager {
     const burn = this.releaseService.applyWeeklyBurn();
     if (burn > 0) {
       events.push(`Production burn applied: -$${Math.round(burn / 1000)}K`);
+    }
+    if (this.currentWeek - this.lastScaleOverheadWeek >= 13) {
+      const scaleOverhead = this.getScaleOverheadCost();
+      this.adjustCash(-scaleOverhead);
+      this.lastScaleOverheadWeek = this.currentWeek;
+      events.push(`Scale overhead applied: -$${Math.round(scaleOverhead / 1000)}K`);
     }
 
     this.releaseService.applyHypeDecay();

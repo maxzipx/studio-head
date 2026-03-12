@@ -114,6 +114,27 @@ describe('StudioManager', () => {
     expect(manager.animationDivisionUnlocked).toBe(false);
   });
 
+  it('applies recurring scale overhead every 13 weeks based on tier and capacity', () => {
+    const manager = new StudioManager({
+      crisisRng: () => 0.95,
+      eventRng: () => 0.99,
+      rivalRng: () => 0.99,
+      negotiationRng: () => 0.99,
+      startWithSeedProjects: false,
+      includeOpeningDecisions: false,
+    });
+    manager.currentWeek = 14;
+    manager.lastScaleOverheadWeek = 1;
+    const expectedCost = manager.getScaleOverheadCost();
+    const cashBefore = manager.cash;
+
+    const summary = manager.endWeek();
+
+    expect(manager.cash).toBe(cashBefore - expectedCost);
+    expect(manager.lastScaleOverheadWeek).toBe(14);
+    expect(summary.events.some((entry) => entry.includes('Scale overhead applied'))).toBe(true);
+  });
+
   it('keeps the tutorial ineligible until founding setup is complete', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
