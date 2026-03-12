@@ -162,15 +162,27 @@ export function selectFinancialsView(state: GameState): FinancialsViewState {
 export interface HQViewState {
   manager: GameState['manager'];
   lastMessage: string | null;
+  advanceToNextDecision: GameState['advanceToNextDecision'];
+  resolveCrisis: GameState['resolveCrisis'];
+  resolveDecision: GameState['resolveDecision'];
+  dismissDecision: GameState['dismissDecision'];
+  dismissReleaseReveal: GameState['dismissReleaseReveal'];
+  dismissInboxNotification: GameState['dismissInboxNotification'];
   endWeek: GameState['endWeek'];
   runOptionalAction: GameState['runOptionalAction'];
   upgradeMarketingTeam: GameState['upgradeMarketingTeam'];
   upgradeStudioCapacity: GameState['upgradeStudioCapacity'];
+  foundAnimationDivision: GameState['foundAnimationDivision'];
   setStudioSpecialization: GameState['setStudioSpecialization'];
+  completeFoundingSetup: GameState['completeFoundingSetup'];
+  advanceTutorial: GameState['advanceTutorial'];
+  dismissTutorial: GameState['dismissTutorial'];
+  restartTutorial: GameState['restartTutorial'];
   investDepartment: GameState['investDepartment'];
   signExclusivePartner: GameState['signExclusivePartner'];
   poachExecutiveTeam: GameState['poachExecutiveTeam'];
   renameStudio: GameState['renameStudio'];
+  startNewRun: GameState['startNewRun'];
   tick: number;
 }
 
@@ -178,15 +190,27 @@ export function selectHQView(state: GameState): HQViewState {
   return {
     manager: state.manager,
     lastMessage: state.lastMessage,
+    advanceToNextDecision: state.advanceToNextDecision,
+    resolveCrisis: state.resolveCrisis,
+    resolveDecision: state.resolveDecision,
+    dismissDecision: state.dismissDecision,
+    dismissReleaseReveal: state.dismissReleaseReveal,
+    dismissInboxNotification: state.dismissInboxNotification,
     endWeek: state.endWeek,
     runOptionalAction: state.runOptionalAction,
     upgradeMarketingTeam: state.upgradeMarketingTeam,
     upgradeStudioCapacity: state.upgradeStudioCapacity,
+    foundAnimationDivision: state.foundAnimationDivision,
     setStudioSpecialization: state.setStudioSpecialization,
+    completeFoundingSetup: state.completeFoundingSetup,
+    advanceTutorial: state.advanceTutorial,
+    dismissTutorial: state.dismissTutorial,
+    restartTutorial: state.restartTutorial,
     investDepartment: state.investDepartment,
     signExclusivePartner: state.signExclusivePartner,
     poachExecutiveTeam: state.poachExecutiveTeam,
     renameStudio: state.renameStudio,
+    startNewRun: state.startNewRun,
     tick: state.tick,
   };
 }
