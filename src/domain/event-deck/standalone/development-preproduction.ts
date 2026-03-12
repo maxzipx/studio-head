@@ -1,20 +1,15 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const developmentPreproductionEvents: EventTemplate[] = [
+export const developmentPreproductionEvents: EventTemplateDraft[] = [
 // ─── Phase 4: New Standalone Events ──────────────────────────────────────
 
     {
       id: 'emerging-talent-showcase',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['production'],
       title: 'Breakout Performance',
       decisionTitle: 'Breakout Performance',
       body: 'Dailies show a supporting cast member delivering work well above their billing. Agents have already noticed.',
-      cooldownWeeks: 5,
-      baseWeight: 1.1,
-      minWeek: 3,
-      maxStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -60,14 +55,9 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       id: 'veteran-mentor-attachment',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['development', 'preProduction'],
       title: 'Veteran Mentor Offer',
       decisionTitle: 'Veteran Mentor Offer',
       body: 'A legendary filmmaker, now semi-retired, is available for a consulting credit. The name still carries weight in the room.',
-      cooldownWeeks: 8,
-      baseWeight: 0.9,
-      minWeek: 2,
-      maxStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -103,14 +93,9 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       id: 'union-action-warning',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['production'],
       title: 'Union Warning',
       decisionTitle: 'Union Warning',
       body: 'A guild rep delivers a formal notice about overtime conditions in your production department. Not a threat yet. Noted.',
-      cooldownWeeks: 4,
-      baseWeight: 1.15,
-      minWeek: 3,
-      maxStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -159,14 +144,9 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       id: 'breakout-casting-instinct',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['development', 'preProduction'],
       title: 'Unknown Lead Recommendation',
       decisionTitle: 'Unknown Lead Recommendation',
       body: 'Casting is pushing hard for a no-name lead. No agent, no track record. The audition tape is exceptional.',
-      cooldownWeeks: 6,
-      baseWeight: 0.95,
-      minWeek: 2,
-      maxStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -202,3 +182,5 @@ export const developmentPreproductionEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

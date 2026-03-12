@@ -1,19 +1,14 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const talentExhibitorCoreEvents: EventTemplate[] = [
-{
+export const talentExhibitorCoreEvents: EventTemplateDraft[] = [
+  {
       id: 'star-renegotiation-shock',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['production', 'postProduction'],
       blocksArc: { id: 'talent-meltdown', status: 'resolved' },
       title: 'Star Renegotiation Shock',
       decisionTitle: 'Star Renegotiation Ultimatum',
       body: 'Lead talent requests major contract revisions after early buzz tracking.',
-      cooldownWeeks: 7,
-      baseWeight: 0.95,
-      minWeek: 4,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -52,15 +47,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'tabloid-on-set-leak',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['production', 'postProduction', 'distribution'],
       requiresArc: { id: 'talent-meltdown', minStage: 1, status: 'active' },
       title: 'Tabloid Set Leak',
       decisionTitle: 'Star PR Crisis',
       body: 'A tabloid leak alleges toxic on-set behavior around your lead talent.',
-      cooldownWeeks: 8,
-      baseWeight: 1.05,
-      minWeek: 6,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -119,15 +109,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'talent-endgame-judgment',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresArc: { id: 'talent-meltdown', minStage: 2, status: 'active' },
       title: 'Talent Endgame Judgment',
       decisionTitle: 'Final Talent Fallout Decision',
       body: 'Distributors demand confidence in campaign leadership before final push.',
-      cooldownWeeks: 9,
-      baseWeight: 0.9,
-      minWeek: 8,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -176,15 +161,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'exclusivity-term-sheet',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['distribution'],
       blocksArc: { id: 'exhibitor-war', status: 'resolved' },
       title: 'Exhibitor Exclusivity Demand',
       decisionTitle: 'Exclusivity Term Sheet',
       body: 'Top exhibitors offer premium screens in exchange for stricter exclusivity terms.',
-      cooldownWeeks: 7,
-      baseWeight: 1.05,
-      minWeek: 6,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -230,15 +210,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'rival-screen-squeeze',
       category: 'operations',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresArc: { id: 'exhibitor-war', minStage: 1, status: 'active' },
       title: 'Rival Screen Squeeze',
       decisionTitle: 'Screen Share Countermove',
       body: 'A rival studio books aggressive previews and threatens your prime slots.',
-      cooldownWeeks: 8,
-      baseWeight: 1.1,
-      minWeek: 7,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -286,15 +261,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'opening-weekend-lockout',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['released'],
       requiresArc: { id: 'exhibitor-war', minStage: 2, status: 'active' },
       title: 'Opening Weekend Lockout Threat',
       decisionTitle: 'Exhibitor Lockout Crisis',
       body: 'Two chains threaten reduced showtimes unless terms are amended before weekend.',
-      cooldownWeeks: 10,
-      baseWeight: 0.95,
-      minWeek: 9,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -347,10 +317,6 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       title: 'Exhibitor Summit Invite',
       decisionTitle: 'Exhibitor Summit Invitation',
       body: 'Major chains invite your studio to lock preferred screen commitments for the next cycle.',
-      cooldownWeeks: 9,
-      baseWeight: 0.68,
-      minWeek: 8,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -402,15 +368,10 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       id: 'release-window-showdown',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution'],
       requiresArc: { id: 'exhibitor-power-play', minStage: 1, status: 'active' },
       title: 'Release Window Showdown',
       decisionTitle: 'Release Window Showdown',
       body: 'Competing studios crowd your date and exhibitors want certainty before locking final allocations.',
-      cooldownWeeks: 10,
-      baseWeight: 0.74,
-      minWeek: 10,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -464,10 +425,6 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       title: 'Theatrical Identity Vote',
       decisionTitle: 'Theatrical Identity Vote',
       body: 'Your board wants a clear theatrical strategy before the next slate is greenlit.',
-      cooldownWeeks: 12,
-      baseWeight: 0.7,
-      minWeek: 12,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -520,3 +477,5 @@ export const talentExhibitorCoreEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

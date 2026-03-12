@@ -1,18 +1,13 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const marketFinanceCoreEvents: EventTemplate[] = [
-{
+export const marketFinanceCoreEvents: EventTemplateDraft[] = [
+  {
       id: 'premium-trailer-placement',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['postProduction', 'distribution'],
       title: 'Trailer Slot',
       decisionTitle: 'Premium Trailer Placement',
       body: 'A distributor opens premium trailer placement for a short window.',
-      cooldownWeeks: 4,
-      baseWeight: 1.1,
-      minWeek: 3,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -45,14 +40,9 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       id: 'brand-integration-deal',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['production', 'distribution'],
       title: 'Brand Integration Offer',
       decisionTitle: 'Brand Integration Deal',
       body: 'A consumer brand offers placement money with approval rights.',
-      cooldownWeeks: 5,
-      baseWeight: 1,
-      minWeek: 4,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -90,10 +80,6 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       title: 'Bridge Financing Offer',
       decisionTitle: 'Bridge Financing Term Sheet',
       body: 'A lender offers a short facility to smooth production cashflow.',
-      cooldownWeeks: 7,
-      baseWeight: 0.9,
-      minWeek: 2,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -129,14 +115,9 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       id: 'agency-package-push',
       category: 'talent',
       scope: 'project',
-      targetPhases: ['development', 'preProduction'],
       title: 'Agency Package Push',
       decisionTitle: 'Agency Packaging Proposal',
       body: 'A major agency offers a packaged talent bundle with a short deadline.',
-      cooldownWeeks: 5,
-      baseWeight: 0.95,
-      minWeek: 4,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -167,3 +148,5 @@ export const marketFinanceCoreEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

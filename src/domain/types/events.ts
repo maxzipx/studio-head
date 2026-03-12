@@ -95,25 +95,26 @@ export interface ArcRequirement {
   status?: 'active' | 'resolved' | 'failed';
 }
 
-export interface EventTemplate {
+export interface EventEligibilityConfig {
+  targetPhases?: ProjectPhase[];
+  minStudioTier?: StudioTier;
+  maxStudioTier?: StudioTier;
+  cooldownWeeks?: number;
+  baseWeight?: number;
+  minWeek?: number;
+}
+
+export interface EventTemplateDraft extends EventEligibilityConfig {
   id: string;
   category: DecisionCategory;
   scope: 'project' | 'studio';
-  targetPhases?: ProjectPhase[];
   requiresFlag?: string;
   blocksFlag?: string;
   requiresArc?: ArcRequirement;
   blocksArc?: ArcRequirement;
-  /** Event only fires at or above this studio tier */
-  minStudioTier?: StudioTier;
-  /** Event retires (stops firing) above this studio tier */
-  maxStudioTier?: StudioTier;
   title: string;
   decisionTitle: string;
   body: string;
-  cooldownWeeks: number;
-  baseWeight: number;
-  minWeek: number;
   buildDecision: (input: {
     idFactory: (prefix: string) => string;
     projectId: string | null;
@@ -121,6 +122,12 @@ export interface EventTemplate {
     currentWeek: number;
     context: BuildDecisionContext;
   }) => DecisionItem | null;
+}
+
+export interface EventTemplate extends EventTemplateDraft {
+  cooldownWeeks: number;
+  baseWeight: number;
+  minWeek: number;
 }
 
 export interface StoryArcState {

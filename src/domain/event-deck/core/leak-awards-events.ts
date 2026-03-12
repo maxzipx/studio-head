@@ -1,20 +1,15 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const leakAwardsCoreEvents: EventTemplate[] = [
-{
+export const leakAwardsCoreEvents: EventTemplateDraft[] = [
+  {
       id: 'leaked-rough-cut',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['postProduction', 'distribution'],
       blocksFlag: 'security_hardened',
       blocksArc: { id: 'leak-piracy', status: 'resolved' },
       title: 'Rough Cut Leak',
       decisionTitle: 'Leak Response Plan',
       body: 'A low-quality clip spread online before marketing was ready.',
-      cooldownWeeks: 6,
-      baseWeight: 0.95,
-      minWeek: 5,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -65,16 +60,11 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       id: 'anti-piracy-sweep',
       category: 'operations',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresFlag: 'security_breach',
       requiresArc: { id: 'leak-piracy', minStage: 1, status: 'active' },
       title: 'Piracy Fallout',
       decisionTitle: 'Piracy Countermeasure',
       body: 'Leak chatter converted into early piracy copies in two territories.',
-      cooldownWeeks: 6,
-      baseWeight: 1.2,
-      minWeek: 6,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -125,15 +115,10 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       id: 'exhibitor-trust-audit',
       category: 'operations',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresArc: { id: 'leak-piracy', minStage: 2, status: 'active' },
       title: 'Exhibitor Trust Audit',
       decisionTitle: 'Exhibitor Confidence Review',
       body: 'Major exhibitors request anti-piracy assurances before premium placement.',
-      cooldownWeeks: 7,
-      baseWeight: 1.05,
-      minWeek: 8,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -173,15 +158,10 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       id: 'festival-slot',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['postProduction', 'distribution'],
       blocksArc: { id: 'awards-circuit', status: 'resolved' },
       title: 'Festival Programming Slot',
       decisionTitle: 'Festival Slot Offer',
       body: 'A mid-tier festival programmer offers an early slot.',
-      cooldownWeeks: 4,
-      baseWeight: 1.1,
-      minWeek: 3,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -219,16 +199,11 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       id: 'awards-whisper-campaign',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresFlag: 'festival_selected',
       requiresArc: { id: 'awards-circuit', minStage: 1, status: 'active' },
       title: 'Awards Whisper Campaign',
       decisionTitle: 'Awards Campaign Decision',
       body: 'Publicists believe the title has enough momentum for a real awards push.',
-      cooldownWeeks: 8,
-      baseWeight: 0.9,
-      minWeek: 6,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -267,15 +242,10 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       id: 'guild-screening-crunch',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['released'],
       requiresArc: { id: 'awards-circuit', minStage: 2, status: 'active' },
       title: 'Guild Screening Crunch',
       decisionTitle: 'Guild Screening Emergency',
       body: 'Guild screenings underperformed and campaign momentum is fading.',
-      cooldownWeeks: 8,
-      baseWeight: 0.95,
-      minWeek: 9,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -310,3 +280,5 @@ export const leakAwardsCoreEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

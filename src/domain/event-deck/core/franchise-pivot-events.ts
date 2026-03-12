@@ -1,19 +1,14 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const franchisePivotCoreEvents: EventTemplate[] = [
-{
+export const franchisePivotCoreEvents: EventTemplateDraft[] = [
+  {
       id: 'franchise-rights-window',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       blocksArc: { id: 'franchise-pivot', status: 'resolved' },
       title: 'Franchise Rights Window',
       decisionTitle: 'Franchise Rights Reversion',
       body: 'Underlying rights for follow-up stories can be locked now before outside bidders move.',
-      cooldownWeeks: 9,
-      baseWeight: 0.85,
-      minWeek: 8,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -55,10 +50,6 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       title: 'Universe Room Proposal',
       decisionTitle: 'Franchise Room Summit',
       body: 'Development proposes a connected slate room for sequel and spin-off planning.',
-      cooldownWeeks: 10,
-      baseWeight: 0.9,
-      minWeek: 10,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -102,10 +93,6 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       title: 'Flagship Greenlight Crossroads',
       decisionTitle: 'Franchise Flagship Decision',
       body: 'Board asks for final call: flagship sequel slate or return to originals-only mandate.',
-      cooldownWeeks: 12,
-      baseWeight: 0.8,
-      minWeek: 12,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -152,3 +139,5 @@ export const franchisePivotCoreEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

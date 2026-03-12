@@ -1,18 +1,13 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const productionPostEvents: EventTemplate[] = [
-{
+export const productionPostEvents: EventTemplateDraft[] = [
+  {
       id: 'director-vision-clash',
       category: 'creative',
       scope: 'project',
-      targetPhases: ['production'],
       title: 'Director-DP Standoff',
       decisionTitle: 'Director-DP Standoff',
       body: 'Your director and cinematographer are deadlocked over visual approach three weeks into principal photography.',
-      cooldownWeeks: 5,
-      baseWeight: 1.1,
-      minWeek: 3,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -57,14 +52,9 @@ export const productionPostEvents: EventTemplate[] = [
       id: 'cold-audience-test',
       category: 'creative',
       scope: 'project',
-      targetPhases: ['postProduction'],
       title: 'Cold Read Returns',
       decisionTitle: 'Cold Read Returns',
       body: 'An unannounced civilian test screening returns scores that contradict your internal tracking.',
-      cooldownWeeks: 5,
-      baseWeight: 1.05,
-      minWeek: 5,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -107,14 +97,9 @@ export const productionPostEvents: EventTemplate[] = [
       id: 'viral-set-moment',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['production', 'postProduction'],
       title: 'Viral Set Leak',
       decisionTitle: 'Viral Set Leak',
       body: "An unplanned on-set moment was captured on a crew member's phone. It's spreading. You didn't plan this.",
-      cooldownWeeks: 6,
-      baseWeight: 1.0,
-      minWeek: 3,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -160,14 +145,9 @@ export const productionPostEvents: EventTemplate[] = [
       id: 'critic-embargo-request',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution'],
       title: 'Critics Guild Embargo Lift',
       decisionTitle: 'Critics Guild Embargo Lift',
       body: 'A respected critics bloc is requesting an early embargo lift to align with their awards calendar. Your current cut would have to hold up.',
-      cooldownWeeks: 5,
-      baseWeight: 0.95,
-      minWeek: 6,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -213,14 +193,9 @@ export const productionPostEvents: EventTemplate[] = [
       id: 'campaign-repositioning',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution'],
       title: 'Campaign Reposition Window',
       decisionTitle: 'Campaign Reposition Window',
       body: "Test audience data shows the campaign is emphasizing the wrong elements. A pivot is still possible before wide release.",
-      cooldownWeeks: 6,
-      baseWeight: 1.0,
-      minWeek: 6,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -262,3 +237,5 @@ export const productionPostEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

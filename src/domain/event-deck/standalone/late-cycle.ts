@@ -1,18 +1,13 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const lateCycleEvents: EventTemplate[] = [
-{
+export const lateCycleEvents: EventTemplateDraft[] = [
+  {
       id: 'crew-retention-bonus',
       category: 'operations',
       scope: 'project',
-      targetPhases: ['preProduction', 'production'],
       title: 'Crew Retention Bonus Pool',
       decisionTitle: 'Crew Retention Bonus Pool',
       body: 'Department heads warn that fatigue is rising and senior crew could walk before lock.',
-      cooldownWeeks: 11,
-      baseWeight: 0.78,
-      minWeek: 10,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -61,14 +56,9 @@ export const lateCycleEvents: EventTemplate[] = [
       id: 'third-act-clarity-pass',
       category: 'creative',
       scope: 'project',
-      targetPhases: ['postProduction'],
       title: 'Third Act Clarity Pass',
       decisionTitle: 'Third Act Clarity Pass',
       body: 'Late cuts reveal confusion in the final act. There is still time for a targeted fix.',
-      cooldownWeeks: 12,
-      baseWeight: 0.7,
-      minWeek: 11,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -118,10 +108,6 @@ export const lateCycleEvents: EventTemplate[] = [
       title: 'Industry Analyst Day',
       decisionTitle: 'Industry Analyst Day',
       body: 'Trade analysts ask for direct studio briefings on your slate quality and long-term strategy.',
-      cooldownWeeks: 20,
-      baseWeight: 0.66,
-      minWeek: 16,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -170,10 +156,6 @@ export const lateCycleEvents: EventTemplate[] = [
       title: 'Guild Training Initiative',
       decisionTitle: 'Guild Training Initiative',
       body: 'Guild reps invite the studio to co-fund a new below-the-line training pipeline.',
-      cooldownWeeks: 26,
-      baseWeight: 0.6,
-      minWeek: 20,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -220,14 +202,9 @@ export const lateCycleEvents: EventTemplate[] = [
       id: 'release-calendar-jam',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution'],
       title: 'Release Calendar Jam',
       decisionTitle: 'Release Calendar Jam',
       body: 'Two similar titles moved into your corridor and exhibitors are signaling tighter screen access.',
-      cooldownWeeks: 13,
-      baseWeight: 0.76,
-      minWeek: 14,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -277,10 +254,6 @@ export const lateCycleEvents: EventTemplate[] = [
       title: 'Library Restoration Package',
       decisionTitle: 'Library Restoration Package',
       body: 'A restoration vendor offers a discounted package to remaster catalog titles and relaunch them in premium formats.',
-      cooldownWeeks: 30,
-      baseWeight: 0.55,
-      minWeek: 22,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -326,14 +299,9 @@ export const lateCycleEvents: EventTemplate[] = [
       id: 'festival-jury-lobby-window',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['postProduction', 'distribution'],
       title: 'Festival Jury Lobby Window',
       decisionTitle: 'Festival Jury Lobby Window',
       body: 'Publicists present a narrow outreach window to shape early festival juror sentiment.',
-      cooldownWeeks: 14,
-      baseWeight: 0.68,
-      minWeek: 12,
-      minStudioTier: 'majorStudio',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -377,3 +345,5 @@ export const lateCycleEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

@@ -1,17 +1,13 @@
-import type { EventTemplate } from '../../types';
+import type { EventTemplateDraft } from '../../types';
 
-export const studioStrategyEvents: EventTemplate[] = [
-{
+export const studioStrategyEvents: EventTemplateDraft[] = [
+  {
       id: 'first-look-term-sheet',
       category: 'talent',
       scope: 'studio',
       title: 'First-Look Term Sheet',
       decisionTitle: 'First-Look Term Sheet',
       body: 'A major agency is offering an exclusive first-look deal on new material — upfront cost, ongoing script access.',
-      cooldownWeeks: 12,
-      baseWeight: 0.85,
-      minWeek: 5,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -51,10 +47,6 @@ export const studioStrategyEvents: EventTemplate[] = [
       title: 'Year-End Recognition Snub',
       decisionTitle: 'Year-End Recognition Snub',
       body: "A significant industry list omits your studio entirely. The gap between your output and the industry's perception of you is showing.",
-      cooldownWeeks: 18,
-      baseWeight: 0.8,
-      minWeek: 8,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -94,10 +86,6 @@ export const studioStrategyEvents: EventTemplate[] = [
       title: 'Acquisition Rumor',
       decisionTitle: 'Acquisition Rumor',
       body: 'Trade press is running a story that a major studio is interested in acquiring your catalog and key talent relationships.',
-      cooldownWeeks: 15,
-      baseWeight: 0.9,
-      minWeek: 10,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId: null,
@@ -144,14 +132,9 @@ export const studioStrategyEvents: EventTemplate[] = [
       id: 'co-production-offer',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['development', 'preProduction'],
       title: 'Co-Production Offer',
       decisionTitle: 'Co-Production Offer',
       body: 'An international studio proposes co-production terms — shared cost, shared credit, and a required international location pivot.',
-      cooldownWeeks: 7,
-      baseWeight: 1.0,
-      minWeek: 3,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -197,14 +180,9 @@ export const studioStrategyEvents: EventTemplate[] = [
       id: 'completion-bond-audit',
       category: 'finance',
       scope: 'project',
-      targetPhases: ['production', 'postProduction'],
       title: 'Completion Bond Audit',
       decisionTitle: 'Completion Bond Audit',
       body: 'Bond underwriters request a compliance review before they keep covering late-stage risk.',
-      cooldownWeeks: 12,
-      baseWeight: 0.72,
-      minWeek: 10,
-      minStudioTier: 'midTier',
       buildDecision: ({ idFactory, projectId, projectTitle, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -249,3 +227,5 @@ export const studioStrategyEvents: EventTemplate[] = [
       }),
     },
 ];
+
+

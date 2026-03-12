@@ -1,21 +1,16 @@
-import type { EventTemplate } from '../types';
+import type { EventTemplateDraft } from '../types';
 
-export const passionProjectEventDeck: EventTemplate[] = [
+export const passionProjectEventDeck: EventTemplateDraft[] = [
 // ─── Phase 4: New Arc B — passion-project ────────────────────────────────
 
     {
       id: 'final-cut-rights-demand',
       category: 'creative',
       scope: 'project',
-      targetPhases: ['preProduction'],
       blocksArc: { id: 'passion-project', status: 'resolved' },
       title: 'Final Cut Demand',
       decisionTitle: 'Final Cut Demand',
       body: 'Your director wants contractual final cut protection before committing to principal photography. No hedge. No override clause.',
-      cooldownWeeks: 6,
-      baseWeight: 0.95,
-      minWeek: 2,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -68,15 +63,10 @@ export const passionProjectEventDeck: EventTemplate[] = [
       id: 'genre-defying-dailies',
       category: 'creative',
       scope: 'project',
-      targetPhases: ['production'],
       requiresArc: { id: 'passion-project', minStage: 1, status: 'active' },
       title: "The Dailies Don't Lie",
       decisionTitle: "The Dailies Don't Lie",
       body: "What's on screen is more experimental than the pitch deck suggested. The director is running with it. Audiences may not follow.",
-      cooldownWeeks: 8,
-      baseWeight: 1.0,
-      minWeek: 4,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -130,15 +120,10 @@ export const passionProjectEventDeck: EventTemplate[] = [
       id: 'critical-split-reception',
       category: 'marketing',
       scope: 'project',
-      targetPhases: ['distribution', 'released'],
       requiresArc: { id: 'passion-project', minStage: 2, status: 'active' },
       title: 'The Split',
       decisionTitle: 'The Split',
       body: "Festival darlings are calling it a masterwork. Major press is calling it inaccessible. Your distributor is watching the tracking numbers.",
-      cooldownWeeks: 10,
-      baseWeight: 0.95,
-      minWeek: 8,
-      minStudioTier: 'establishedIndie',
       buildDecision: ({ idFactory, projectId, projectTitle, currentWeek, context }) => ({
         id: idFactory('decision'),
         projectId,
@@ -188,3 +173,5 @@ export const passionProjectEventDeck: EventTemplate[] = [
       }),
     },
 ];
+
+
