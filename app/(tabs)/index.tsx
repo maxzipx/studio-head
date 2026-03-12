@@ -37,6 +37,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 export default function HQScreen() {
   const router = useRouter();
+  const animationDivisionCost = 8_000_000;
   const {
     manager,
     tick,
@@ -51,6 +52,7 @@ export default function HQScreen() {
     renameStudio,
     upgradeMarketingTeam,
     upgradeStudioCapacity,
+    foundAnimationDivision,
     setStudioSpecialization,
     completeFoundingSetup,
     advanceTutorial,
@@ -77,6 +79,7 @@ export default function HQScreen() {
       renameStudio: state.renameStudio,
       upgradeMarketingTeam: state.upgradeMarketingTeam,
       upgradeStudioCapacity: state.upgradeStudioCapacity,
+      foundAnimationDivision: state.foundAnimationDivision,
       setStudioSpecialization: state.setStudioSpecialization,
       completeFoundingSetup: state.completeFoundingSetup,
       advanceTutorial: state.advanceTutorial,
@@ -94,7 +97,8 @@ export default function HQScreen() {
         `${mgr.lifetimeExpenses}:${mgr.marketingTeamLevel}:${mgr.projectCapacityUsed}:${mgr.projectCapacityLimit}:` +
         `${mgr.executiveNetworkLevel}:${mgr.decisionQueue.length}:${mgr.pendingCrises.length}:${mgr.activeProjects.length}:` +
         `${mgr.foundingProfile}:${mgr.needsFoundingSetup ? 1 : 0}:${mgr.foundingSetupCompletedWeek ?? -1}:` +
-        `${mgr.tutorialState}:${mgr.tutorialCompleted ? 1 : 0}:${mgr.tutorialDismissed ? 1 : 0}`,
+        `${mgr.tutorialState}:${mgr.tutorialCompleted ? 1 : 0}:${mgr.tutorialDismissed ? 1 : 0}:` +
+        `${mgr.animationDivisionUnlocked ? 1 : 0}`,
       repSignature:
         `${mgr.reputation.critics}:${mgr.reputation.talent}:${mgr.reputation.distributor}:${mgr.reputation.audience}`,
       projectsSignature: mgr.activeProjects
@@ -567,6 +571,22 @@ export default function HQScreen() {
                 style={styles.flexBtn}
               />
             </View>
+            <SectionLabel label="Animation Division" style={{ marginTop: spacing.sp2 }} />
+            <Text style={styles.muted}>
+              Stand up a dedicated animation unit for long-range slate expansion.
+            </Text>
+            <PremiumButton
+              label={
+                manager.animationDivisionUnlocked
+                  ? 'Animation Division Active'
+                  : `Found Animation Division (${money(animationDivisionCost)})`
+              }
+              onPress={foundAnimationDivision}
+              disabled={isGameOver || manager.animationDivisionUnlocked || manager.cash < animationDivisionCost}
+              variant={manager.animationDivisionUnlocked ? 'ghost' : 'secondary'}
+              size="sm"
+              style={{ marginTop: spacing.sp1 }}
+            />
             <Text style={styles.muted}>
               Tier gates: marketing cap L{marketingTierCap}; expansion cap +{capacityTierCap} slot{capacityTierCap === 1 ? '' : 's'} at your current tier.
             </Text>
