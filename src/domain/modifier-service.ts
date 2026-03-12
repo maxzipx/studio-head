@@ -25,13 +25,59 @@ export interface ArcModifierContext extends StudioModifierContext, DepartmentMod
   storyArcs: Record<string, StoryArcState>;
 }
 
-export function computeStudioModifiers(context: StudioModifierContext): {
-  specializationProfile: SpecializationProfile;
-  foundingProfileEffects: FoundingProfileModifiers;
-} {
+export interface StudioModifiers {
+  openingWeekendMultiplier: number;
+  criticalDelta: number;
+  burnMultiplier: number;
+  awardsBoost: number;
+  distributionLeverage: number;
+  negotiationChanceBonus: number;
+  trackingConfidenceBonus: number;
+  franchiseMomentumBonus: number;
+  awardsCampaignBonus: number;
+  festivalBuzzBonus: number;
+  arcHypeDecayAdjustment: number;
+  arcReleaseHeatMomentumBonus: number;
+}
+
+export function computeStudioModifiers(context: StudioModifierContext): StudioModifiers {
+  const specializationEffects = specializationProfile(context.studioSpecialization);
+  const foundingEffects = foundingProfileModifiers(context.foundingProfile);
   return {
-    specializationProfile: specializationProfile(context.studioSpecialization),
-    foundingProfileEffects: foundingProfileModifiers(context.foundingProfile),
+    openingWeekendMultiplier: specializationEffects.openingMultiplier,
+    criticalDelta: specializationEffects.criticalDelta,
+    burnMultiplier: specializationEffects.burnMultiplier,
+    awardsBoost: specializationEffects.awardsBoost,
+    distributionLeverage: specializationEffects.distributionLeverage,
+    negotiationChanceBonus: foundingEffects.negotiationChanceBonus,
+    trackingConfidenceBonus: foundingEffects.trackingConfidenceBonus,
+    franchiseMomentumBonus: foundingEffects.franchiseMomentumBonus,
+    awardsCampaignBonus: foundingEffects.awardsCampaignBonus,
+    festivalBuzzBonus: foundingEffects.festivalBuzzBonus,
+    arcHypeDecayAdjustment: context.studioSpecialization === 'blockbuster' ? -0.2 : 0,
+    arcReleaseHeatMomentumBonus: context.studioSpecialization === 'prestige' ? 0.6 : 0,
+  };
+}
+
+export function getLegacySpecializationProfile(context: StudioModifierContext): SpecializationProfile {
+  const modifiers = computeStudioModifiers(context);
+  return {
+    openingMultiplier: modifiers.openingWeekendMultiplier,
+    criticalDelta: modifiers.criticalDelta,
+    burnMultiplier: modifiers.burnMultiplier,
+    awardsBoost: modifiers.awardsBoost,
+    distributionLeverage: modifiers.distributionLeverage,
+  };
+}
+
+export function getLegacyFoundingProfileEffects(context: StudioModifierContext): FoundingProfileModifiers {
+  const modifiers = computeStudioModifiers(context);
+  return {
+    negotiationChanceBonus: modifiers.negotiationChanceBonus,
+    trackingConfidenceBonus: modifiers.trackingConfidenceBonus,
+    franchiseMomentumBonus: modifiers.franchiseMomentumBonus,
+    awardsCampaignBonus: modifiers.awardsCampaignBonus,
+    festivalBuzzBonus: modifiers.festivalBuzzBonus,
   };
 }
 
@@ -66,32 +112,38 @@ export function getExecutiveNetworkModifiers(context: ExecutiveModifierContext):
 }
 
 export function getTrackingConfidenceModifier(context: StudioModifierContext): number {
-  return computeStudioModifiers(context).foundingProfileEffects.trackingConfidenceBonus;
+  return computeStudioModifiers(context).trackingConfidenceBonus;
 }
 
 export function getTalentNegotiationChanceModifier(
   context: StudioModifierContext & ExecutiveModifierContext
 ): number {
-  return (
-    computeStudioModifiers(context).foundingProfileEffects.negotiationChanceBonus +
-    getExecutiveNetworkModifiers(context).negotiationChanceBonus
-  );
+  return computeStudioModifiers(context).negotiationChanceBonus + getExecutiveNetworkModifiers(context).negotiationChanceBonus;
 }
 
 export function getAwardsCampaignModifier(context: StudioModifierContext): number {
-  return computeStudioModifiers(context).foundingProfileEffects.awardsCampaignBonus;
+  return computeStudioModifiers(context).awardsCampaignBonus;
 }
 
 export function getFestivalBuzzModifier(context: StudioModifierContext): number {
-  return computeStudioModifiers(context).foundingProfileEffects.festivalBuzzBonus;
+  return computeStudioModifiers(context).festivalBuzzBonus;
 }
 
 export function getFranchiseMomentumModifier(context: StudioModifierContext): number {
-  return computeStudioModifiers(context).foundingProfileEffects.franchiseMomentumBonus;
+  return computeStudioModifiers(context).franchiseMomentumBonus;
 }
 
-export function getReleaseSpecializationModifiers(context: StudioModifierContext): SpecializationProfile {
-  return computeStudioModifiers(context).specializationProfile;
+export function getReleaseSpecializationModifiers(
+  context: StudioModifierContext
+): Pick<StudioModifiers, 'openingWeekendMultiplier' | 'criticalDelta' | 'awardsBoost' | 'distributionLeverage' | 'burnMultiplier'> {
+  const modifiers = computeStudioModifiers(context);
+  return {
+    openingWeekendMultiplier: modifiers.openingWeekendMultiplier,
+    criticalDelta: modifiers.criticalDelta,
+    awardsBoost: modifiers.awardsBoost,
+    distributionLeverage: modifiers.distributionLeverage,
+    burnMultiplier: modifiers.burnMultiplier,
+  };
 }
 
 export function getDistributionCounterLeverageModifier(
@@ -159,15 +211,12 @@ export function computeArcOutcomeModifiers(context: ArcModifierContext): ArcOutc
     }
   }
 
-  modifiers.distributionLeverage += studioModifiers.specializationProfile.distributionLeverage;
+  modifiers.distributionLeverage += studioModifiers.distributionLeverage;
   modifiers.distributionLeverage += departmentModifiers.arcDistributionLeverage;
   modifiers.distributionLeverage += executiveModifiers.arcDistributionLeverage;
   modifiers.talentLeverage += executiveModifiers.arcTalentLeverage;
-  if (context.studioSpecialization === 'blockbuster') {
-    modifiers.hypeDecayStep = Math.max(0.8, modifiers.hypeDecayStep - 0.2);
-  } else if (context.studioSpecialization === 'prestige') {
-    modifiers.releaseHeatMomentum += 0.6;
-  }
+  modifiers.hypeDecayStep = Math.max(0.8, modifiers.hypeDecayStep + studioModifiers.arcHypeDecayAdjustment);
+  modifiers.releaseHeatMomentum += studioModifiers.arcReleaseHeatMomentumBonus;
 
   modifiers.burnMultiplier = clamp(modifiers.burnMultiplier, 0.85, 1.2);
   modifiers.distributionLeverage = clamp(modifiers.distributionLeverage, -0.12, 0.12);

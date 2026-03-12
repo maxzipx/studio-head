@@ -102,7 +102,8 @@ export class ReleaseService {
       seasonalMultiplier: this.manager.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
-    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * specializationModifiers.openingMultiplier;
+    const combinedOpeningMultiplier =
+      pressure * franchiseModifiers.openingMultiplier * specializationModifiers.openingWeekendMultiplier;
     const openingLow = opening.low * combinedOpeningMultiplier;
     const openingHigh = opening.high * combinedOpeningMultiplier;
     const openingMid = opening.midpoint * combinedOpeningMultiplier;

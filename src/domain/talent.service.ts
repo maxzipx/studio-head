@@ -5,6 +5,7 @@ import type {
     MovieProject,
     PlayerNegotiation,
     FoundingProfile,
+    StudioSpecialization,
     TalentInteractionKind,
     TalentTrustLevel,
 } from './types';
@@ -22,6 +23,7 @@ export interface TalentManagerAdapter {
     playerNegotiations: PlayerNegotiation[];
     reputation: { talent: number };
     executiveNetworkLevel: number;
+    studioSpecialization: StudioSpecialization;
     foundingProfile: FoundingProfile;
 
     adjustCash(amount: number): void;
@@ -320,7 +322,7 @@ export function talentDealChanceForManager(
     const grudgePenalty = clamp(outlook.grudgeScore / TALENT_NEGOTIATION_RULES.CHANCE_PENALTY_GRUDGE_DIVISOR, 0, 0.2);
     const refusalPenalty = outlook.refusalRisk === 'critical' ? 0.04 : outlook.refusalRisk === 'elevated' ? 0.02 : 0;
     const negotiationBonus = getTalentNegotiationChanceModifier({
-        studioSpecialization: 'balanced',
+        studioSpecialization: manager.studioSpecialization,
         foundingProfile: manager.foundingProfile,
         executiveNetworkLevel: manager.executiveNetworkLevel,
     });

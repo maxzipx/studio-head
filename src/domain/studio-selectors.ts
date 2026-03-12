@@ -122,7 +122,7 @@ export function projectedBurnForProjectForStudio(
     project.budget.ceiling *
     phaseBurnMultiplier(project.phase) *
     burnMultiplier *
-    studioModifiers.specializationProfile.burnMultiplier *
+    studioModifiers.burnMultiplier *
     departmentModifiers.productionEfficiencyMultiplier
   );
 }

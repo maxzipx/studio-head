@@ -56,7 +56,7 @@ import {
   type FoundingProfileModifiers,
   type SpecializationProfile,
 } from './studio-manager.constants';
-import { computeStudioModifiers } from './modifier-service';
+import { getLegacyFoundingProfileEffects, getLegacySpecializationProfile } from './modifier-service';
 import {
   estimateWeeklyBurnForStudio,
   getActiveMilestonesForStudio,
@@ -308,11 +308,11 @@ export class StudioManager {
   }
 
   get specializationProfile(): SpecializationProfile {
-    return computeStudioModifiers(this).specializationProfile;
+    return getLegacySpecializationProfile(this);
   }
 
   get foundingProfileEffects(): FoundingProfileModifiers {
-    return computeStudioModifiers(this).foundingProfileEffects;
+    return getLegacyFoundingProfileEffects(this);
   }
 
   isTutorialEligible(): boolean {
