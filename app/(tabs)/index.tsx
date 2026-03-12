@@ -915,7 +915,10 @@ export default function HQScreen() {
       />
       <FoundingSetupOverlay
         visible={manager.needsFoundingSetup}
-        onComplete={(specialization, foundingProfile) => completeFoundingSetup(specialization, foundingProfile)}
+        onComplete={(studioName, specialization, foundingProfile) => {
+          renameStudio(studioName);
+          completeFoundingSetup(specialization, foundingProfile);
+        }}
       />
       <HqTutorialOverlay
         manager={manager}

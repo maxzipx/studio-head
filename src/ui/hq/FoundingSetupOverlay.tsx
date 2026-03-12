@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { FoundingProfile, StudioSpecialization } from '@/src/domain/types';
 import { GlassCard, PremiumButton, SectionLabel } from '@/src/ui/components';
@@ -10,23 +10,36 @@ import { FOUNDING_PROFILE_OPTIONS, FOUNDING_SPECIALIZATION_OPTIONS } from './fou
 
 interface FoundingSetupOverlayProps {
   visible: boolean;
-  onComplete: (specialization: StudioSpecialization, foundingProfile: FoundingProfile) => void;
+  onComplete: (studioName: string, specialization: StudioSpecialization, foundingProfile: FoundingProfile) => void;
 }
 
 export function FoundingSetupOverlay({ visible, onComplete }: FoundingSetupOverlayProps) {
   const [step, setStep] = useState(1);
+  const [studioName, setStudioName] = useState('');
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const [specialization, setSpecialization] = useState<StudioSpecialization | null>(null);
   const [foundingProfile, setFoundingProfile] = useState<Exclude<FoundingProfile, 'none'> | null>(null);
+  const nameInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!visible) return;
     setStep(1);
+    setStudioName('');
     setSpecialization(null);
     setFoundingProfile(null);
   }, [visible]);
 
+  useEffect(() => {
+    if (visible && step === 1) {
+      const timer = setTimeout(() => nameInputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [visible, step]);
+
   if (!visible) return null;
 
+  const trimmedName = studioName.trim();
+  const canContinueFromName = trimmedName.length > 0;
   const canContinueFromSpecialization = specialization !== null;
   const canLaunch = specialization !== null && foundingProfile !== null;
 
@@ -41,22 +54,51 @@ export function FoundingSetupOverlay({ visible, onComplete }: FoundingSetupOverl
         />
         <Text style={overlayStyles.kicker}>Studio Founding</Text>
         <Text style={overlayStyles.title}>Found the studio&apos;s identity.</Text>
-        <Text style={overlayStyles.stepLabel}>Step {step} of 3</Text>
+        <Text style={overlayStyles.stepLabel}>Step {step} of 4</Text>
 
         {step === 1 ? (
           <View style={overlayStyles.section}>
-            <SectionLabel label="Seed Round Closed" />
+            <SectionLabel label="Name Your Studio" />
             <Text style={overlayStyles.body}>
-              You&apos;ve raised $50 million in seed funding to launch a new film studio.
+              Before the seed round closes and the industry starts watching — what do you call the studio?
             </Text>
-            <Text style={overlayStyles.body}>
-              The industry is watching your first move. Set the studio&apos;s charter before the first real decisions begin.
-            </Text>
-            <PremiumButton label="Choose Your Specialization" onPress={() => setStep(2)} fullWidth />
+            <TextInput
+              ref={nameInputRef}
+              value={studioName}
+              onChangeText={setStudioName}
+              onFocus={() => setIsNameFocused(true)}
+              onBlur={() => setIsNameFocused(false)}
+              placeholder="e.g. Meridian Pictures"
+              placeholderTextColor={colors.textMuted}
+              maxLength={32}
+              style={[overlayStyles.nameInput, isNameFocused ? overlayStyles.nameInputFocused : null]}
+              returnKeyType="done"
+              onSubmitEditing={() => { if (canContinueFromName) setStep(2); }}
+            />
+            <PremiumButton
+              label="Lock In The Name"
+              onPress={() => setStep(2)}
+              disabled={!canContinueFromName}
+              fullWidth
+            />
           </View>
         ) : null}
 
         {step === 2 ? (
+          <View style={overlayStyles.section}>
+            <SectionLabel label="Seed Round Closed" />
+            <Text style={overlayStyles.body}>
+              <Text style={overlayStyles.studioNameHighlight}>{trimmedName}</Text>
+              {' '}has raised $50 million in seed funding to launch a new film studio.
+            </Text>
+            <Text style={overlayStyles.body}>
+              The industry is watching your first move. Set the studio&apos;s charter before the first real decisions begin.
+            </Text>
+            <PremiumButton label="Choose Your Specialization" onPress={() => setStep(3)} fullWidth />
+          </View>
+        ) : null}
+
+        {step === 3 ? (
           <View style={overlayStyles.section}>
             <SectionLabel label="Layer 1: Specialization" />
             <Text style={overlayStyles.body}>Pick the studio&apos;s founding creative and commercial posture.</Text>
@@ -80,10 +122,10 @@ export function FoundingSetupOverlay({ visible, onComplete }: FoundingSetupOverl
               })}
             </View>
             <View style={overlayStyles.actions}>
-              <PremiumButton label="Back" onPress={() => setStep(1)} variant="secondary" fullWidth />
+              <PremiumButton label="Back" onPress={() => setStep(2)} variant="secondary" fullWidth />
               <PremiumButton
                 label="Continue to Founding Profile"
-                onPress={() => setStep(3)}
+                onPress={() => setStep(4)}
                 disabled={!canContinueFromSpecialization}
                 fullWidth
               />
@@ -91,7 +133,7 @@ export function FoundingSetupOverlay({ visible, onComplete }: FoundingSetupOverl
           </View>
         ) : null}
 
-        {step === 3 ? (
+        {step === 4 ? (
           <View style={overlayStyles.section}>
             <SectionLabel label="Layer 2: Founding Profile" />
             <Text style={overlayStyles.body}>Pick the story investors bought when they backed your studio.</Text>
@@ -115,12 +157,12 @@ export function FoundingSetupOverlay({ visible, onComplete }: FoundingSetupOverl
               })}
             </View>
             <View style={overlayStyles.actions}>
-              <PremiumButton label="Back" onPress={() => setStep(2)} variant="secondary" fullWidth />
+              <PremiumButton label="Back" onPress={() => setStep(3)} variant="secondary" fullWidth />
               <PremiumButton
                 label="Launch the Studio"
                 onPress={() => {
                   if (!specialization || !foundingProfile) return;
-                  onComplete(specialization, foundingProfile);
+                  onComplete(trimmedName, specialization, foundingProfile);
                 }}
                 disabled={!canLaunch}
                 fullWidth
@@ -186,6 +228,24 @@ const overlayStyles = StyleSheet.create({
     fontSize: typography.sizeSM,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  studioNameHighlight: {
+    fontFamily: typography.fontBodySemiBold,
+    color: colors.textPrimary,
+  },
+  nameInput: {
+    borderRadius: radius.r3,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: spacing.sp3,
+    paddingVertical: spacing.sp3,
+    fontFamily: typography.fontBodySemiBold,
+    fontSize: typography.sizeLG,
+    color: colors.textPrimary,
+  },
+  nameInputFocused: {
+    borderColor: colors.borderGold,
   },
   optionGroup: {
     gap: spacing.sp2,
