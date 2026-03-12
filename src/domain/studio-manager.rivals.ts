@@ -8,6 +8,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
+const CALENDAR_PRESSURE_LOCK_WEEKS = 6;
+const CALENDAR_PRESSURE_CORRIDOR_WEEKS = 2;
 
 // ── Rival Film Title Generator ───────────────────────────────────────────────
 // Uses a deterministic hash of rival name + genre + salt so titles are stable
@@ -76,6 +78,44 @@ function getGenreDemandForManager(manager: StudioManager, genre: MovieGenre): nu
 
 function hasLockedDistributionRelease(manager: StudioManager, project: MovieProject): boolean {
   return manager.hasLockedReleaseWeek(project);
+}
+
+function hasCalendarPressureLock(manager: StudioManager, rival: RivalStudio): boolean {
+  return rival.calendarPressureLockUntilWeek !== null && rival.calendarPressureLockUntilWeek >= manager.currentWeek;
+}
+
+function hasUpcomingReleaseInCorridor(
+  manager: StudioManager,
+  rival: RivalStudio,
+  targetWeek: number,
+  corridorWeeks = CALENDAR_PRESSURE_CORRIDOR_WEEKS
+): boolean {
+  return rival.upcomingReleases.some(
+    (film) => film.releaseWeek >= manager.currentWeek + 1 && Math.abs(film.releaseWeek - targetWeek) <= corridorWeeks
+  );
+}
+
+function markCalendarPressure(manager: StudioManager, rival: RivalStudio, projectId: string): void {
+  rival.calendarPressureLockUntilWeek = manager.currentWeek + CALENDAR_PRESSURE_LOCK_WEEKS;
+  rival.lastPressuredProjectId = projectId;
+}
+
+function pickCalendarPressureWeek(
+  manager: StudioManager,
+  rival: RivalStudio,
+  targetWeek: number,
+  conflictPush: number
+): number {
+  const shouldExactMatch =
+    rival.personality === 'blockbusterFactory' ||
+    (conflictPush >= 0.55 && manager.rivalRng() < 0.4);
+  if (shouldExactMatch) {
+    return targetWeek;
+  }
+
+  const offsets = [-2, -1, 1, 2];
+  const offset = offsets[Math.floor(manager.rivalRng() * offsets.length)] ?? 1;
+  return Math.max(manager.currentWeek + 2, targetWeek + offset);
 }
 
 function weightedGenrePickForManager(
@@ -284,14 +324,19 @@ export function processRivalCalendarMovesForManager(manager: StudioManager, even
     const profile = getRivalBehaviorProfileForManager(manager, rival);
     if (manager.rivalRng() > profile.calendarMoveChance) continue;
 
-    const target =
-      rival.personality === 'blockbusterFactory'
-        ? [...playerDistribution].sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0]
-        : playerDistribution[Math.floor(manager.rivalRng() * Math.max(1, playerDistribution.length))];
-    const forceConflict =
-      !!target && (rival.personality === 'blockbusterFactory' || manager.rivalRng() < profile.conflictPush);
-    const week =
-      forceConflict && target.releaseWeek ? target.releaseWeek : manager.currentWeek + 2 + Math.floor(manager.rivalRng() * 14);
+    const target = hasCalendarPressureLock(manager, rival)
+      ? null
+      : rival.personality === 'blockbusterFactory'
+        ? [...playerDistribution].sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0] ?? null
+        : playerDistribution[Math.floor(manager.rivalRng() * Math.max(1, playerDistribution.length))] ?? null;
+    const canApplyPressure =
+      !!target &&
+      !!target.releaseWeek &&
+      (rival.personality === 'blockbusterFactory' || manager.rivalRng() < profile.conflictPush) &&
+      !hasUpcomingReleaseInCorridor(manager, rival, target.releaseWeek);
+    const week = canApplyPressure && target?.releaseWeek
+      ? pickCalendarPressureWeek(manager, rival, target.releaseWeek, profile.conflictPush)
+      : manager.currentWeek + 2 + Math.floor(manager.rivalRng() * 14);
     const genre = pickGenreForRivalRelease(manager, rival);
 
     const film: RivalFilm = {
@@ -312,7 +357,11 @@ export function processRivalCalendarMovesForManager(manager: StudioManager, even
       .slice(0, 10);
     events.push(`${rival.name} scheduled ${film.title} for week ${film.releaseWeek}.`);
 
-    if (target && target.releaseWeek && Math.abs(target.releaseWeek - film.releaseWeek) <= 0) {
+    if (canApplyPressure && target?.releaseWeek) {
+      markCalendarPressure(manager, rival, target.id);
+    }
+
+    if (canApplyPressure && target?.releaseWeek && target.releaseWeek === film.releaseWeek) {
       manager.recordRivalInteraction(rival, {
         kind: 'releaseCollision',
         hostilityDelta: 5,
@@ -678,6 +727,8 @@ export function checkRivalReleaseResponsesForManager(manager: StudioManager, rel
   for (const rival of manager.rivals) {
     if (rival.personality === 'blockbusterFactory') {
       if (!nextDistributionProject?.releaseWeek) continue;
+      if (hasCalendarPressureLock(manager, rival)) continue;
+      if (hasUpcomingReleaseInCorridor(manager, rival, nextDistributionProject.releaseWeek)) continue;
       const movedFilm = rival.upcomingReleases.find((film: RivalFilm) => film.releaseWeek >= manager.currentWeek + 1);
       if (movedFilm) {
         movedFilm.releaseWeek = nextDistributionProject.releaseWeek;
@@ -695,6 +746,7 @@ export function checkRivalReleaseResponsesForManager(manager: StudioManager, rel
           criticalScore: null,
         });
       }
+      markCalendarPressure(manager, rival, nextDistributionProject.id);
       events.push(`${rival.name} moved its next tentpole into week ${nextDistributionProject.releaseWeek} to pressure your upcoming release.`);
       manager.recordRivalInteraction(rival, {
         kind: 'calendarUndercut',
@@ -1139,4 +1191,3 @@ export function pickTalentForRivalForManager(
   }
   return sorted[0] ?? null;
 }
-

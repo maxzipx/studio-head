@@ -262,6 +262,19 @@ describe('persistence restore', () => {
     expect(restored.franchises[0].hiatusPlanCount).toBe(0);
   });
 
+  it('backfills rival calendar cooldown fields on legacy saves', () => {
+    const manager = new StudioManager();
+    const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
+    const firstRival = (snapshot.rivals as Record<string, unknown>[])[0];
+    delete firstRival.calendarPressureLockUntilWeek;
+    delete firstRival.lastPressuredProjectId;
+
+    const restored = restoreStudioManager(snapshot);
+
+    expect(restored.rivals[0].calendarPressureLockUntilWeek).toBeNull();
+    expect(restored.rivals[0].lastPressuredProjectId).toBeNull();
+  });
+
   it('sanitizes malformed genre shock fields on restore', () => {
     const manager = new StudioManager();
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;

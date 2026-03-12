@@ -1,9 +1,11 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { tokens } from '@/src/ui/tokens';
 import { selectBoxOfficeView } from '@/src/state/view-selectors';
+import { PremiumButton } from '@/src/ui/components';
 
 function money(amount: number): string {
   return `$${Math.round(amount).toLocaleString()}`;
@@ -16,6 +18,7 @@ function outcomeLabel(roi: number): string {
 }
 
 export default function BoxOfficeScreen() {
+  const router = useRouter();
   const { projects, releaseReports, lastMessage } = useGameStore(useShallow(selectBoxOfficeView));
 
   const released = projects
@@ -56,9 +59,14 @@ export default function BoxOfficeScreen() {
         const totalGross = report?.totalGross ?? Math.round(project.finalBoxOffice ?? 0);
         const profit = report?.profit ?? Math.round(totalGross * project.studioRevenueShare - totalBudget);
         const roi = report?.roi ?? project.projectedROI;
+        const openProjectDetail = () => router.push(`/project/${project.id}`);
 
         return (
-          <View key={project.id} style={styles.card}>
+          <Pressable
+            key={project.id}
+            onPress={openProjectDetail}
+            style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
+          >
             <View style={styles.tableRow}>
               <Text style={[styles.bodyStrong, styles.filmCol]}>{project.title}</Text>
               <Text style={styles.body}>{money(totalBudget)}</Text>
@@ -81,7 +89,14 @@ export default function BoxOfficeScreen() {
                 {report.breakdown.marketing}
               </Text>
             ) : null}
-          </View>
+            <PremiumButton
+              label="Open Detail"
+              onPress={openProjectDetail}
+              variant="ghost"
+              size="sm"
+              style={styles.detailButton}
+            />
+          </Pressable>
         );
       })}
     </ScrollView>
@@ -128,9 +143,16 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 4,
   },
+  cardPressed: {
+    opacity: 0.92,
+  },
   body: { color: tokens.textSecondary, fontSize: 12, flex: 1 },
   bodyStrong: { color: tokens.textPrimary, fontSize: 12, fontWeight: '700', flex: 1 },
   meta: { color: tokens.textMuted, fontSize: 12 },
+  detailButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
   positive: { color: tokens.accentGreen },
   negative: { color: tokens.accentRed },
 });

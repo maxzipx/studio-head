@@ -80,6 +80,8 @@ export interface RivalStudio {
   studioHeat: number;
   activeReleases: RivalFilm[];
   upcomingReleases: RivalFilm[];
+  calendarPressureLockUntilWeek: number | null;
+  lastPressuredProjectId: string | null;
   lockedTalentIds: string[];
   memory: RivalRelationshipMemory;
 }

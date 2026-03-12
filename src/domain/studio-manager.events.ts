@@ -440,6 +440,142 @@ export function getDecisionTargetProjectForManager(manager: StudioManager, decis
 }
 
 export function buildOperationalCrisisForManager(manager: StudioManager, project: MovieProject): CrisisEvent {
+  const sharedProductionTemplates = [
+    {
+      title: 'Key Talent Scheduling Conflict',
+      body: 'A hard availability conflict puts next week production work at risk.',
+      severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
+      options: [
+        {
+          id: createId('c-opt'),
+          label: 'Pay Overtime to Keep Schedule',
+          preview: '-$450K now, no schedule slip.',
+          cashDelta: -450_000,
+          scheduleDelta: 0,
+          hypeDelta: 0,
+        },
+        {
+          id: createId('c-opt'),
+          label: 'Delay One Week',
+          preview: 'Save cash, but schedule slips and press chatter starts.',
+          cashDelta: -50_000,
+          scheduleDelta: 1,
+          hypeDelta: -3,
+        },
+      ],
+    },
+  ] satisfies {
+    title: string;
+    body: string;
+    severity: CrisisEvent['severity'];
+    options: CrisisEvent['options'];
+  }[];
+  const liveActionProductionTemplates = [
+    {
+      title: 'Set Build Failure',
+      body: 'A key practical set failed safety checks before principal photography.',
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'),
+          label: 'Rebuild Immediately',
+          preview: '-$380K now, schedule protected.',
+          cashDelta: -380_000,
+          scheduleDelta: 0,
+          hypeDelta: 0,
+        },
+        {
+          id: createId('c-opt'),
+          label: 'Rewrite Around Set',
+          preview: 'Save cash, but lose one week and some excitement.',
+          cashDelta: -90_000,
+          scheduleDelta: 1,
+          hypeDelta: -2,
+        },
+      ],
+    },
+    {
+      title: 'Second Unit Incident',
+      body: 'A second unit incident pauses action coverage for safety review.',
+      severity: 'red',
+      options: [
+        {
+          id: createId('c-opt'),
+          label: 'Bring In Replacement Unit',
+          preview: '-$520K now to hold momentum.',
+          cashDelta: -520_000,
+          scheduleDelta: 0,
+          hypeDelta: -1,
+        },
+        {
+          id: createId('c-opt'),
+          label: 'Hold For Safety Reset',
+          preview: 'Lower immediate spend, but lose two shooting weeks.',
+          cashDelta: -120_000,
+          scheduleDelta: 2,
+          hypeDelta: -3,
+        },
+      ],
+    },
+  ] satisfies {
+    title: string;
+    body: string;
+    severity: CrisisEvent['severity'];
+    options: CrisisEvent['options'];
+  }[];
+  const animationProductionTemplates = [
+    {
+      title: 'Render Farm Outage',
+      body: 'A render farm failure corrupted queued shots and stalled the pipeline.',
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'),
+          label: 'Rent Emergency Compute',
+          preview: '-$340K now, protect delivery timing.',
+          cashDelta: -340_000,
+          scheduleDelta: 0,
+          hypeDelta: 0,
+        },
+        {
+          id: createId('c-opt'),
+          label: 'Rebuild The Queue',
+          preview: 'Spend less now, but lose one production week.',
+          cashDelta: -110_000,
+          scheduleDelta: 1,
+          hypeDelta: -1,
+        },
+      ],
+    },
+    {
+      title: 'Asset Pipeline Corruption',
+      body: 'A versioning failure wiped approved animation assets from the latest build.',
+      severity: 'orange',
+      options: [
+        {
+          id: createId('c-opt'),
+          label: 'Bring In Recovery Team',
+          preview: '-$290K now, preserve the milestone.',
+          cashDelta: -290_000,
+          scheduleDelta: 0,
+          hypeDelta: 0,
+        },
+        {
+          id: createId('c-opt'),
+          label: 'Rework The Sequence',
+          preview: 'Lower spend, but schedule slips and buzz softens.',
+          cashDelta: -80_000,
+          scheduleDelta: 1,
+          hypeDelta: -2,
+        },
+      ],
+    },
+  ] satisfies {
+    title: string;
+    body: string;
+    severity: CrisisEvent['severity'];
+    options: CrisisEvent['options'];
+  }[];
   const phaseTemplates: {
     title: string;
     body: string;
@@ -545,75 +681,8 @@ export function buildOperationalCrisisForManager(manager: StudioManager, project
           },
         ]
         : [
-          {
-            title: 'Actor Scheduling Conflict',
-            body: 'A hard conflict puts next week shooting at risk.',
-            severity: project.productionStatus === 'atRisk' ? 'red' : 'orange',
-            options: [
-              {
-                id: createId('c-opt'),
-                label: 'Pay Overtime to Keep Schedule',
-                preview: '-$450K now, no schedule slip.',
-                cashDelta: -450_000,
-                scheduleDelta: 0,
-                hypeDelta: 0,
-              },
-              {
-                id: createId('c-opt'),
-                label: 'Delay One Week',
-                preview: 'Save cash, but schedule slips and press chatter starts.',
-                cashDelta: -50_000,
-                scheduleDelta: 1,
-                hypeDelta: -3,
-              },
-            ],
-          },
-          {
-            title: 'Set Build Failure',
-            body: 'A key practical set failed safety checks before principal photography.',
-            severity: 'orange',
-            options: [
-              {
-                id: createId('c-opt'),
-                label: 'Rebuild Immediately',
-                preview: '-$380K now, schedule protected.',
-                cashDelta: -380_000,
-                scheduleDelta: 0,
-                hypeDelta: 0,
-              },
-              {
-                id: createId('c-opt'),
-                label: 'Rewrite Around Set',
-                preview: 'Save cash, but lose one week and some excitement.',
-                cashDelta: -90_000,
-                scheduleDelta: 1,
-                hypeDelta: -2,
-              },
-            ],
-          },
-          {
-            title: 'Second Unit Incident',
-            body: 'A second unit incident pauses action coverage for safety review.',
-            severity: 'red',
-            options: [
-              {
-                id: createId('c-opt'),
-                label: 'Bring In Replacement Unit',
-                preview: '-$520K now to hold momentum.',
-                cashDelta: -520_000,
-                scheduleDelta: 0,
-                hypeDelta: -1,
-              },
-              {
-                id: createId('c-opt'),
-                label: 'Hold For Safety Reset',
-                preview: 'Lower immediate spend, but lose two shooting weeks.',
-                cashDelta: -120_000,
-                scheduleDelta: 2,
-                hypeDelta: -3,
-              },
-            ],
-          },
+          ...sharedProductionTemplates,
+          ...(project.genre === 'animation' ? animationProductionTemplates : liveActionProductionTemplates),
         ];
 
   const selected = phaseTemplates[Math.floor(manager.crisisRng() * phaseTemplates.length)] ?? phaseTemplates[0];

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { TALENT_LIFECYCLE, TALENT_MARKET_RULES } from './balance-constants';
 import { createSeedScriptMarket } from './seeds';
+import { buildOperationalCrisisForManager } from './studio-manager.events';
 import { StudioManager } from './studio-manager';
 
 describe('StudioManager', () => {
@@ -2301,6 +2302,8 @@ describe('StudioManager', () => {
         studioHeat: 65,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2325,6 +2328,8 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2341,6 +2346,70 @@ describe('StudioManager', () => {
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(project.releaseWeek);
   });
 
+  it('applies a cooldown after rival calendar pressure and avoids immediate repeat collisions', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-blockbuster',
+        name: 'Blockbuster Test',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
+        lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
+      },
+    ];
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWeek = manager.currentWeek + 6;
+    project.releaseWeekLocked = true;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
+    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
+
+    const pressuredWeeks = manager.rivals[0].upcomingReleases.filter(
+      (film) => Math.abs(film.releaseWeek - project.releaseWeek!) <= 2
+    );
+
+    expect(manager.rivals[0].calendarPressureLockUntilWeek).toBe(manager.currentWeek + 6);
+    expect(manager.rivals[0].lastPressuredProjectId).toBe(project.id);
+    expect(pressuredWeeks).toHaveLength(1);
+    expect(manager.pendingCrises.filter((item) => item.kind === 'releaseConflict')).toHaveLength(1);
+  });
+
+  it('uses nearby corridors instead of exact date mirroring for standard rival calendar pressure', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-scrappy',
+        name: 'Scrappy Test',
+        personality: 'scrappyUpstart',
+        studioHeat: 48,
+        activeReleases: [],
+        upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
+        lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
+      },
+    ];
+    const project = manager.activeProjects[0];
+    project.phase = 'distribution';
+    project.releaseWeek = manager.currentWeek + 6;
+    project.releaseWeekLocked = true;
+
+    const events: string[] = [];
+    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
+
+    expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
+    expect(manager.rivals[0].upcomingReleases[0].releaseWeek).not.toBe(project.releaseWeek);
+    expect(Math.abs(manager.rivals[0].upcomingReleases[0].releaseWeek - project.releaseWeek)).toBeLessThanOrEqual(2);
+  });
+
   it('queues platform pressure response after release resolution', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
     manager.rivals = [
@@ -2351,6 +2420,8 @@ describe('StudioManager', () => {
         studioHeat: 50,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2366,6 +2437,62 @@ describe('StudioManager', () => {
     );
 
     expect(manager.decisionQueue.some((item) => item.title.includes('Platform Pressure'))).toBe(true);
+  });
+
+  it('respects rival calendar cooldown when checking post-release responses', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.95, rivalRng: () => 0 });
+    manager.rivals = [
+      {
+        id: 'r-blockbuster',
+        name: 'Blockbuster Test',
+        personality: 'blockbusterFactory',
+        studioHeat: 70,
+        activeReleases: [],
+        upcomingReleases: [],
+        calendarPressureLockUntilWeek: manager.currentWeek + 4,
+        lastPressuredProjectId: 'older-project',
+        lockedTalentIds: [],
+        memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
+      },
+    ];
+    const releasedProject = manager.activeProjects[0];
+    releasedProject.phase = 'released';
+    releasedProject.releaseResolved = true;
+    const nextProject = manager.activeProjects[1];
+    nextProject.phase = 'distribution';
+    nextProject.releaseWeek = manager.currentWeek + 5;
+    nextProject.releaseWeekLocked = true;
+
+    const events: string[] = [];
+    (manager as unknown as { checkRivalReleaseResponses: (project: unknown, items: string[]) => void }).checkRivalReleaseResponses(
+      releasedProject,
+      events
+    );
+
+    expect(manager.rivals[0].upcomingReleases).toHaveLength(0);
+  });
+
+  it('keeps animation production crises out of live-action-only set failure events', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.6 });
+    const project = manager.activeProjects[0];
+    project.phase = 'production';
+    project.genre = 'animation';
+
+    const crisis = buildOperationalCrisisForManager(manager, project);
+
+    expect(crisis.title).toContain('Render Farm Outage');
+    expect(crisis.title).not.toContain('Set Build Failure');
+  });
+
+  it('still allows live-action production crises to roll set build failures', () => {
+    const manager = new StudioManager({ crisisRng: () => 0.6 });
+    const project = manager.activeProjects[0];
+    project.phase = 'production';
+    project.genre = 'action';
+
+    const crisis = buildOperationalCrisisForManager(manager, project);
+
+    expect(crisis.title).toContain('Set Build Failure');
   });
 
   it('creates talent poach interrupt when rival closes during player negotiation', () => {
@@ -2507,13 +2634,15 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
     ];
     const target = manager.activeProjects[0];
     target.phase = 'distribution';
-    target.releaseWeek = manager.currentWeek + 4;
+    target.releaseWeek = manager.currentWeek + 8;
     target.releaseWeekLocked = false;
 
     const events: string[] = [];
@@ -2676,6 +2805,8 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2710,6 +2841,8 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2740,6 +2873,8 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },
@@ -2765,6 +2900,8 @@ describe('StudioManager', () => {
         studioHeat: 70,
         activeReleases: [],
         upcomingReleases: [],
+        calendarPressureLockUntilWeek: null,
+        lastPressuredProjectId: null,
         lockedTalentIds: [],
         memory: { hostility: 55, respect: 52, retaliationBias: 50, cooperationBias: 45, interactionHistory: [] },
       },

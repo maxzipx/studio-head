@@ -461,6 +461,13 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
   for (const rival of manager.rivals) {
     const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0];
+    rival.calendarPressureLockUntilWeek = Number.isFinite(rival.calendarPressureLockUntilWeek)
+      ? Math.round(rival.calendarPressureLockUntilWeek as number)
+      : null;
+    if (rival.calendarPressureLockUntilWeek !== null && rival.calendarPressureLockUntilWeek < manager.currentWeek) {
+      rival.calendarPressureLockUntilWeek = null;
+    }
+    rival.lastPressuredProjectId = typeof rival.lastPressuredProjectId === 'string' ? rival.lastPressuredProjectId : null;
     if (!isRecord(rival.memory)) {
       rival.memory = {
         hostility: baseline.memory.hostility,
