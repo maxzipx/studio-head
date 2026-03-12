@@ -190,6 +190,8 @@ export default function HQScreen() {
   const partnerWeeksRemaining = manager.exclusivePartnerUntilWeek
     ? Math.max(0, manager.exclusivePartnerUntilWeek - manager.currentWeek)
     : 0;
+  const scaleOverheadCost = manager.getScaleOverheadCost();
+  const nextScaleOverheadWeek = manager.lastScaleOverheadWeek + 13;
   const developmentUpgradeCost = manager.departmentLevels.development >= 4 ? null : 420_000 * (manager.departmentLevels.development + 1);
   const productionUpgradeCost = manager.departmentLevels.production >= 4 ? null : 420_000 * (manager.departmentLevels.production + 1);
   const distributionUpgradeCost = manager.departmentLevels.distribution >= 4 ? null : 420_000 * (manager.departmentLevels.distribution + 1);
@@ -363,6 +365,9 @@ export default function HQScreen() {
             <MetricTile value={money(manager.lifetimeProfit)} label="Lifetime P/L" size="sm"
               accent={manager.lifetimeProfit >= 0 ? colors.accentGreen : colors.accentRed} />
           </View>
+          <Text style={styles.muted}>
+            Scale overhead posts every 13 weeks. Current charge: {money(scaleOverheadCost)}. Next review: W{nextScaleOverheadWeek}.
+          </Text>
 
           {!manager.canEndWeek && (
             <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text>
@@ -573,7 +578,9 @@ export default function HQScreen() {
             </View>
             <SectionLabel label="Animation Division" style={{ marginTop: spacing.sp2 }} />
             <Text style={styles.muted}>
-              Stand up a dedicated animation unit for long-range slate expansion.
+              {manager.animationDivisionUnlocked
+                ? 'Animation pipeline active. Animation scripts can now enter the market.'
+                : 'Unlock a dedicated animation pipeline. Animation scripts stay out of the market until this division is active.'}
             </Text>
             <PremiumButton
               label={

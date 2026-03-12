@@ -156,6 +156,11 @@ export default function SlateScreen() {
         {/* ── Script Room ── */}
         <View style={styles.section}>
           <SectionLabel label="Script Room" />
+          {!manager.animationDivisionUnlocked ? (
+            <Text style={styles.metaText}>
+              Animation scripts enter the market after you found the Animation Division in HQ.
+            </Text>
+          ) : null}
           {visibleScriptMarket.length === 0
             ? <Text style={styles.empty}>No active script offers this week.</Text>
             : visibleScriptMarket.map((script) => {

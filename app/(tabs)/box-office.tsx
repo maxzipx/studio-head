@@ -41,7 +41,7 @@ export default function BoxOfficeScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Film Vault</Text>
-      <Text style={styles.subtitle}>Completed catalog with outcome and economics</Text>
+      <Text style={styles.subtitle}>Completed catalog with performance, credits, and economics</Text>
       {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
 
       <View style={styles.headerRow}>
@@ -76,7 +76,7 @@ export default function BoxOfficeScreen() {
         if (castNames.length > 0) {
           metadataParts.push(`Cast: ${castNames.join(', ')}`);
         }
-        const talentMetadata = metadataParts.join(' · ');
+        const talentMetadata = metadataParts.join(' | ');
         const openProjectDetail = () => router.push(`/project/${project.id}`);
 
         return (
@@ -84,7 +84,7 @@ export default function BoxOfficeScreen() {
             key={project.id}
             onPress={openProjectDetail}
             style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
-            >
+          >
             <View style={styles.tableRow}>
               <Text style={[styles.bodyStrong, styles.filmCol]}>{project.title}</Text>
               <Text style={styles.body}>{money(totalBudget)}</Text>
