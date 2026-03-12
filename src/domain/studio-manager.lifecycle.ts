@@ -1,5 +1,6 @@
 import type { DistributionOffer, MovieProject } from './types';
 import { createId } from './id';
+import { getDepartmentModifiers, getExecutiveNetworkModifiers } from './modifier-service';
 import type { StudioManager } from './studio-manager';
 
 function clamp(value: number, min: number, max: number): number {
@@ -175,7 +176,9 @@ export function counterDistributionOfferForManager(
     return { success: false, message: `${offer.partner} will not entertain another counter.` };
   }
   offer.counterAttempts = attempts + 1;
-  const strategyBonus = (manager.departmentLevels?.distribution ?? 0) * 0.025 + (manager.executiveNetworkLevel ?? 0) * 0.02;
+  const strategyBonus =
+    getDepartmentModifiers(manager).counterOfferLeverage +
+    getExecutiveNetworkModifiers(manager).counterOfferLeverage;
   const successChance = clamp(0.53 + manager.reputation.distributor / 220 + strategyBonus, 0.25, 0.92);
   if (manager.negotiationRng() > successChance) {
     return { success: false, message: `${offer.partner} declined the counter.` };

@@ -50,14 +50,26 @@ import {
   buildIpTemplate,
   clamp,
   createInitialGenreCycles,
-  foundingProfileModifiers,
   initialBudgetForGenre,
-  specializationProfile,
   TIER_RANK,
   type ArcOutcomeModifiers,
   type FoundingProfileModifiers,
   type SpecializationProfile,
 } from './studio-manager.constants';
+import { computeStudioModifiers } from './modifier-service';
+import {
+  estimateWeeklyBurnForStudio,
+  getActiveMilestonesForStudio,
+  getArcOutcomeModifiersForStudio,
+  getArcPressureFromRivalsForStudio,
+  getGenreCycleSnapshotForStudio,
+  getGenreDemandMultiplierForStudio,
+  getIndustryHeatLeaderboardForStudio,
+  getLatestReleaseReportForStudio,
+  getProjectCastStatusForStudio,
+  getRivalBehaviorProfileForStudio,
+  getScaleOverheadCostForStudio,
+} from './studio-selectors';
 import { STUDIO_TIER_LABELS } from './types';
 import type {
   AwardsSeasonRecord,
@@ -296,11 +308,11 @@ export class StudioManager {
   }
 
   get specializationProfile(): SpecializationProfile {
-    return specializationProfile(this.studioSpecialization);
+    return computeStudioModifiers(this).specializationProfile;
   }
 
   get foundingProfileEffects(): FoundingProfileModifiers {
-    return foundingProfileModifiers(this.foundingProfile);
+    return computeStudioModifiers(this).foundingProfileEffects;
   }
 
   isTutorialEligible(): boolean {
@@ -417,7 +429,7 @@ export class StudioManager {
   }
 
   getScaleOverheadCost(): number {
-    return 250_000 * TIER_RANK[this.studioTier] + 100_000 * this.projectCapacityLimit;
+    return getScaleOverheadCostForStudio(this);
   }
 
   getTalentTrustLevel(talent: Talent): TalentTrustLevel {
@@ -957,19 +969,19 @@ export class StudioManager {
   }
 
   getActiveMilestones(): MilestoneRecord[] {
-    return this.releaseService.getActiveMilestones();
+    return getActiveMilestonesForStudio(this);
   }
 
   getLatestReleaseReport(projectId: string): ReleaseReport | null {
-    return this.releaseService.getLatestReleaseReport(projectId);
+    return getLatestReleaseReportForStudio(this, projectId);
   }
 
   getGenreDemandMultiplier(genre: MovieGenre): number {
-    return this.eventService.getGenreDemandMultiplier(genre);
+    return getGenreDemandMultiplierForStudio(this, genre);
   }
 
   getProjectCastStatus(projectId: string): { actorCount: number; actressCount: number; total: number; requiredTotal: number } | null {
-    return this.talentService.getProjectCastStatus(projectId);
+    return getProjectCastStatusForStudio(this, projectId);
   }
 
   meetsCastRequirements(project: MovieProject): boolean {
@@ -1000,7 +1012,7 @@ export class StudioManager {
     shockDirection: 'surge' | 'slump' | null;
     shockWeeksRemaining: number;
   }[] {
-    return this.eventService.getGenreCycleSnapshot();
+    return getGenreCycleSnapshotForStudio(this);
   }
 
   getAvailableTalentForRole(role: TalentRole): Talent[] {
@@ -1050,11 +1062,7 @@ export class StudioManager {
   }
 
   getIndustryHeatLeaderboard(): { name: string; heat: number; isPlayer: boolean }[] {
-    const rows = [
-      { name: this.studioName, heat: this.studioHeat, isPlayer: true },
-      ...this.rivals.map((rival) => ({ name: rival.name, heat: rival.studioHeat, isPlayer: false })),
-    ];
-    return rows.sort((a, b) => b.heat - a.heat);
+    return getIndustryHeatLeaderboardForStudio(this);
   }
 
   runOptionalAction(): { success: boolean; message: string } {
@@ -1631,7 +1639,7 @@ export class StudioManager {
   }
 
   estimateWeeklyBurn(): number {
-    return this.releaseService.estimateWeeklyBurn();
+    return estimateWeeklyBurnForStudio(this);
   }
 
   private addChronicleEntry(entry: Omit<ChronicleEntry, 'id'>): void {
@@ -1657,7 +1665,7 @@ export class StudioManager {
 
 
   getArcPressureFromRivals(arcId: string): number {
-    return this.eventService.getArcPressureFromRivals(arcId);
+    return getArcPressureFromRivalsForStudio(this, arcId);
   }
 
   hasStoryFlag(flag: string): boolean {
@@ -1788,11 +1796,11 @@ export class StudioManager {
     budgetScale: number;
     hypeScale: number;
   } {
-    return this.rivalAiService.getRivalBehaviorProfile(rival);
+    return getRivalBehaviorProfileForStudio(this, rival);
   }
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
-    return this.eventService.getArcOutcomeModifiers();
+    return getArcOutcomeModifiersForStudio(this);
   }
 
   generateDistributionOffers(projectId: string): void {

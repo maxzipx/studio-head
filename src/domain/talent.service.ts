@@ -4,9 +4,11 @@ import type {
     MovieGenre,
     MovieProject,
     PlayerNegotiation,
+    FoundingProfile,
     TalentInteractionKind,
     TalentTrustLevel,
 } from './types';
+import { computeStudioModifiers, getExecutiveNetworkModifiers } from './modifier-service';
 import { clamp, AGENT_DIFFICULTY, type FoundingProfileModifiers } from './studio-manager.constants';
 import { TALENT_NEGOTIATION_RULES, MEMORY_RULES, TALENT_LIFECYCLE } from './balance-constants';
 import { createId } from './id';
@@ -20,8 +22,7 @@ export interface TalentManagerAdapter {
     playerNegotiations: PlayerNegotiation[];
     reputation: { talent: number };
     executiveNetworkLevel: number;
-    foundingProfileEffects: FoundingProfileModifiers;
-    studioSpecialization: 'indie' | 'prestige' | 'blockbuster' | 'balanced';
+    foundingProfile: FoundingProfile;
 
     adjustCash(amount: number): void;
     negotiationRng(): number;
@@ -318,8 +319,8 @@ export function talentDealChanceForManager(
     const agentPenalty = clamp((AGENT_DIFFICULTY[talent.agentTier] - 1) * 0.2, 0, 0.12);
     const grudgePenalty = clamp(outlook.grudgeScore / TALENT_NEGOTIATION_RULES.CHANCE_PENALTY_GRUDGE_DIVISOR, 0, 0.2);
     const refusalPenalty = outlook.refusalRisk === 'critical' ? 0.04 : outlook.refusalRisk === 'elevated' ? 0.02 : 0;
-    const executiveBoost = manager.executiveNetworkLevel * 0.015;
-    const foundingBoost = manager.foundingProfileEffects.negotiationChanceBonus;
+    const executiveBoost = getExecutiveNetworkModifiers(manager).negotiationChanceBonus;
+    const foundingBoost = computeStudioModifiers({ studioSpecialization: 'balanced', foundingProfile: manager.foundingProfile }).foundingProfileEffects.negotiationChanceBonus;
     return clamp(
         base + relationshipBoost + heatBoost + arcLeverage + executiveBoost + foundingBoost - reputationPenalty - egoPenalty - agentPenalty - grudgePenalty - refusalPenalty,
         0.08,

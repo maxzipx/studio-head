@@ -27,6 +27,8 @@ import {
   MOVIE_GENRES,
   type ArcOutcomeModifiers,
 } from '../studio-manager.constants';
+import { computeArcOutcomeModifiers } from '../modifier-service';
+import { getGenreCycleSnapshotForStudio, getGenreDemandMultiplierForStudio } from '../studio-selectors';
 import type {
   CrisisEvent,
   DecisionItem,
@@ -43,7 +45,7 @@ export class EventService {
   // ── Genre Cycles ──────────────────────────────────────────────
 
   getGenreDemandMultiplier(genre: MovieGenre): number {
-    return this.manager.genreCycles[genre]?.demand ?? 1;
+    return getGenreDemandMultiplierForStudio(this.manager, genre);
   }
 
   getGenreCycleSnapshot(): {
@@ -54,14 +56,7 @@ export class EventService {
     shockDirection: 'surge' | 'slump' | null;
     shockWeeksRemaining: number;
   }[] {
-    return MOVIE_GENRES.map((genre) => ({
-      genre,
-      demand: this.getGenreDemandMultiplier(genre),
-      momentum: this.manager.genreCycles[genre]?.momentum ?? 0,
-      shockLabel: this.manager.genreCycles[genre]?.shockLabel ?? null,
-      shockDirection: this.manager.genreCycles[genre]?.shockDirection ?? null,
-      shockWeeksRemaining: Math.max(0, (this.manager.genreCycles[genre]?.shockUntilWeek ?? this.manager.currentWeek) - this.manager.currentWeek),
-    })).sort((a, b) => b.demand - a.demand);
+    return getGenreCycleSnapshotForStudio(this.manager);
   }
 
   tickGenreCycles(events: string[]): void {
@@ -200,77 +195,7 @@ export class EventService {
   // ── Arc Outcome Modifiers ─────────────────────────────────────
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
-    const modifiers: ArcOutcomeModifiers = {
-      talentLeverage: 0,
-      distributionLeverage: 0,
-      burnMultiplier: 1,
-      hypeDecayStep: 2,
-      releaseHeatMomentum: 0,
-      categoryBias: {},
-    };
-
-    for (const [arcId, arc] of Object.entries(this.manager.storyArcs)) {
-      if (arc.status === 'resolved') {
-        if (arcId === 'awards-circuit') {
-          modifiers.talentLeverage += 0.05;
-          modifiers.releaseHeatMomentum += 1;
-          modifiers.categoryBias.marketing = (modifiers.categoryBias.marketing ?? 0) + 0.2;
-        } else if (arcId === 'exhibitor-war') {
-          modifiers.distributionLeverage += 0.05;
-          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.12;
-        } else if (arcId === 'financier-control') {
-          modifiers.distributionLeverage += 0.02;
-          modifiers.burnMultiplier *= 0.98;
-        } else if (arcId === 'leak-piracy') {
-          modifiers.hypeDecayStep -= 0.2;
-          modifiers.distributionLeverage += 0.02;
-        } else if (arcId === 'talent-meltdown') {
-          modifiers.talentLeverage += 0.04;
-          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.15;
-        } else if (arcId === 'franchise-pivot') {
-          modifiers.distributionLeverage += 0.03;
-          modifiers.burnMultiplier *= 1.02;
-          modifiers.categoryBias.finance = (modifiers.categoryBias.finance ?? 0) + 0.1;
-        }
-      } else if (arc.status === 'failed') {
-        if (arcId === 'awards-circuit') {
-          modifiers.talentLeverage -= 0.04;
-          modifiers.releaseHeatMomentum -= 1;
-        } else if (arcId === 'exhibitor-war') {
-          modifiers.distributionLeverage -= 0.05;
-          modifiers.hypeDecayStep += 0.2;
-        } else if (arcId === 'financier-control') {
-          modifiers.burnMultiplier *= 1.04;
-          modifiers.talentLeverage -= 0.03;
-        } else if (arcId === 'leak-piracy') {
-          modifiers.hypeDecayStep += 0.35;
-          modifiers.distributionLeverage -= 0.03;
-        } else if (arcId === 'talent-meltdown') {
-          modifiers.talentLeverage -= 0.08;
-          modifiers.categoryBias.talent = (modifiers.categoryBias.talent ?? 0) + 0.08;
-        } else if (arcId === 'franchise-pivot') {
-          modifiers.burnMultiplier *= 0.99;
-          modifiers.distributionLeverage -= 0.02;
-        }
-      }
-    }
-
-    modifiers.distributionLeverage += this.manager.specializationProfile.distributionLeverage;
-    modifiers.distributionLeverage += this.manager.departmentLevels.distribution * 0.015;
-    modifiers.distributionLeverage += this.manager.executiveNetworkLevel * 0.01;
-    modifiers.talentLeverage += this.manager.executiveNetworkLevel * 0.012;
-    if (this.manager.studioSpecialization === 'blockbuster') {
-      modifiers.hypeDecayStep = Math.max(0.8, modifiers.hypeDecayStep - 0.2);
-    } else if (this.manager.studioSpecialization === 'prestige') {
-      modifiers.releaseHeatMomentum += 0.6;
-    }
-
-    modifiers.burnMultiplier = clamp(modifiers.burnMultiplier, 0.85, 1.2);
-    modifiers.distributionLeverage = clamp(modifiers.distributionLeverage, -0.12, 0.12);
-    modifiers.talentLeverage = clamp(modifiers.talentLeverage, -0.2, 0.2);
-    modifiers.hypeDecayStep = clamp(modifiers.hypeDecayStep, 0.8, 3.2);
-    modifiers.releaseHeatMomentum = clamp(modifiers.releaseHeatMomentum, -3, 3);
-    return modifiers;
+    return computeArcOutcomeModifiers(this.manager);
   }
 
   // ── Event/Decision/Crisis pass-throughs ───────────────────────

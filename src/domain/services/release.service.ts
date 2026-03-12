@@ -20,6 +20,8 @@ import {
   phaseBurnMultiplier,
   releaseOutcomeFromRoi,
 } from '../studio-manager.constants';
+import { computeStudioModifiers } from '../modifier-service';
+import { estimateWeeklyBurnForStudio, projectedBurnForProjectForStudio } from '../studio-selectors';
 import type {
   ChronicleEntry,
   MilestoneRecord,
@@ -70,6 +72,7 @@ export class ReleaseService {
     openingHigh: number;
     roi: number;
   } {
+    const studioModifiers = computeStudioModifiers(this.manager);
     const director = this.manager.talentPool.find((item) => item.id === project.directorId);
     const lead = this.manager.talentPool
       .filter((item) => project.castIds.includes(item.id) && (item.role === 'leadActor' || item.role === 'leadActress'))
@@ -85,7 +88,7 @@ export class ReleaseService {
       crisisPenalty: project.productionStatus === 'inCrisis' ? 8 : 0,
       chemistryPenalty: 0,
     });
-    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta + this.manager.specializationProfile.criticalDelta, 0, 100);
+    const critical = clamp(baseCritical + franchiseModifiers.criticalDelta + studioModifiers.specializationProfile.criticalDelta, 0, 100);
 
     const opening = projectedOpeningWeekendRange({
       genre: project.genre,
@@ -96,7 +99,7 @@ export class ReleaseService {
       seasonalMultiplier: this.manager.getGenreDemandMultiplier(project.genre),
     });
     const pressure = this.calendarPressureMultiplier(releaseWeek, project.genre);
-    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * this.manager.specializationProfile.openingMultiplier;
+    const combinedOpeningMultiplier = pressure * franchiseModifiers.openingMultiplier * studioModifiers.specializationProfile.openingMultiplier;
     const openingLow = opening.low * combinedOpeningMultiplier;
     const openingHigh = opening.high * combinedOpeningMultiplier;
     const openingMid = opening.midpoint * combinedOpeningMultiplier;
@@ -117,22 +120,11 @@ export class ReleaseService {
   // --- Burn ---
 
   estimateWeeklyBurn(): number {
-    const modifiers = this.manager.getArcOutcomeModifiers();
-    return this.manager.activeProjects.reduce((sum, project) => {
-      if (project.phase === 'released') return sum;
-      return sum + this.projectedBurnForProject(project, modifiers.burnMultiplier);
-    }, 0);
+    return estimateWeeklyBurnForStudio(this.manager);
   }
 
   projectedBurnForProject(project: MovieProject, burnMultiplier: number): number {
-    const productionEfficiency = 1 - this.manager.departmentLevels.production * 0.03;
-    return (
-      project.budget.ceiling *
-      phaseBurnMultiplier(project.phase) *
-      burnMultiplier *
-      this.manager.specializationProfile.burnMultiplier *
-      clamp(productionEfficiency, 0.82, 1.05)
-    );
+    return projectedBurnForProjectForStudio(this.manager, project, burnMultiplier);
   }
 
   applyWeeklyBurn(): number {
@@ -402,10 +394,11 @@ export class ReleaseService {
     }
 
     const awardsArc = this.manager.storyArcs['awards-circuit'];
+    const studioModifiers = computeStudioModifiers(this.manager);
     const baseCampaignBoost =
       (this.manager.hasStoryFlag('awards_campaign') ? 8 : 0) +
-      this.manager.specializationProfile.awardsBoost +
-      this.manager.foundingProfileEffects.awardsCampaignBonus;
+      studioModifiers.specializationProfile.awardsBoost +
+      studioModifiers.foundingProfileEffects.awardsCampaignBonus;
     const baselineFestivalBoost = this.manager.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
@@ -534,7 +527,7 @@ export class ReleaseService {
         project.prestige * 0.2 +
         project.originality * 0.18 +
         project.festivalBuzz * 0.12 +
-        this.manager.foundingProfileEffects.festivalBuzzBonus +
+        computeStudioModifiers(this.manager).foundingProfileEffects.festivalBuzzBonus +
         cycleBoost -
         project.controversy * 0.15,
         0,

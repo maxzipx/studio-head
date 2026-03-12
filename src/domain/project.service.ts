@@ -1,15 +1,17 @@
 import { ACTION_BALANCE, FESTIVAL_RULES } from './balance-constants';
-import { clamp, type FoundingProfileModifiers } from './studio-manager.constants';
+import { computeStudioModifiers, getDepartmentModifiers } from './modifier-service';
+import { clamp } from './studio-manager.constants';
 import { removeProjectFromFranchiseForManager } from './studio-manager.franchise.actions';
-import type { CrisisEvent, DecisionItem, DepartmentTrack, DistributionOffer, MovieProject } from './types';
+import type { CrisisEvent, DecisionItem, DepartmentTrack, DistributionOffer, FoundingProfile, MovieProject } from './types';
 
 export interface ProjectManagerAdapter {
     activeProjects: MovieProject[];
     cash: number;
     currentWeek: number;
     marketingTeamLevel: number;
+    studioSpecialization: 'indie' | 'prestige' | 'blockbuster' | 'balanced';
     departmentLevels: Record<DepartmentTrack, number>;
-    foundingProfileEffects: FoundingProfileModifiers;
+    foundingProfile: FoundingProfile;
     distributionOffers: DistributionOffer[];
     pendingCrises: CrisisEvent[];
     decisionQueue: DecisionItem[];
@@ -44,7 +46,7 @@ export function runGreenlightReviewForManager(manager: ProjectManagerAdapter, pr
         };
     }
 
-    const feeReduction = manager.departmentLevels.development * 15_000;
+    const feeReduction = getDepartmentModifiers(manager).developmentGreenlightFeeReduction;
     const approvalFee = Math.max(120_000, ACTION_BALANCE.GREENLIGHT_APPROVAL_FEE - feeReduction);
     if (manager.cash < approvalFee) {
         return {
@@ -76,7 +78,11 @@ export function runTestScreeningForManager(manager: ProjectManagerAdapter, proje
 
     const projection = manager.getProjectedForProject(projectId);
     if (!projection) return { success: false, message: 'Projection unavailable.' };
-    const confidence = clamp(0.58 + manager.marketingTeamLevel * 0.08 + manager.foundingProfileEffects.trackingConfidenceBonus, 0.6, 0.9);
+    const confidence = clamp(
+        0.58 + manager.marketingTeamLevel * 0.08 + computeStudioModifiers(manager).foundingProfileEffects.trackingConfidenceBonus,
+        0.6,
+        0.9
+    );
     const variance = (1 - confidence) * 18;
     const offset = (manager.eventRng() - 0.5) * variance;
     const center = clamp(projection.critical + offset, 20, 95);
@@ -135,7 +141,11 @@ export function runTrackingLeverageForManager(manager: ProjectManagerAdapter, pr
     const projection = manager.getProjectedForProject(project.id);
     if (!projection) return { success: false, message: 'Tracking unavailable right now.' };
 
-    const confidence = clamp(0.57 + manager.marketingTeamLevel * 0.075 + manager.foundingProfileEffects.trackingConfidenceBonus, 0.6, 0.9);
+    const confidence = clamp(
+        0.57 + manager.marketingTeamLevel * 0.075 + computeStudioModifiers(manager).foundingProfileEffects.trackingConfidenceBonus,
+        0.6,
+        0.9
+    );
     const projectedOpening = projection.openingHigh * (0.86 + confidence * 0.24);
     const leverageCap = projectedOpening * project.studioRevenueShare * ACTION_BALANCE.TRACKING_LEVERAGE_SHARE_CAP;
     const advance = Math.round(leverageCap);
@@ -162,7 +172,7 @@ export function runScriptDevelopmentSprintForManager(manager: ProjectManagerAdap
         return { success: false, message: `${project.title} is already at max sprint quality (8.5).` };
     }
     if (manager.cash < ACTION_BALANCE.SCRIPT_SPRINT_COST) return { success: false, message: 'Insufficient cash for script sprint ($100K needed).' };
-    const sprintBoost = ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST + manager.departmentLevels.development * 0.08;
+    const sprintBoost = ACTION_BALANCE.SCRIPT_SPRINT_QUALITY_BOOST + getDepartmentModifiers(manager).developmentScriptSprintQualityBoost;
     manager.adjustCash(-ACTION_BALANCE.SCRIPT_SPRINT_COST);
     project.scriptQuality = clamp(
         project.scriptQuality + sprintBoost,
