@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StudioManager } from '../domain/studio-manager';
-import { restoreStudioManager, serializeStudioManager } from './persistence';
+import { loadManagerFromStorage, restoreStudioManager, serializeStudioManager } from './persistence';
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
@@ -8,6 +9,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     setItem: vi.fn(async () => {}),
   },
 }));
+
+const mockedAsyncStorage = vi.mocked(AsyncStorage);
 
 describe('persistence restore', () => {
   it('omits heavyweight runtime-only fields from serialized save payload', () => {
@@ -51,6 +54,22 @@ describe('persistence restore', () => {
     const restored = restoreStudioManager(snapshot);
 
     expect(() => restored.endWeek()).not.toThrow();
+  });
+
+  it('loads a version 1 envelope through the migration pipeline', async () => {
+    const manager = new StudioManager();
+    manager.animationDivisionUnlocked = true;
+    const envelope = {
+      version: 1,
+      savedAt: '2026-03-12T00:00:00.000Z',
+      manager: JSON.parse(JSON.stringify(serializeStudioManager(manager))),
+    };
+    mockedAsyncStorage.getItem.mockResolvedValueOnce(JSON.stringify(envelope));
+
+    const restored = await loadManagerFromStorage();
+
+    expect(restored).toBeTruthy();
+    expect(restored?.animationDivisionUnlocked).toBe(true);
   });
 
   it('normalizes restored turn length to the fixed two-week cadence', () => {

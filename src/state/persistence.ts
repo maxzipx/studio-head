@@ -6,7 +6,7 @@ import { StudioManager } from '../domain/studio-manager';
 import type { ChronicleEntryImpact, ChronicleEntryType, MovieGenre } from '../domain/types';
 
 const SAVE_KEY = 'pg.save.v1';
-const SAVE_VERSION = 1;
+const CURRENT_SAVE_VERSION = 2;
 
 interface StoredManager extends Record<string, unknown> {
   lastEventWeek?: [string, number][];
@@ -19,14 +19,42 @@ interface SaveEnvelope {
   manager: StoredManager;
 }
 
+interface SanitizeContext {
+  defaults: StudioManager;
+  input: StoredManager;
+  scriptMarketTargetOffers: number;
+}
+
+type SaveMigration = (manager: StoredManager) => StoredManager;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function sanitizeRestoredManager(manager: StudioManager): void {
-  const defaults = new StudioManager();
-  const scriptMarketTargetOffers = 4;
+function hasOwn(input: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(input, key);
+}
 
+const SAVE_MIGRATIONS: Record<number, SaveMigration> = {
+  1: (manager) => ({ ...manager }),
+};
+
+function applyMigrations(input: StoredManager, version: number): StoredManager {
+  let nextVersion = Math.max(1, Math.floor(version));
+  let migrated = { ...input };
+  while (nextVersion < CURRENT_SAVE_VERSION) {
+    const migration = SAVE_MIGRATIONS[nextVersion];
+    if (!migration) {
+      break;
+    }
+    migrated = migration(migrated);
+    nextVersion += 1;
+  }
+  return migrated;
+}
+
+function sanitizeStudioFields(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults, input } = context;
   if (typeof manager.studioName !== 'string' || manager.studioName.trim().length < 1) {
     manager.studioName = defaults.studioName;
   }
@@ -48,6 +76,22 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (!Number.isFinite(manager.lifetimeRevenue)) manager.lifetimeRevenue = 0;
   if (!Number.isFinite(manager.lifetimeExpenses)) manager.lifetimeExpenses = 0;
   if (!Number.isFinite(manager.lifetimeProfit)) manager.lifetimeProfit = manager.lifetimeRevenue - manager.lifetimeExpenses;
+  if (!hasOwn(input, 'foundingProfile')) manager.foundingProfile = 'none';
+  if (!hasOwn(input, 'needsFoundingSetup')) manager.needsFoundingSetup = false;
+  if (!hasOwn(input, 'foundingSetupCompletedWeek')) manager.foundingSetupCompletedWeek = null;
+  if (!hasOwn(input, 'animationDivisionUnlocked')) manager.animationDivisionUnlocked = false;
+  if (!hasOwn(input, 'lastGeneratedCrisisWeek')) manager.lastGeneratedCrisisWeek = null;
+  if (!hasOwn(input, 'generatedCrisisThisTurn')) manager.generatedCrisisThisTurn = false;
+  if (!hasOwn(input, 'lastScaleOverheadWeek')) manager.lastScaleOverheadWeek = 1;
+  if (!hasOwn(input, 'tutorialState') && !hasOwn(input, 'tutorialCompleted') && !hasOwn(input, 'tutorialDismissed')) {
+    manager.tutorialState = 'complete';
+    manager.tutorialCompleted = true;
+    manager.tutorialDismissed = false;
+  }
+  if (!hasOwn(input, 'reputation') && typeof input.studioHeat === 'number') {
+    const legacyHeat = Math.min(100, Math.max(0, input.studioHeat));
+    manager.reputation = { critics: legacyHeat, talent: legacyHeat, distributor: legacyHeat, audience: legacyHeat };
+  }
   if (!Number.isFinite(manager.marketingTeamLevel)) manager.marketingTeamLevel = 1;
   manager.marketingTeamLevel = Math.min(5, Math.max(1, Math.round(manager.marketingTeamLevel)));
   if (!Number.isFinite(manager.studioCapacityUpgrades)) manager.studioCapacityUpgrades = 0;
@@ -163,7 +207,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   }
   manager.currentWeek = Math.max(1, Math.round(manager.currentWeek));
   manager.turnLengthWeeks = defaults.turnLengthWeeks;
+}
 
+function sanitizeDecisionQueue(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults } = context;
   if (!Array.isArray(manager.pendingCrises)) manager.pendingCrises = [];
   if (!Array.isArray(manager.distributionOffers)) manager.distributionOffers = [];
   manager.distributionOffers = manager.distributionOffers.filter(
@@ -223,6 +270,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     })
     .filter((entry) => entry.options.length > 0)
     .slice(0, 24);
+}
+
+function sanitizeInboxNotifications(manager: StudioManager): void {
   if (!Array.isArray(manager.inboxNotifications)) manager.inboxNotifications = [];
   manager.inboxNotifications = manager.inboxNotifications
     .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
@@ -238,6 +288,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       projectId: typeof entry.projectId === 'string' || entry.projectId === null ? entry.projectId : null,
     }))
     .slice(0, 40);
+}
+
+function sanitizeProjects(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults } = context;
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
   for (const project of manager.activeProjects) {
     if (!isRecord(project.castRequirements)) {
@@ -344,6 +398,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     if (!Number.isFinite(project.merchandiseWeeklyRevenue)) project.merchandiseWeeklyRevenue = 0;
     if (typeof project.adaptedFromIpId !== 'string' && project.adaptedFromIpId !== null) project.adaptedFromIpId = null;
   }
+}
+
+function sanitizeFranchises(manager: StudioManager): void {
   if (!Array.isArray(manager.franchises)) manager.franchises = [];
   manager.franchises = manager.franchises
     .filter((entry) => isRecord(entry) && typeof entry.id === 'string')
@@ -372,6 +429,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       hiatusPlanCount: Number.isFinite(entry.hiatusPlanCount) ? Math.max(0, Math.round(entry.hiatusPlanCount as number)) : 0,
     }))
     .filter((franchise) => franchise.projectIds.length > 0);
+}
+
+function sanitizeTalent(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults } = context;
   if (!Array.isArray(manager.talentPool)) manager.talentPool = createSeedTalentPool((manager as StudioManager & { talentSeed: number }).talentSeed);
   for (const talent of manager.talentPool) {
     const legacyAgentTierMap: Record<string, string> = {
@@ -430,6 +491,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       talent.marketWindowExpiresWeek = Math.max(manager.currentWeek, Math.round(talent.marketWindowExpiresWeek));
     }
   }
+}
+
+function sanitizeScriptMarket(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults, scriptMarketTargetOffers } = context;
   if (!Array.isArray(manager.scriptMarket)) manager.scriptMarket = defaults.scriptMarket;
   if (manager.scriptMarket.length > scriptMarketTargetOffers) {
     manager.scriptMarket = manager.scriptMarket.slice(0, scriptMarketTargetOffers);
@@ -463,6 +528,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   if (visibleTalent === 0 && typeof managerWithMarketRefresh.refreshTalentMarket === 'function') {
     managerWithMarketRefresh.refreshTalentMarket();
   }
+}
+
+function sanitizeRivals(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults } = context;
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
   for (const rival of manager.rivals) {
     const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0];
@@ -504,6 +573,10 @@ function sanitizeRestoredManager(manager: StudioManager): void {
         }));
     }
   }
+}
+
+function sanitizeGenreCycles(manager: StudioManager, context: SanitizeContext): void {
+  const { defaults } = context;
   if (!Array.isArray(manager.industryNewsLog)) manager.industryNewsLog = [];
   if (!isRecord(manager.genreCycles)) manager.genreCycles = defaults.genreCycles;
   for (const genre of Object.keys(defaults.genreCycles) as MovieGenre[]) {
@@ -535,6 +608,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       shockUntilWeek: hasActiveShock ? Math.round(rawShockUntilWeek) : null,
     };
   }
+}
+
+function sanitizeAwards(manager: StudioManager): void {
   if (!Array.isArray(manager.awardsHistory)) manager.awardsHistory = [];
   manager.awardsHistory = manager.awardsHistory
     .filter((entry) => isRecord(entry) && Array.isArray(entry.results))
@@ -559,6 +635,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
     .filter((value) => Number.isFinite(value))
     .map((value) => Math.max(1, Math.round(value)))
     .slice(-20);
+}
+
+function sanitizeChronicle(manager: StudioManager): void {
   if (!Array.isArray(manager.studioChronicle)) manager.studioChronicle = [];
   manager.studioChronicle = manager.studioChronicle
     .filter((entry) => isRecord(entry) && typeof entry.headline === 'string')
@@ -576,6 +655,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
         : ('neutral' as ChronicleEntryImpact),
     }))
     .slice(0, 100);
+}
+
+function sanitizeReleaseReports(manager: StudioManager): void {
   if (!Array.isArray(manager.releaseReports)) manager.releaseReports = [];
   manager.releaseReports = manager.releaseReports
     .filter((entry) => isRecord(entry) && typeof entry.title === 'string')
@@ -605,6 +687,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
         : { script: 0, direction: 0, starPower: 0, marketing: 0, timing: 0, genreCycle: 0 },
     }))
     .slice(0, 60);
+}
+
+function sanitizeMilestonesAndOwnedIp(manager: StudioManager): void {
   if (!Array.isArray(manager.milestones)) manager.milestones = [];
   manager.milestones = manager.milestones
     .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
@@ -637,6 +722,9 @@ function sanitizeRestoredManager(manager: StudioManager): void {
       major: !!entry.major,
     }))
     .slice(0, 20);
+}
+
+function sanitizeNegotiationsAndStoryState(manager: StudioManager): void {
   if (!Array.isArray(manager.playerNegotiations)) manager.playerNegotiations = [];
   manager.playerNegotiations = manager.playerNegotiations
     .filter(
@@ -672,6 +760,47 @@ function sanitizeRestoredManager(manager: StudioManager): void {
   ) {
     manager.lastWeekSummary = null;
   }
+}
+
+function sanitizeTalentLifecycleFields(manager: StudioManager): void {
+  for (const talent of manager.talentPool) {
+    const t = talent as unknown as Record<string, unknown>;
+    if (typeof t.birthWeek !== 'number') {
+      const craft = typeof t.craftScore === 'number' ? t.craftScore : 5;
+      const estimatedAge = 25 + Math.round(craft * 3.5);
+      t.birthWeek = manager.currentWeek - estimatedAge * 52;
+    }
+    if (t.status !== 'active' && t.status !== 'retired' && t.status !== 'deceased') {
+      t.status = 'active';
+    }
+    if (typeof t.retiredWeek !== 'number') {
+      t.retiredWeek = null;
+    }
+  }
+}
+
+function sanitizeRestoredManager(manager: StudioManager, input: StoredManager): void {
+  const context: SanitizeContext = {
+    defaults: new StudioManager(),
+    input,
+    scriptMarketTargetOffers: 4,
+  };
+
+  sanitizeStudioFields(manager, context);
+  sanitizeDecisionQueue(manager, context);
+  sanitizeInboxNotifications(manager);
+  sanitizeProjects(manager, context);
+  sanitizeFranchises(manager);
+  sanitizeTalent(manager, context);
+  sanitizeScriptMarket(manager, context);
+  sanitizeRivals(manager, context);
+  sanitizeGenreCycles(manager, context);
+  sanitizeAwards(manager);
+  sanitizeChronicle(manager);
+  sanitizeReleaseReports(manager);
+  sanitizeMilestonesAndOwnedIp(manager);
+  sanitizeNegotiationsAndStoryState(manager);
+  sanitizeTalentLifecycleFields(manager);
 }
 
 export const SERIALIZE_MANAGER_KEYS = [
@@ -788,64 +917,11 @@ export function restoreStudioManager(input: StoredManager): StudioManager {
   const manager = new StudioManager();
   const target = manager as unknown as Record<string, unknown>;
   for (const key of SERIALIZE_MANAGER_KEYS) {
-    if (Object.hasOwn(input, key)) {
+    if (hasOwn(input, key)) {
       target[key] = input[key];
     }
   }
-  if (!Object.hasOwn(input, 'foundingProfile')) {
-    manager.foundingProfile = 'none';
-  }
-  if (!Object.hasOwn(input, 'needsFoundingSetup')) {
-    manager.needsFoundingSetup = false;
-  }
-  if (!Object.hasOwn(input, 'foundingSetupCompletedWeek')) {
-    manager.foundingSetupCompletedWeek = null;
-  }
-  if (!Object.hasOwn(input, 'animationDivisionUnlocked')) {
-    manager.animationDivisionUnlocked = false;
-  }
-  if (!Object.hasOwn(input, 'lastGeneratedCrisisWeek')) {
-    manager.lastGeneratedCrisisWeek = null;
-  }
-  if (!Object.hasOwn(input, 'generatedCrisisThisTurn')) {
-    manager.generatedCrisisThisTurn = false;
-  }
-  if (!Object.hasOwn(input, 'lastScaleOverheadWeek')) {
-    manager.lastScaleOverheadWeek = 1;
-  }
-  if (
-    !Object.hasOwn(input, 'tutorialState') &&
-    !Object.hasOwn(input, 'tutorialCompleted') &&
-    !Object.hasOwn(input, 'tutorialDismissed')
-  ) {
-    manager.tutorialState = 'complete';
-    manager.tutorialCompleted = true;
-    manager.tutorialDismissed = false;
-  }
-
-  // Migrate old saves that had studioHeat but no reputation
-  if (!('reputation' in input) && typeof input.studioHeat === 'number') {
-    const legacyHeat = Math.min(100, Math.max(0, input.studioHeat));
-    manager.reputation = { critics: legacyHeat, talent: legacyHeat, distributor: legacyHeat, audience: legacyHeat };
-  }
-
-  sanitizeRestoredManager(manager);
-
-  // Migrate talent lifecycle fields for saves predating generational talent
-  for (const talent of manager.talentPool) {
-    const t = talent as unknown as Record<string, unknown>;
-    if (typeof t.birthWeek !== 'number') {
-      const craft = typeof t.craftScore === 'number' ? t.craftScore : 5;
-      const estimatedAge = 25 + Math.round(craft * 3.5);
-      t.birthWeek = manager.currentWeek - estimatedAge * 52;
-    }
-    if (t.status !== 'active' && t.status !== 'retired' && t.status !== 'deceased') {
-      t.status = 'active';
-    }
-    if (typeof t.retiredWeek !== 'number') {
-      t.retiredWeek = null;
-    }
-  }
+  sanitizeRestoredManager(manager, input);
 
   const sourceLastEventWeek = input.lastEventWeek;
   const targetLastEventWeek = (manager as unknown as { lastEventWeek: Map<string, number> }).lastEventWeek;
@@ -873,8 +949,9 @@ export async function loadManagerFromStorage(): Promise<StudioManager | null> {
 
   try {
     const parsed = JSON.parse(raw) as SaveEnvelope;
-    if (!parsed || parsed.version !== SAVE_VERSION || !parsed.manager) return null;
-    return restoreStudioManager(parsed.manager);
+    if (!parsed || !Number.isFinite(parsed.version) || !parsed.manager) return null;
+    if (parsed.version > CURRENT_SAVE_VERSION) return null;
+    return restoreStudioManager(applyMigrations(parsed.manager, parsed.version));
   } catch {
     return null;
   }
@@ -887,7 +964,7 @@ export async function saveManagerToStorage(manager: StudioManager): Promise<void
 
 export async function saveSerializedManagerToStorage(serializedManager: StoredManager): Promise<void> {
   const envelope: SaveEnvelope = {
-    version: SAVE_VERSION,
+    version: CURRENT_SAVE_VERSION,
     savedAt: new Date().toISOString(),
     manager: serializedManager,
   };
