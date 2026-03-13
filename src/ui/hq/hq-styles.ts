@@ -62,7 +62,7 @@ export const styles = StyleSheet.create({
   capRow: { flexDirection: 'row', gap: spacing.sp3, marginTop: spacing.sp1 },
   actionsRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp2 },
   flexBtn: { flex: 1 },
-  footerBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 10 },
+  footerBtn: { flex: 1, paddingVertical: 6, paddingHorizontal: 12 },
   choiceBtn: { flexBasis: '48%', flexGrow: 0 },
 
   input: {

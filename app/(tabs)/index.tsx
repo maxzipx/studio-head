@@ -291,7 +291,7 @@ export default function HQScreen() {
 
       <View style={styles.stickyFooter}>
         <PremiumButton
-          label="Next Decision"
+          label="Adv to next decision"
           onPress={advanceToNextDecision}
           disabled={!canEnd}
           variant="secondary"
@@ -299,7 +299,7 @@ export default function HQScreen() {
           style={styles.footerBtn}
         />
         <PremiumButton
-          label={isGameOver ? 'Game Over' : manager.canEndWeek ? 'End turn (progress 2 weeks)' : 'Resolve Crisis First'}
+          label={isGameOver ? 'Game Over' : manager.canEndWeek ? 'End turn +2 weeks' : 'Resolve Crisis First'}
           onPress={endWeek}
           disabled={!canEnd}
           variant="primary"
