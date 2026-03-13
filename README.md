@@ -25,7 +25,7 @@ Studio Head is a strategy simulation game where you take the role of a film stud
 ### Prerequisites
 
 - **Node.js** 18+ and npm
-- **Expo CLI** (installed globally: `npm install -g expo-cli`)
+- **Expo CLI** (use via `npx`; no global install required)
 - For iOS: macOS with Xcode
 - For Android: Android Studio emulator or device
 - For Web: Modern web browser
@@ -34,7 +34,7 @@ Studio Head is a strategy simulation game where you take the role of a film stud
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/studio-head.git
+   git clone https://github.com/maxzipx/studio-head.git
    cd studio-head
    ```
 
@@ -60,10 +60,9 @@ This project uses [file-based routing](https://docs.expo.dev/router/introduction
 
 **Quick Development Workflow:**
 ```bash
-npm run dev          # Start development server
+npm start            # Start development server
 npm test             # Run test suite with Vitest
 npm run lint         # Run ESLint
-npm run type-check   # Check TypeScript types
 ```
 
 ## Project Structure
@@ -225,7 +224,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For issues, questions, or feature requests, please open an [issue on GitHub](https://github.com/yourusername/studio-head/issues).
+For issues, questions, or feature requests, please open an [issue on GitHub](https://github.com/maxzipx/studio-head/issues).
 
 ---
 
