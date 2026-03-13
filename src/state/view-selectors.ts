@@ -30,6 +30,7 @@ export interface InboxViewState {
   decisionsSignature: string;
   inboxSignature: string;
   projectsSignature: string;
+  tick: number;
 }
 
 export function selectInboxView(state: GameState): InboxViewState {
@@ -47,6 +48,7 @@ export function selectInboxView(state: GameState): InboxViewState {
     decisionsSignature: buildInboxDecisionsSignature(manager.decisionQueue),
     inboxSignature: buildInboxNotificationsSignature(manager.inboxNotifications),
     projectsSignature: buildInboxProjectsSignature(manager.activeProjects),
+    tick: state.tick,
   };
 }
 
@@ -88,6 +90,7 @@ export interface SlateViewState {
   scriptsSignature: string;
   offersSignature: string;
   rivalsSignature: string;
+  tick: number;
 }
 
 export function selectSlateView(state: GameState): SlateViewState {
@@ -107,6 +110,7 @@ export function selectSlateView(state: GameState): SlateViewState {
     scriptsSignature: buildSlateScriptsSignature(manager.scriptMarket),
     offersSignature: buildSlateOffersSignature(manager.distributionOffers),
     rivalsSignature: buildSlateRivalsSignature(manager.rivals),
+    tick: state.tick,
   };
 }
 

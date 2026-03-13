@@ -272,6 +272,53 @@ function sanitizeDecisionQueue(manager: StudioManager, context: SanitizeContext)
     .slice(0, 24);
 }
 
+function sanitizePendingCrises(manager: StudioManager): void {
+  if (!Array.isArray(manager.pendingCrises)) {
+    manager.pendingCrises = [];
+    return;
+  }
+  manager.pendingCrises = manager.pendingCrises
+    .filter((entry) => isRecord(entry) && typeof entry.id === 'string' && typeof entry.title === 'string')
+    .map((entry) => {
+      const rawOptions = Array.isArray(entry.options) ? entry.options : [];
+      const options = rawOptions
+        .filter((opt) => isRecord(opt) && typeof opt.id === 'string' && typeof opt.label === 'string')
+        .map((opt) => ({
+          id: String(opt.id),
+          label: String(opt.label),
+          preview: typeof opt.preview === 'string' ? opt.preview : '',
+          cashDelta: Number.isFinite(opt.cashDelta) ? Number(opt.cashDelta) : 0,
+          scheduleDelta: Number.isFinite(opt.scheduleDelta) ? Number(opt.scheduleDelta) : 0,
+          hypeDelta: Number.isFinite(opt.hypeDelta) ? Number(opt.hypeDelta) : 0,
+          ...(Number.isFinite(opt.releaseWeekShift) ? { releaseWeekShift: Math.round(Number(opt.releaseWeekShift)) } : {}),
+          ...(opt.kind === 'standard' ||
+          opt.kind === 'talentCounter' ||
+          opt.kind === 'talentWalk' ||
+          opt.kind === 'releaseHold' ||
+          opt.kind === 'releaseShift'
+            ? { kind: opt.kind }
+            : {}),
+          ...(typeof opt.talentId === 'string' ? { talentId: opt.talentId } : {}),
+          ...(typeof opt.rivalStudioId === 'string' ? { rivalStudioId: opt.rivalStudioId } : {}),
+          ...(Number.isFinite(opt.premiumMultiplier) ? { premiumMultiplier: Number(opt.premiumMultiplier) } : {}),
+        }));
+      return {
+        id: String(entry.id),
+        projectId: typeof entry.projectId === 'string' ? entry.projectId : '',
+        kind:
+          entry.kind === 'production' || entry.kind === 'talentPoached' || entry.kind === 'releaseConflict'
+            ? entry.kind
+            : 'production',
+        title: String(entry.title).slice(0, 140),
+        severity: entry.severity === 'yellow' || entry.severity === 'orange' || entry.severity === 'red' ? entry.severity : 'yellow',
+        body: typeof entry.body === 'string' ? entry.body : '',
+        options,
+      };
+    })
+    .filter((entry) => entry.options.length > 0)
+    .slice(0, 10);
+}
+
 function sanitizeInboxNotifications(manager: StudioManager): void {
   if (!Array.isArray(manager.inboxNotifications)) manager.inboxNotifications = [];
   manager.inboxNotifications = manager.inboxNotifications
@@ -788,6 +835,7 @@ function sanitizeRestoredManager(manager: StudioManager, input: StoredManager): 
 
   sanitizeStudioFields(manager, context);
   sanitizeDecisionQueue(manager, context);
+  sanitizePendingCrises(manager);
   sanitizeInboxNotifications(manager);
   sanitizeProjects(manager, context);
   sanitizeFranchises(manager);

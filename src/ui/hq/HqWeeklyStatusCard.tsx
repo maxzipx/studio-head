@@ -41,7 +41,7 @@ export function HqWeeklyStatusCard({
           />
         </GlassCard>
         <GlassCard variant="elevated" style={styles.statusTile}>
-          <MetricTile value={manager.activeProjects.length} label="Projects" size="sm" />
+          <MetricTile value={manager.projectCapacityUsed} label="Projects" size="sm" />
         </GlassCard>
         <GlassCard variant="elevated" style={styles.statusTile}>
           <MetricTile

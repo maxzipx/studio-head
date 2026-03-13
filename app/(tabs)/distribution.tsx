@@ -54,6 +54,7 @@ export default function DistributionScreen() {
       rivalsSignature: mgr.rivals
         .flatMap((r) => r.upcomingReleases.map((f) => `${r.id}:${f.id}:${f.releaseWeek}:${f.genre}:${f.estimatedBudget}`))
         .join('|'),
+      tick: state.tick,
     };
   }));
   const [showHelp, setShowHelp] = useState(false);
