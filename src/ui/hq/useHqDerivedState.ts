@@ -74,6 +74,13 @@ export function useHqDerivedState(manager: StudioManager, tick: number) {
       manager.tutorialState !== 'complete' &&
       !reveal;
     const canEnd = manager.canEndWeek && !isGameOver;
+    const projectCapacityUsed = manager.projectCapacityUsed;
+    const projectCapacityLimit = manager.projectCapacityLimit;
+    const cash = manager.cash;
+    const currentWeek = manager.currentWeek;
+    const canEndWeek = manager.canEndWeek;
+    const consecutiveLowCashWeeks = manager.consecutiveLowCashWeeks;
+    const lifetimeProfit = manager.lifetimeProfit;
 
     return {
       reveal,
@@ -88,6 +95,13 @@ export function useHqDerivedState(manager: StudioManager, tick: number) {
       visibleUpdates,
       inboxCount,
       weeklyExpenses,
+      projectCapacityUsed,
+      projectCapacityLimit,
+      cash,
+      currentWeek,
+      canEndWeek,
+      consecutiveLowCashWeeks,
+      lifetimeProfit,
       marketingUpgradeCost,
       capacityUpgradeCost,
       marketingTierCap,

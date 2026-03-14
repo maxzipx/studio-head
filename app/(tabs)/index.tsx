@@ -95,6 +95,13 @@ export default function HQScreen() {
     rivalRelations,
     tutorialVisible,
     canEnd,
+    projectCapacityUsed,
+    projectCapacityLimit,
+    cash,
+    currentWeek,
+    canEndWeek,
+    consecutiveLowCashWeeks,
+    lifetimeProfit,
   } = useHqDerivedState(manager, tick);
 
   const [studioNameDraft, setStudioNameDraft] = useState(manager.studioName);
@@ -116,10 +123,10 @@ export default function HQScreen() {
             pointerEvents="none"
           />
           <Text style={styles.studioName}>{manager.studioName}</Text>
-          <Text style={styles.weekLine}>Week {manager.currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
+          <Text style={styles.weekLine}>Week {currentWeek} | {TIER_LABELS[manager.studioTier] ?? manager.studioTier}</Text>
         </View>
 
-        {manager.currentWeek <= 1 ? (
+        {currentWeek <= 1 ? (
           <GlassCard variant="amber">
             <SectionLabel label="Getting Started" />
             {[
@@ -179,13 +186,19 @@ export default function HQScreen() {
         ) : null}
 
         <HqWeeklyStatusCard
-          manager={manager}
+          currentWeek={currentWeek}
+          canEndWeek={canEndWeek}
+          projectCapacityUsed={projectCapacityUsed}
+          inboxCount={inboxCount}
+          cash={cash}
           weeklyExpenses={weeklyExpenses}
+          lifetimeProfit={lifetimeProfit}
+          consecutiveLowCashWeeks={consecutiveLowCashWeeks}
           scaleOverheadCost={scaleOverheadCost}
           nextScaleOverheadWeek={nextScaleOverheadWeek}
-          inboxCount={inboxCount}
           hasLowCashWarning={hasLowCashWarning}
           hasUrgentLowCashWarning={hasUrgentLowCashWarning}
+          visibleCrises={visibleCrises}
         />
 
         <HqStandingCard manager={manager} />
@@ -204,6 +217,8 @@ export default function HQScreen() {
 
         <HqOperationsCard
           manager={manager}
+          projectCapacityUsed={projectCapacityUsed}
+          projectCapacityLimit={projectCapacityLimit}
           isGameOver={isGameOver}
           studioNameDraft={studioNameDraft}
           onStudioNameDraftChange={setStudioNameDraft}
@@ -299,7 +314,7 @@ export default function HQScreen() {
           style={styles.footerBtn}
         />
         <PremiumButton
-          label={isGameOver ? 'Game Over' : manager.canEndWeek ? 'End turn +2 weeks' : 'Resolve Crisis First'}
+          label={isGameOver ? 'Game Over' : canEndWeek ? 'End turn +2 weeks' : 'Resolve Crisis First'}
           onPress={endWeek}
           disabled={!canEnd}
           variant="primary"

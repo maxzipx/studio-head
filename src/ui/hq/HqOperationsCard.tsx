@@ -17,6 +17,8 @@ const SPECIALIZATION_EFFECTS: Record<StudioSpecialization, string> = {
 
 interface HqOperationsCardProps {
   manager: StudioManager;
+  projectCapacityUsed: number;
+  projectCapacityLimit: number;
   isGameOver: boolean;
   studioNameDraft: string;
   onStudioNameDraftChange: (value: string) => void;
@@ -50,6 +52,8 @@ interface HqOperationsCardProps {
 
 export function HqOperationsCard({
   manager,
+  projectCapacityUsed,
+  projectCapacityLimit,
   isGameOver,
   studioNameDraft,
   onStudioNameDraftChange,
@@ -83,8 +87,8 @@ export function HqOperationsCard({
   return (
     <CollapsibleCard
       title="Operations"
-      badge={`Cap ${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`}
-      badgeColor={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
+      badge={`Cap ${projectCapacityUsed}/${projectCapacityLimit}`}
+      badgeColor={projectCapacityUsed >= projectCapacityLimit ? colors.accentRed : colors.accentGreen}
       defaultOpen={false}
     >
       <View>
@@ -95,12 +99,12 @@ export function HqOperationsCard({
         </Text>
         <View style={[styles.capRow, { marginTop: spacing.sp1 }]}>
           <MetricTile value={`L${manager.marketingTeamLevel}`} label="Marketing" size="sm" />
-          <MetricTile value={`${manager.projectCapacityUsed}/${manager.projectCapacityLimit}`} label="Slots" size="sm" />
+          <MetricTile value={`${projectCapacityUsed}/${projectCapacityLimit}`} label="Slots" size="sm" />
           <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
         </View>
         <ProgressBar
-          value={(manager.projectCapacityUsed / manager.projectCapacityLimit) * 100}
-          color={manager.projectCapacityUsed >= manager.projectCapacityLimit ? colors.accentRed : colors.accentGreen}
+          value={(projectCapacityUsed / projectCapacityLimit) * 100}
+          color={projectCapacityUsed >= projectCapacityLimit ? colors.accentRed : colors.accentGreen}
           height={4}
           animated
           style={{ marginTop: spacing.sp2 }}

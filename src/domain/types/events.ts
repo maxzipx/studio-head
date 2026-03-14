@@ -11,6 +11,7 @@ export interface BuildDecisionContext {
   readonly currentWeek: number;
   readonly studioTier: StudioTier;
   readonly franchises: readonly FranchiseTrack[];
+  readonly studioName: string;
 }
 
 export interface CrisisOption {

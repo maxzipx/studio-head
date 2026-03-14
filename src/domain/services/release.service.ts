@@ -393,7 +393,6 @@ export class ReleaseService {
 
     if (eligibleProjects.length === 0) {
       this.manager.awardsSeasonsProcessed.push(seasonYear);
-      events.push(`Awards season year ${seasonYear}: no eligible player releases this cycle.`);
       return;
     }
 

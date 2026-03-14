@@ -52,7 +52,7 @@ export const studioStrategyEvents: EventTemplateDraft[] = [
         projectId: null,
         category: 'marketing',
         title: 'Year-End Recognition Snub',
-        body: "A major year-end industry list passed your studio over. The gap between your work and your reputation is public now.",
+        body: `A major year-end industry list passed ${context.studioName} over. The gap between your work and your reputation is public now.`,
         weeksUntilExpiry: 2,
         options: [
           {

@@ -225,6 +225,7 @@ function buildContextSnapshot(manager: StudioManager): BuildDecisionContext {
     currentWeek: manager.currentWeek,
     studioTier: manager.studioTier,
     franchises: manager.franchises,
+    studioName: manager.studioName,
   };
 }
 
