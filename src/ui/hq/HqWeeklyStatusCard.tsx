@@ -79,7 +79,7 @@ export function HqWeeklyStatusCard({
         Scale overhead posts every 13 weeks. Current charge: {money(scaleOverheadCost)}. Next review: W{nextScaleOverheadWeek}.
       </Text>
 
-      {!canEndWeek ? (
+      {!canEndWeek && visibleCrises.length > 0 ? (
         <>
           <Text style={styles.alert}>Resolve crisis to unlock End Turn.</Text>
           {visibleCrises.map((crisis) => (
@@ -88,6 +88,8 @@ export function HqWeeklyStatusCard({
             </Text>
           ))}
         </>
+      ) : !canEndWeek ? (
+        <Text style={styles.alert}>End Turn is currently blocked. Check your Inbox.</Text>
       ) : null}
       {hasLowCashWarning ? (
         <Text style={styles.alert}>
