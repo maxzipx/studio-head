@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { selectSlateView } from '@/src/state/view-selectors';
-import { GlassCard, MetricTile, MetricsStrip, PremiumButton, ProgressBar, SectionLabel } from '@/src/ui/components';
-import { colors, radius, spacing, typography } from '@/src/ui/tokens';
-import {
-  money,
-  phaseColor,
-  phaseProgress,
-  recommendationColor,
-  recommendationLabel,
-} from '@/src/ui/helpers/formatting';
+import { GlassCard, MetricTile, MetricsStrip, PremiumButton, SectionLabel } from '@/src/ui/components';
+import { colors } from '@/src/ui/tokens';
+import { money } from '@/src/ui/helpers/formatting';
+import { styles } from '@/src/ui/slate/slate-styles';
+import { SlateScriptCard } from '@/src/ui/slate/SlateScriptCard';
+import { SlateProjectCard } from '@/src/ui/slate/SlateProjectCard';
+import { SlateDistributionCard } from '@/src/ui/slate/SlateDistributionCard';
 
 export default function SlateScreen() {
   const router = useRouter();
@@ -84,6 +82,10 @@ export default function SlateScreen() {
     if (overlaps <= 2) return { label: 'Moderate', color: colors.goldMid };
     return { label: 'High', color: colors.accentRed };
   }
+
+  const navigateToProject = (projectId: string) => {
+    router.push({ pathname: '/project/[id]', params: { id: projectId } });
+  };
 
   return (
     <View style={styles.screen}>
@@ -163,59 +165,15 @@ export default function SlateScreen() {
           ) : null}
           {visibleScriptMarket.length === 0
             ? <Text style={styles.empty}>No active script offers this week.</Text>
-            : visibleScriptMarket.map((script) => {
-              const evalResult = manager.evaluateScriptPitch(script.id);
-              return (
-                <GlassCard key={script.id} style={{ gap: spacing.sp2 }}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{script.title}</Text>
-                    <View style={[styles.pill, { borderColor: colors.goldMid + '50' }]}>
-                      <Text style={styles.pillText}>{script.genre}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.logline}>{script.logline}</Text>
-
-                  <View style={styles.metricRow}>
-                    <MetricTile value={money(script.askingPrice)} label="Ask" size="sm" />
-                    <MetricTile
-                      value={`${script.expiresInWeeks}w`}
-                      label="Expires"
-                      size="sm"
-                      accent={script.expiresInWeeks <= 1 ? colors.accentRed : colors.textMuted}
-                    />
-                    {evalResult && (
-                      <MetricTile
-                        value={evalResult.valueScore.toFixed(0)}
-                        label="Script Grade"
-                        size="sm"
-                        accent={evalResult.valueScore >= 70 ? colors.accentGreen : evalResult.valueScore < 55 ? colors.accentRed : colors.goldMid}
-                      />
-                    )}
-                  </View>
-
-                  {evalResult && (
-                    <View style={styles.recRow}>
-                      <View style={[styles.recBadge, {
-                        borderColor: recommendationColor(evalResult.recommendation) + '60',
-                        backgroundColor: recommendationColor(evalResult.recommendation) + '14',
-                      }]}>
-                        <Text style={[styles.recText, { color: recommendationColor(evalResult.recommendation) }]}>
-                          {recommendationLabel(evalResult.recommendation)}
-                        </Text>
-                      </View>
-                      <Text style={styles.metaText}>
-                        Script Quality {evalResult.qualityScore.toFixed(0)} · Risk {evalResult.riskLabel}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={styles.actions}>
-                    <PremiumButton label="Acquire" onPress={() => handleAcquireScript(script.id, script.title)} variant="primary" size="sm" style={styles.flexBtn} />
-                    <PremiumButton label="Pass" onPress={() => passScript(script.id)} variant="ghost" size="sm" style={styles.flexBtn} />
-                  </View>
-                </GlassCard>
-              );
-            })
+            : visibleScriptMarket.map((script) => (
+              <SlateScriptCard
+                key={script.id}
+                script={script}
+                evalResult={manager.evaluateScriptPitch(script.id)}
+                onAcquire={handleAcquireScript}
+                onPass={passScript}
+              />
+            ))
           }
         </View>
 
@@ -224,100 +182,17 @@ export default function SlateScreen() {
           <SectionLabel label="In-Flight Projects" />
           {inFlight.length === 0
             ? <Text style={styles.empty}>No projects currently moving through production phases.</Text>
-            : inFlight.map((project) => {
-              const projection = manager.getProjectedForProject(project.id);
-              const burnPct = (project.budget.actualSpend / project.budget.ceiling) * 100;
-              const director = project.directorId
-                ? manager.talentPool.find((t) => t.id === project.directorId)?.name ?? 'Unknown'
-                : 'Unattached';
-              const cast = project.castIds
-                .map((id) => manager.talentPool.find((t) => t.id === id)?.name)
-                .filter((v): v is string => !!v);
-              const progress = phaseProgress(project.phase, project.scheduledWeeksRemaining);
-              const phaseCol = phaseColor(project.phase);
-
-              return (
-                <GlassCard key={project.id} style={{ gap: spacing.sp2 }}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{project.title}</Text>
-                    <View style={styles.rowMeta}>
-                      {manager.newlyAcquiredProjectId === project.id ? (
-                        <View style={[styles.pill, { borderColor: colors.accentGreen + '70', backgroundColor: colors.accentGreen + '1A' }]}>
-                          <Text style={[styles.pillText, { color: colors.accentGreen }]}>NEW</Text>
-                        </View>
-                      ) : null}
-                      <View style={[styles.pill, { borderColor: phaseCol + '60', backgroundColor: phaseCol + '14' }]}>
-                        <Text style={[styles.pillText, { color: phaseCol }]}>{project.phase}</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.rowMeta}>
-                    <View style={[styles.pill, { borderColor: colors.goldMid + '40' }]}>
-                      <Text style={styles.pillText}>{project.genre}</Text>
-                    </View>
-                    <Text style={styles.metaText}>{director}</Text>
-                    {project.scheduledWeeksRemaining > 0 && (
-                      <Text style={styles.metaText}>{project.scheduledWeeksRemaining}w left</Text>
-                    )}
-                  </View>
-
-                  <ProgressBar value={progress} color={phaseCol} height={4} animated />
-
-                  <View style={styles.metricRow}>
-                    <MetricTile value={money(project.budget.actualSpend)} label="Spent" size="sm" />
-                    <MetricTile value={money(project.budget.ceiling)} label="Ceiling" size="sm" />
-                    <MetricTile
-                      value={`${burnPct.toFixed(0)}%`}
-                      label="Consumed"
-                      size="sm"
-                      accent={burnPct > 85 ? colors.accentRed : colors.goldMid}
-                    />
-                  </View>
-                  <ProgressBar
-                    value={burnPct}
-                    color={burnPct > 85 ? colors.accentRed : colors.accentGreen}
-                    height={3}
-                    animated
-                  />
-
-                  {cast.length > 0 && <Text style={styles.metaText}>Cast: {cast.join(', ')}</Text>}
-
-                  {projection && (
-                    <GlassCard variant="elevated" style={{ gap: spacing.sp2 }}>
-                      <SectionLabel label="Projection" />
-                      <View style={styles.metricRow}>
-                        <MetricTile
-                          value={projection.critical.toFixed(0)}
-                          label="Critic"
-                          size="sm"
-                          accent={projection.critical >= 70 ? colors.accentGreen : projection.critical < 50 ? colors.accentRed : colors.goldMid}
-                        />
-                        <MetricTile value={money(projection.openingLow)} label="Opening Low" size="sm" />
-                        <MetricTile value={money(projection.openingHigh)} label="Opening High" size="sm" accent={colors.accentGreen} />
-                      </View>
-                    </GlassCard>
-                  )}
-
-                  <View style={styles.actions}>
-                    <PremiumButton
-                      label="Open Detail"
-                      onPress={() => router.push({ pathname: '/project/[id]', params: { id: project.id } })}
-                      variant="secondary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                    <PremiumButton
-                      label="Advance Phase"
-                      onPress={() => advancePhase(project.id)}
-                      variant="primary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                  </View>
-                </GlassCard>
-              );
-            })
+            : inFlight.map((project) => (
+              <SlateProjectCard
+                key={project.id}
+                project={project}
+                projection={manager.getProjectedForProject(project.id)}
+                talentPool={manager.talentPool}
+                isNewlyAcquired={manager.newlyAcquiredProjectId === project.id}
+                onOpenDetail={navigateToProject}
+                onAdvancePhase={advancePhase}
+              />
+            ))
           }
         </View>
 
@@ -326,112 +201,21 @@ export default function SlateScreen() {
           <SectionLabel label="Distribution Desk" />
           {distribution.length === 0
             ? <Text style={styles.empty}>No projects in distribution phase.</Text>
-            : distribution.map((project) => {
-              const offers = manager.getOffersForProject(project.id);
-              const pressure = pressureForWeek(project.releaseWeek);
-              const releaseWeekLabel =
-                project.releaseWeek === null
-                  ? 'Not set'
-                  : project.releaseWeekLocked
-                    ? `Locked W${project.releaseWeek}`
-                    : `Suggested W${project.releaseWeek}`;
-              return (
-                <GlassCard key={project.id} variant="gold" style={{ gap: spacing.sp2 }}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{project.title}</Text>
-                    <Text style={[styles.pressureLabel, { color: pressure.color }]}>
-                      {pressure.label} Pressure
-                    </Text>
-                  </View>
-
-                  <Text style={styles.releaseWeekLine}>
-                    Release Week{' '}
-                    <Text style={{ color: colors.goldMid, fontFamily: typography.fontBodyBold }}>
-                      {project.releaseWeek ?? '—'}
-                    </Text>
-                  </Text>
-                  <Text style={styles.metaText}>
-                    {project.releaseWeek === null
-                      ? 'Release status: week not set'
-                      : project.releaseWeekLocked
-                        ? `Release status: locked for week ${project.releaseWeek}`
-                        : `Release status: suggested week ${project.releaseWeek} still needs confirmation`}
-                  </Text>
-
-                  <View style={styles.actions}>
-                    <PremiumButton
-                      label="Week −1"
-                      onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek - 1)}
-                      disabled={!project.releaseWeek}
-                      variant="secondary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                    <PremiumButton
-                      label="Week +1"
-                      onPress={() => project.releaseWeek && setReleaseWeek(project.id, project.releaseWeek + 1)}
-                      disabled={!project.releaseWeek}
-                      variant="secondary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                  </View>
-                  {project.releaseWeek && !project.releaseWeekLocked ? (
-                    <PremiumButton
-                      label="Confirm Suggested Week"
-                      onPress={() => confirmReleaseWeek(project.id)}
-                      variant="gold-outline"
-                      size="sm"
-                    />
-                  ) : null}
-
-                  {offers.map((offer) => (
-                    <GlassCard key={offer.id} variant="elevated" style={{ gap: spacing.sp2 }}>
-                      <View style={styles.cardHeader}>
-                        <Text style={styles.offerPartner}>{offer.partner}</Text>
-                        <View style={[styles.pill, { borderColor: colors.goldMid + '40' }]}>
-                          <Text style={styles.pillText}>{offer.releaseWindow}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.metricRow}>
-                        <MetricTile value={money(offer.minimumGuarantee)} label="Min Guarantee" size="sm" accent={colors.accentGreen} />
-                        <MetricTile value={money(offer.pAndACommitment)} label="P&A" size="sm" />
-                        <MetricTile value={`${(offer.revenueShareToStudio * 100).toFixed(0)}%`} label="Rev Share" size="sm" accent={colors.goldMid} />
-                      </View>
-                      <View style={styles.actions}>
-                        <PremiumButton label="Accept" onPress={() => acceptOffer(project.id, offer.id)} variant="primary" size="sm" style={styles.flexBtn} />
-                        <PremiumButton label="Counter" onPress={() => counterOffer(project.id, offer.id)} variant="gold-outline" size="sm" style={styles.flexBtn} />
-                      </View>
-                    </GlassCard>
-                  ))}
-
-                  {offers.length === 0 && (
-                    <Text style={styles.empty}>No offers right now. Regenerates on End Turn.</Text>
-                  )}
-
-                  <View style={styles.actions}>
-                    <PremiumButton
-                      label="Open Detail"
-                      onPress={() => router.push({ pathname: '/project/[id]', params: { id: project.id } })}
-                      variant="secondary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                    <PremiumButton
-                      label="Advance To Release"
-                      onPress={() => advancePhase(project.id)}
-                      variant="primary"
-                      size="sm"
-                      style={styles.flexBtn}
-                    />
-                  </View>
-
-                  {offers.length > 0 && (
-                    <PremiumButton label="Walk Away" onPress={() => walkAwayOffer(project.id)} variant="danger" size="sm" />
-                  )}
-                </GlassCard>
-              );
-            })
+            : distribution.map((project) => (
+              <SlateDistributionCard
+                key={project.id}
+                project={project}
+                offers={manager.getOffersForProject(project.id)}
+                pressure={pressureForWeek(project.releaseWeek)}
+                onSetReleaseWeek={setReleaseWeek}
+                onConfirmReleaseWeek={confirmReleaseWeek}
+                onAcceptOffer={acceptOffer}
+                onCounterOffer={counterOffer}
+                onWalkAway={walkAwayOffer}
+                onOpenDetail={navigateToProject}
+                onAdvancePhase={advancePhase}
+              />
+            ))
           }
         </View>
 
@@ -439,73 +223,3 @@ export default function SlateScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp5, paddingBottom: 120, gap: spacing.sp4 },
-  section: { gap: spacing.sp3 },
-
-  header: { gap: 4, marginBottom: spacing.sp1 },
-  headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
-  title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
-
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentGreen },
-  empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
-  helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
-  helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
-
-  snapshotRow: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp2 },
-  snapshotTile: { flex: 1, alignItems: 'center', paddingVertical: spacing.sp2, flexShrink: 1 },
-  snapshotMetricLabel: { letterSpacing: typography.trackingNormal, textTransform: 'none' },
-
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontFamily: typography.fontDisplayItalic, fontSize: typography.sizeLG, color: colors.textPrimary, flex: 1, marginRight: spacing.sp2, lineHeight: 26 },
-  logline: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20, marginTop: 2 },
-  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2, flexWrap: 'wrap' },
-  metaText: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
-  metricRow: { flexDirection: 'row', gap: spacing.sp3 },
-
-  pill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  pillText: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, color: colors.goldMid, letterSpacing: 0.4, textTransform: 'capitalize' },
-
-  recRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sp2 },
-  recBadge: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  recText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4, textTransform: 'uppercase' },
-
-  pressureLabel: { fontFamily: typography.fontBodySemiBold, fontSize: typography.sizeXS, textTransform: 'uppercase', letterSpacing: 0.6 },
-  releaseWeekLine: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary },
-  offerPartner: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.sp4,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: radius.r4,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    backgroundColor: colors.bgSurface,
-    padding: spacing.sp3,
-    gap: spacing.sp2,
-  },
-  modalTitle: {
-    fontFamily: typography.fontBodyBold,
-    fontSize: typography.sizeMD,
-    color: colors.textPrimary,
-  },
-  modalBody: {
-    fontFamily: typography.fontBody,
-    fontSize: typography.sizeSM,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-
-  actions: { flexDirection: 'row', gap: spacing.sp2, marginTop: spacing.sp1, flexWrap: 'wrap' },
-  flexBtn: { flex: 1 },
-});
-

@@ -1,0 +1,233 @@
+import { StyleSheet } from 'react-native';
+
+import { tokens } from '@/src/ui/tokens';
+
+export const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: tokens.bgPrimary,
+  },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 120,
+  },
+  title: {
+    color: tokens.textPrimary,
+    fontSize: 30,
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: tokens.textSecondary,
+    fontSize: 13,
+    marginTop: -2,
+  },
+  message: {
+    color: tokens.accentGreen,
+    fontSize: 13,
+  },
+  section: {
+    gap: 8,
+  },
+  sectionTitle: {
+    color: tokens.accentGold,
+    fontWeight: '700',
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    padding: 12,
+    gap: 6,
+  },
+  subCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    padding: 8,
+    gap: 3,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    color: tokens.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  genre: {
+    color: tokens.accentGold,
+    textTransform: 'capitalize',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  inlineBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: tokens.bgSurface,
+    borderColor: tokens.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 10,
+  },
+  modalTitle: {
+    color: tokens.textPrimary,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalBody: {
+    color: tokens.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: tokens.accentGreen,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  modalButtonText: {
+    color: tokens.textInverse,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  bargainBadge: {
+    color: tokens.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: tokens.accentGreen,
+  },
+  biddingBadge: {
+    color: tokens.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: tokens.accentGold,
+  },
+  body: {
+    color: tokens.textSecondary,
+    fontSize: 13,
+  },
+  bodyStrong: {
+    color: tokens.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  muted: {
+    color: tokens.textMuted,
+    fontSize: 12,
+  },
+  warning: {
+    color: tokens.accentGold,
+    fontSize: 12,
+  },
+  signal: {
+    color: tokens.accentGold,
+    fontSize: 12,
+  },
+  negotiationActions: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 3,
+  },
+  negotiationButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgSurface,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  negotiationButtonText: {
+    color: tokens.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  actionButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  actionText: {
+    color: tokens.textPrimary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  subHeader: {
+    color: tokens.textPrimary,
+    marginTop: 8,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+  },
+  talentButton: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.bgElevated,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  talentText: {
+    color: tokens.textSecondary,
+    fontSize: 12,
+  },
+  talentMeta: {
+    color: tokens.textMuted,
+    fontSize: 11,
+    marginTop: 3,
+  },
+  quickButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: tokens.border,
+    backgroundColor: tokens.borderDefault,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  quickText: {
+    color: tokens.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});

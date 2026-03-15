@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { useGameStore } from '@/src/state/game-context';
 import { useShallow } from 'zustand/react/shallow';
 import { selectTalentView } from '@/src/state/view-selectors';
-import { GlassCard, MetricsStrip, PremiumButton, SectionLabel, TalentCard } from '@/src/ui/components';
-import { colors, radius, spacing, typography } from '@/src/ui/tokens';
+import { GlassCard, MetricsStrip, PremiumButton, SectionLabel } from '@/src/ui/components';
+import { colors, typography } from '@/src/ui/tokens';
 import type { NegotiationAction } from '@/src/domain/types';
 import {
   capitalized,
-  chanceColor,
-  chanceLabel,
-  money,
-  pct,
   phaseLabel,
 } from '@/src/ui/helpers/formatting';
 import { buildTalentScreenProjectView } from '@/src/ui/helpers/talent-screen';
 import { useNegotiationModal } from '@/src/ui/hooks/useNegotiationModal';
+
+import { styles } from '@/src/ui/talent/talent-styles';
+import { TalentStaffingSnapshot } from '@/src/ui/talent/TalentStaffingSnapshot';
+import { TalentNegotiationCard } from '@/src/ui/talent/TalentNegotiationCard';
+import { TalentNegotiationModal } from '@/src/ui/talent/TalentNegotiationModal';
+import { TalentMarketSection } from '@/src/ui/talent/TalentMarketSection';
+import { TalentRosterSection } from '@/src/ui/talent/TalentRosterSection';
 
 export default function TalentScreen() {
   const { manager, startNegotiation, adjustNegotiation, dismissNegotiation, attachTalent, lastMessage } = useGameStore(useShallow(selectTalentView));
@@ -97,24 +100,14 @@ export default function TalentScreen() {
         )}
 
         {/*  Market Snapshot  */}
-        <GlassCard>
-          <SectionLabel label="Project Staffing Snapshot" />
-          <View style={styles.snapshotRow}>
-            {[
-              { label: 'Directors', value: marketDirectorCount, accent: colors.ctaAmber },
-              { label: 'Actors', value: marketActorCount, accent: colors.accentGreen },
-              { label: 'Actresses', value: marketActressCount, accent: colors.goldMid },
-              { label: 'Deals', value: openNegotiations.length, accent: colors.goldMid },
-              { label: 'Attached', value: attachedCount, accent: colors.accentRed },
-              { label: 'Needed', value: neededSlots, accent: colors.textMuted },
-            ].map(({ label, value, accent }) => (
-              <GlassCard key={label} variant="elevated" style={styles.snapshotTile}>
-                <Text style={[styles.snapshotValue, { color: accent }]}>{value}</Text>
-                <Text style={styles.snapshotLabel}>{label}</Text>
-              </GlassCard>
-            ))}
-          </View>
-        </GlassCard>
+        <TalentStaffingSnapshot
+          marketDirectorCount={marketDirectorCount}
+          marketActorCount={marketActorCount}
+          marketActressCount={marketActressCount}
+          openNegotiationCount={openNegotiations.length}
+          attachedCount={attachedCount}
+          neededSlots={neededSlots}
+        />
 
         {/*  Development Targets  */}
         <GlassCard>
@@ -171,414 +164,73 @@ export default function TalentScreen() {
             : openNegotiations.length === 0
               ? <Text style={styles.empty}>No open negotiations for this project.</Text>
               : openNegotiations.map((entry) => {
-              const talent = manager.talentPool.find((t) => t.id === entry.talentId);
-              const project = manager.activeProjects.find((p) => p.id === entry.projectId);
-              const chance = manager.getNegotiationChance(entry.talentId, entry.projectId);
-              const snapshot = manager.getNegotiationSnapshot(entry.projectId, entry.talentId);
-              const outOfRounds = (snapshot?.rounds ?? entry.rounds ?? 0) >= 4;
+              const draftKey = `${entry.projectId}:${entry.talentId}`;
               return (
-                <GlassCard key={`${entry.projectId}-${entry.talentId}`} variant="elevated" style={{ gap: spacing.sp2 }}>
-                  <View style={styles.negHeader}>
-                    <Text style={styles.subTitle}>{talent?.name ?? 'Talent'}</Text>
-                    {chance !== null && (
-                      <View style={[styles.chancePill, { borderColor: chanceColor(chance) + '60', backgroundColor: chanceColor(chance) + '14' }]}>
-                        <Text style={[styles.chanceText, { color: chanceColor(chance) }]}>
-                          {pct(chance)} - {chanceLabel(chance)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.muted}>
-                    {project?.title} - opened W{entry.openedWeek} - resolves on End Turn
-                  </Text>
-
-                  {snapshot && (
-                    <>
-                      <Text style={styles.muted}>
-                        Rounds {snapshot.rounds}/4 - Pressure: {capitalized(snapshot.pressurePoint)}
-                      </Text>
-                      <View style={styles.offerRow}>
-                        <GlassCard variant="default" style={styles.offerCol}>
-                          <Text style={styles.offerLabel}>YOUR OFFER</Text>
-                          <Text style={styles.offerVal}>Salary {money((talent?.salary.base ?? 0) * snapshot.salaryMultiplier)}</Text>
-                          <Text style={styles.offerVal}>{snapshot.backendPoints.toFixed(1)}pt Backend</Text>
-                        </GlassCard>
-                        <GlassCard variant="default" style={styles.offerCol}>
-                          <Text style={styles.offerLabel}>THEIR ASK</Text>
-                          <Text style={styles.offerVal}>Salary {money((talent?.salary.base ?? 0) * snapshot.demandSalaryMultiplier)}</Text>
-                          <Text style={styles.offerVal}>{snapshot.demandBackendPoints.toFixed(1)}pt Backend</Text>
-                        </GlassCard>
-                      </View>
-                      <Text style={[styles.signal, { color: colors.goldMid }]}>{snapshot.signal}</Text>
-                      <Text style={styles.muted}>
-                        Counter impact: Salary +${Math.round(snapshot.sweetenSalaryRetainerDelta).toLocaleString()} retainer | Backend -{snapshot.sweetenBackendShareDeltaPct.toFixed(1)}% share | Perks +${Math.round(snapshot.sweetenPerksRetainerDelta).toLocaleString()} retainer
-                      </Text>
-                    </>
-                  )}
-                  {!snapshot && (
-                    <Text style={[styles.alert, { color: colors.accentRed }]}>
-                      Negotiation details failed to load. You can still submit a counter or dismiss this stuck entry.
-                    </Text>
-                  )}
-                  {outOfRounds && (
-                    <Text style={[styles.alert, { color: colors.goldMid }]}>
-                      Rounds exhausted. End Turn to resolve this negotiation.
-                    </Text>
-                  )}
-                  {(() => {
-                    const draftKey = `${entry.projectId}:${entry.talentId}`;
+                <TalentNegotiationCard
+                  key={draftKey}
+                  entry={entry}
+                  manager={manager}
+                  selectedAction={draftNegActions[draftKey] ?? null}
+                  onSelectAction={(action) =>
+                    setDraftNegActions((prev) => ({
+                      ...prev,
+                      [draftKey]: action,
+                    }))
+                  }
+                  onSubmitRound={() => {
                     const selectedAction = draftNegActions[draftKey] ?? null;
-                    return (
-                      <>
-                        <View style={styles.actions}>
-                          {[
-                            { label: 'Salary+', action: 'sweetenSalary' },
-                            { label: 'Backend+', action: 'sweetenBackend' },
-                            { label: 'Perks+', action: 'sweetenPerks' },
-                            { label: 'Hold', action: 'holdFirm' },
-                          ].map(({ label, action }) => (
-                            <PremiumButton
-                              key={action}
-                              label={label}
-                              onPress={() =>
-                                setDraftNegActions((prev) => ({
-                                  ...prev,
-                                  [draftKey]: action as NegotiationAction,
-                                }))
-                              }
-                              variant={selectedAction === action ? 'primary' : 'secondary'}
-                              size="sm"
-                              disabled={outOfRounds}
-                              style={styles.negBtn}
-                            />
-                          ))}
-                        </View>
-                        <View style={styles.offerRow}>
-                          <PremiumButton
-                            label="Drop Negotiation"
-                            onPress={() => {
-                              dismissNegotiation(entry.projectId, entry.talentId);
-                              setDraftNegActions((prev) => {
-                                const next = { ...prev };
-                                delete next[draftKey];
-                                return next;
-                              });
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            style={styles.flexBtn}
-                          />
-                          <PremiumButton
-                            label="Submit Round"
-                            onPress={() => {
-                              if (selectedAction) {
-                                adjustNegotiation(entry.projectId, entry.talentId, selectedAction);
-                                setDraftNegActions((prev) => {
-                                  const next = { ...prev };
-                                  delete next[draftKey];
-                                  return next;
-                                });
-                              }
-                            }}
-                            variant="primary"
-                            size="sm"
-                            disabled={outOfRounds || !selectedAction}
-                            style={styles.flexBtn}
-                          />
-                        </View>
-                      </>
-                    );
-                  })()}
-                </GlassCard>
+                    if (selectedAction) {
+                      adjustNegotiation(entry.projectId, entry.talentId, selectedAction);
+                      setDraftNegActions((prev) => {
+                        const next = { ...prev };
+                        delete next[draftKey];
+                        return next;
+                      });
+                    }
+                  }}
+                  onDrop={() => {
+                    dismissNegotiation(entry.projectId, entry.talentId);
+                    setDraftNegActions((prev) => {
+                      const next = { ...prev };
+                      delete next[draftKey];
+                      return next;
+                    });
+                  }}
+                />
               );
               })
           }
         </GlassCard>
 
-        {/*  Directors In Market  */}
-        {!activeProject ? (
-          <GlassCard variant="elevated">
-            <Text style={styles.empty}>Select a development project to view its staffing needs.</Text>
-          </GlassCard>
-        ) : marketTalent.length === 0
-          ? (
-            <GlassCard variant="elevated">
-              <Text style={styles.empty}>
-                {neededSlots === 0
-                  ? 'This project\'s current staffing needs are filled.'
-                  : 'No available talent currently matches this project\'s open roles.'}
-              </Text>
-            </GlassCard>
-          )
-          : null}
-
-        {marketDirectors.length > 0 && (
-          <>
-            <View style={styles.roleHeaderDirector}>
-              <Text style={styles.roleHeaderText}>DIRECTORS IN MARKET</Text>
-              <Text style={styles.roleHeaderCount}>{marketDirectors.length}</Text>
-            </View>
-            {marketDirectors.map((talent) => (
-              <TalentCard
-                key={talent.id}
-                talent={talent}
-                manager={manager}
-                activeProject={activeProject}
-                openNegotiationModal={negModal.open}
-                attachTalent={attachTalent}
-                showCountdown
-              />
-            ))}
-          </>
-        )}
-
-        {/*  Actors In Market  */}
-        {marketActors.length > 0 && (
-          <>
-            <View style={styles.roleHeaderActor}>
-              <Text style={styles.roleHeaderText}>ACTORS IN MARKET</Text>
-              <Text style={styles.roleHeaderCount}>{marketActors.length}</Text>
-            </View>
-            {marketActors.map((talent) => (
-              <TalentCard
-                key={talent.id}
-                talent={talent}
-                manager={manager}
-                activeProject={activeProject}
-                openNegotiationModal={negModal.open}
-                attachTalent={attachTalent}
-                showCountdown
-              />
-            ))}
-          </>
-        )}
-        {marketActresses.length > 0 && (
-          <>
-            <View style={styles.roleHeaderActor}>
-              <Text style={styles.roleHeaderText}>ACTRESSES IN MARKET</Text>
-              <Text style={styles.roleHeaderCount}>{marketActresses.length}</Text>
-            </View>
-            {marketActresses.map((talent) => (
-              <TalentCard
-                key={talent.id}
-                talent={talent}
-                manager={manager}
-                activeProject={activeProject}
-                openNegotiationModal={negModal.open}
-                attachTalent={attachTalent}
-                showCountdown
-              />
-            ))}
-          </>
-        )}
+        {/*  Market Talent  */}
+        <TalentMarketSection
+          activeProject={activeProject}
+          marketTalent={marketTalent}
+          marketDirectors={marketDirectors}
+          marketActors={marketActors}
+          marketActresses={marketActresses}
+          neededSlots={neededSlots}
+          manager={manager}
+          openNegotiationModal={negModal.open}
+          attachTalent={attachTalent}
+        />
 
         {/*  Your Roster  */}
         {activeProject && (
-          <>
-            <View style={styles.roleHeaderRoster}>
-              <Text style={styles.roleHeaderText}>YOUR ROSTER</Text>
-              <Text style={styles.roleHeaderCount}>{rosterTalent.length}</Text>
-            </View>
-            {rosterTalent.length === 0 && (
-              <GlassCard variant="elevated">
-                <Text style={styles.empty}>No talent is attached to this project yet.</Text>
-              </GlassCard>
-            )}
-            {rosterDirectors.map((talent) => <TalentCard
-              key={talent.id}
-              talent={talent}
-              manager={manager}
-              activeProject={activeProject}
-              openNegotiationModal={negModal.open}
-              attachTalent={attachTalent}
-              showCountdown={false}
-            />)}
-            {rosterActors.map((talent) => <TalentCard
-              key={talent.id}
-              talent={talent}
-              manager={manager}
-              activeProject={activeProject}
-              openNegotiationModal={negModal.open}
-              attachTalent={attachTalent}
-              showCountdown={false}
-            />)}
-            {rosterActresses.map((talent) => <TalentCard
-              key={talent.id}
-              talent={talent}
-              manager={manager}
-              activeProject={activeProject}
-              openNegotiationModal={negModal.open}
-              attachTalent={attachTalent}
-              showCountdown={false}
-            />)}
-          </>
+          <TalentRosterSection
+            activeProject={activeProject}
+            rosterTalent={rosterTalent}
+            rosterDirectors={rosterDirectors}
+            rosterActors={rosterActors}
+            rosterActresses={rosterActresses}
+            manager={manager}
+            openNegotiationModal={negModal.open}
+            attachTalent={attachTalent}
+          />
         )}
       </ScrollView>
 
-      <Modal visible={!!negModal.talent} transparent animationType="fade" onRequestClose={negModal.close}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalDimLayer} onPress={negModal.close} />
-          <GlassCard variant="elevated" style={styles.modalCard}>
-            <SectionLabel label="Open Negotiation" />
-            <Text style={styles.activeTitle}>{negModal.talent?.name ?? 'Talent'}</Text>
-            <Text style={styles.muted}>{activeProject?.title ?? 'No active development target selected'}</Text>
-            <Text style={styles.muted}>Pick one lever for round 1. Chance updates live before you submit.</Text>
-
-            <View style={styles.actions}>
-              {[
-                { label: 'Salary+', action: 'sweetenSalary' },
-                { label: 'Backend+', action: 'sweetenBackend' },
-                { label: 'Perks+', action: 'sweetenPerks' },
-                { label: 'Hold', action: 'holdFirm' },
-              ].map((item) => (
-                <PremiumButton
-                  key={item.action}
-                  label={item.label}
-                  onPress={() => negModal.setDraftAction(item.action as NegotiationAction)}
-                  variant={negModal.draftAction === item.action ? 'primary' : 'secondary'}
-                  size="sm"
-                  style={styles.negBtn}
-                />
-              ))}
-            </View>
-
-            {negModal.preview?.success && negModal.preview.preview ? (
-              <GlassCard variant="default" style={{ gap: spacing.sp1 }}>
-                <Text style={styles.muted}>
-                  Offer: {money((negModal.talent?.salary.base ?? 0) * negModal.preview.preview.salaryMultiplier)} salary  {negModal.preview.preview.backendPoints.toFixed(1)}pt backend  {money(negModal.preview.preview.perksBudget)} perks
-                </Text>
-                <Text style={[styles.bodyStrong, { color: chanceColor(negModal.preview.preview.chance) }]}>
-                  Close chance: {pct(negModal.preview.preview.chance)} - {chanceLabel(negModal.preview.preview.chance)}
-                </Text>
-                <Text style={styles.muted}>
-                  Their ask: {money((negModal.talent?.salary.base ?? 0) * negModal.preview.preview.demandSalaryMultiplier)} salary  {negModal.preview.preview.demandBackendPoints.toFixed(1)}pt backend  {money(negModal.preview.preview.demandPerksBudget)} perks
-                </Text>
-                <Text style={[styles.signal, { color: colors.goldMid }]}>{negModal.preview.preview.signal}</Text>
-              </GlassCard>
-            ) : (
-              <Text style={[styles.alert, { color: colors.accentRed }]}>
-                {negModal.preview?.message ?? 'Unable to preview this negotiation right now.'}
-              </Text>
-            )}
-
-            <View style={styles.offerRow}>
-              <PremiumButton
-                label="Cancel"
-                onPress={negModal.close}
-                variant="secondary"
-                size="sm"
-                style={styles.flexBtn}
-              />
-              <PremiumButton
-                label="Submit Round 1"
-                onPress={negModal.submit}
-                variant="primary"
-                size="sm"
-                disabled={negModal.submitDisabled}
-                style={styles.flexBtn}
-              />
-            </View>
-          </GlassCard>
-        </View>
-      </Modal>
+      <TalentNegotiationModal negModal={negModal} activeProject={activeProject} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgPrimary },
-  content: { padding: spacing.sp5, paddingBottom: 120, gap: spacing.sp4 },
-
-  header: { gap: 4, marginBottom: spacing.sp1 },
-  headerGlow: { position: 'absolute', top: -20, left: -spacing.sp4, right: -spacing.sp4, height: 100 },
-  title: { fontFamily: typography.fontDisplay, fontSize: typography.size2XL, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  subtitle: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted, marginTop: -2 },
-
-  message: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeSM, color: colors.accentGreen },
-  empty: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textMuted },
-  body: { fontFamily: typography.fontBody, fontSize: typography.sizeSM, color: colors.textSecondary, lineHeight: 20 },
-  bodyStrong: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-  muted: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textMuted },
-  alert: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS },
-  signal: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS },
-
-  helpTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary, marginBottom: 4 },
-  helpBody: { fontFamily: typography.fontBody, fontSize: typography.sizeXS, color: colors.textSecondary, lineHeight: 18, marginTop: 4 },
-
-  snapshotRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sp2, marginTop: spacing.sp2, flexWrap: 'wrap' },
-  snapshotTile: { flexBasis: '31%', minWidth: 92, alignItems: 'center', paddingVertical: spacing.sp2, paddingHorizontal: spacing.sp1 },
-  snapshotValue: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeLG, letterSpacing: typography.trackingTight },
-  snapshotLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: typography.trackingWide, textAlign: 'center' },
-
-  targetRow: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
-
-  activeTitle: { fontFamily: typography.fontDisplay, fontSize: typography.sizeLG, color: colors.textPrimary, letterSpacing: typography.trackingTight },
-  subTitle: { fontFamily: typography.fontBodyBold, fontSize: typography.sizeSM, color: colors.textPrimary },
-
-  // Negotiation
-  negHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  chancePill: { borderRadius: radius.rFull, borderWidth: 1, paddingVertical: 2, paddingHorizontal: 8 },
-  chanceText: { fontFamily: typography.fontBodyBold, fontSize: 10, letterSpacing: 0.4 },
-  offerRow: { flexDirection: 'row', gap: spacing.sp2 },
-  offerCol: { flex: 1, gap: 3, padding: spacing.sp2 },
-  offerLabel: { fontFamily: typography.fontBodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: typography.trackingWidest, textTransform: 'uppercase' },
-  offerVal: { fontFamily: typography.fontBodyMedium, fontSize: typography.sizeXS, color: colors.textSecondary },
-  roleHeaderDirector: {
-    marginTop: spacing.sp2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.ctaAmber + '14',
-    borderRadius: radius.r2,
-    borderWidth: 1,
-    borderColor: colors.ctaAmber + '40',
-    paddingHorizontal: spacing.sp3,
-    paddingVertical: spacing.sp2,
-  },
-  roleHeaderActor: {
-    marginTop: spacing.sp2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.accentGreen + '14',
-    borderRadius: radius.r2,
-    borderWidth: 1,
-    borderColor: colors.accentGreen + '40',
-    paddingHorizontal: spacing.sp3,
-    paddingVertical: spacing.sp2,
-  },
-  roleHeaderRoster: {
-    marginTop: spacing.sp2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.goldMid + '14',
-    borderRadius: radius.r2,
-    borderWidth: 1,
-    borderColor: colors.goldMid + '40',
-    paddingHorizontal: spacing.sp3,
-    paddingVertical: spacing.sp2,
-  },
-  roleHeaderText: {
-    fontFamily: typography.fontBodyBold,
-    fontSize: typography.sizeXS,
-    letterSpacing: typography.trackingWidest,
-    color: colors.textPrimary,
-  },
-  roleHeaderCount: {
-    fontFamily: typography.fontBodyBold,
-    fontSize: typography.sizeSM,
-    color: colors.textPrimary,
-  },
-
-  actions: { flexDirection: 'row', gap: spacing.sp2, flexWrap: 'wrap', marginTop: spacing.sp1 },
-  negBtn: { flexGrow: 1, flexBasis: '23%', minWidth: 88 },
-  flexBtn: { flex: 1 },
-
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalDimLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-  modalCard: { width: '92%', maxWidth: 520, gap: spacing.sp2, marginHorizontal: spacing.sp3 },
-});
-
-
-
