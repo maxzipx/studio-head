@@ -104,10 +104,12 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
       });
     },
     advancePhase: (projectId: string) => {
+      let phaseResult: { success: boolean; message: string } = { success: false, message: '' };
       runWhenHydrated(() => {
-        const result = manager.lifecycleService.advanceProjectPhase(projectId);
-        saveAndTick(result.message);
+        phaseResult = manager.lifecycleService.advanceProjectPhase(projectId);
+        saveAndTick(phaseResult.message);
       });
+      return phaseResult;
     },
     setReleaseWeek: (projectId: string, releaseWeek: number) => {
       runWhenHydrated(() => {

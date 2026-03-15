@@ -123,7 +123,7 @@ export class RivalAiService {
 
   applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
     if (!decision.title.startsWith('Counterplay:')) return;
-    const rival = this.manager.rivals.find((item) => decision.title.includes(item.name));
+    const rival = this.manager.rivals.find((item) => new RegExp(`\\b${item.name}\\b`, 'i').test(decision.title));
     if (!rival) return;
 
     const kind: RivalInteractionKind = decision.title.includes('Awards')
@@ -170,10 +170,10 @@ export class RivalAiService {
   applyRivalMemoryReversion(): void {
     for (const rival of this.manager.rivals) {
       const memory = this.getRivalMemory(rival);
-      memory.hostility = clamp(memory.hostility + (50 - memory.hostility) * 0.035, 0, 100);
-      memory.respect = clamp(memory.respect + (50 - memory.respect) * 0.028, 0, 100);
-      memory.retaliationBias = clamp(memory.retaliationBias + (50 - memory.retaliationBias) * 0.03, 0, 100);
-      memory.cooperationBias = clamp(memory.cooperationBias + (45 - memory.cooperationBias) * 0.03, 0, 100);
+      memory.hostility = clamp(Math.round(memory.hostility + (50 - memory.hostility) * 0.035), 0, 100);
+      memory.respect = clamp(Math.round(memory.respect + (50 - memory.respect) * 0.028), 0, 100);
+      memory.retaliationBias = clamp(Math.round(memory.retaliationBias + (50 - memory.retaliationBias) * 0.03), 0, 100);
+      memory.cooperationBias = clamp(Math.round(memory.cooperationBias + (45 - memory.cooperationBias) * 0.03), 0, 100);
     }
   }
 }

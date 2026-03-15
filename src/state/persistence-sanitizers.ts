@@ -309,6 +309,7 @@ function sanitizeInboxNotifications(manager: StudioManager): void {
 function sanitizeProjects(manager: StudioManager, context: SanitizeContext): void {
   const { defaults } = context;
   if (!Array.isArray(manager.activeProjects)) manager.activeProjects = defaults.activeProjects;
+  manager.activeProjects = manager.activeProjects.filter((entry) => isRecord(entry) && typeof entry.id === 'string');
   for (const project of manager.activeProjects) {
     if (!isRecord(project.castRequirements)) {
       project.castRequirements = { actorCount: 1, actressCount: 0 };
@@ -317,6 +318,12 @@ function sanitizeProjects(manager: StudioManager, context: SanitizeContext): voi
     if (!Number.isFinite(project.castRequirements.actressCount)) project.castRequirements.actressCount = 0;
     project.castRequirements.actorCount = Math.max(0, Math.round(project.castRequirements.actorCount));
     project.castRequirements.actressCount = Math.max(0, Math.round(project.castRequirements.actressCount));
+
+    if (!isRecord(project.budget)) {
+      project.budget = { ceiling: 1_000_000, aboveTheLine: 0, belowTheLine: 0, postProduction: 0, contingency: 0, overrunRisk: 0, actualSpend: 0 };
+    } else if (!Number.isFinite(project.budget.ceiling)) {
+      project.budget.ceiling = 1_000_000;
+    }
 
     if (!isRecord(project.budgetPlan)) {
       const fallbackDirector = Math.round(project.budget.ceiling * 0.1);
@@ -469,8 +476,9 @@ function sanitizeTalent(manager: StudioManager, context: SanitizeContext): void 
     }
 
     if (!isRecord(talent.relationshipMemory)) {
-      const baselineTrust = Math.round(Math.min(100, Math.max(0, 35 + talent.studioRelationship * 45)));
-      const baselineLoyalty = Math.round(Math.min(100, Math.max(0, 30 + talent.studioRelationship * 40)));
+      const rel = Number.isFinite(talent.studioRelationship) ? talent.studioRelationship : 0.5;
+      const baselineTrust = Math.round(Math.min(100, Math.max(0, 35 + rel * 45)));
+      const baselineLoyalty = Math.round(Math.min(100, Math.max(0, 30 + rel * 40)));
       talent.relationshipMemory = {
         trust: baselineTrust,
         loyalty: baselineLoyalty,
@@ -546,7 +554,7 @@ function sanitizeRivals(manager: StudioManager, context: SanitizeContext): void 
   const { defaults } = context;
   if (!Array.isArray(manager.rivals)) manager.rivals = defaults.rivals;
   for (const rival of manager.rivals) {
-    const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0];
+    const baseline = defaults.rivals.find((item) => item.personality === rival.personality) ?? defaults.rivals[0] ?? { memory: { hostility: 30, respect: 30, retaliationBias: 50, cooperationBias: 50 } };
     rival.calendarPressureLockUntilWeek = Number.isFinite(rival.calendarPressureLockUntilWeek)
       ? Math.round(rival.calendarPressureLockUntilWeek as number)
       : null;

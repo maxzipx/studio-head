@@ -103,7 +103,7 @@ export function HqOperationsCard({
           <MetricTile value={`L${manager.executiveNetworkLevel}`} label="Exec Network" size="sm" />
         </View>
         <ProgressBar
-          value={(projectCapacityUsed / projectCapacityLimit) * 100}
+          value={projectCapacityLimit > 0 ? Math.min(100, Math.max(0, (projectCapacityUsed / projectCapacityLimit) * 100)) : 0}
           color={projectCapacityUsed >= projectCapacityLimit ? colors.accentRed : colors.accentGreen}
           height={4}
           animated

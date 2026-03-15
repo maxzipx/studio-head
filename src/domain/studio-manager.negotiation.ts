@@ -210,7 +210,7 @@ export function previewTalentNegotiationRoundForManager(
       demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
       demandBackendPoints: evaluation.demand.backendPoints,
       demandPerksBudget: evaluation.demand.perksBudget,
-      sweetenSalaryRetainerDelta: Math.max(0, Math.round(appliedMemoCost - currentMemoCost)),
+      sweetenSalaryRetainerDelta: action === 'sweetenSalary' ? Math.max(0, Math.round(appliedMemoCost - currentMemoCost)) : 0,
       sweetenPerksRetainerDelta: action === 'sweetenPerks' ? Math.max(0, Math.round(appliedMemoCost - currentMemoCost)) : 0,
       sweetenBackendShareDeltaPct: action === 'sweetenBackend' ? backendShareDeltaPct : 0,
     },

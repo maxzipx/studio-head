@@ -51,6 +51,7 @@ describe('OperationsService', () => {
     manager.operationsService.setStudioSpecialization('indie');
     const result = manager.operationsService.setStudioSpecialization('balanced');
     expect(result.success).toBe(true);
+    expect(result.message).toBeDefined();
     expect(result.message).toContain('reverted');
   });
 

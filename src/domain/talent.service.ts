@@ -646,8 +646,9 @@ export function processTalentAgingForManager(
         }
 
         if (age >= TALENT_LIFECYCLE.RETIREMENT_CHECK_START_AGE) {
-            const chance = TALENT_LIFECYCLE.RETIREMENT_BASE_CHANCE +
+            const annualChance = TALENT_LIFECYCLE.RETIREMENT_BASE_CHANCE +
                 (age - TALENT_LIFECYCLE.RETIREMENT_CHECK_START_AGE) * TALENT_LIFECYCLE.RETIREMENT_CHANCE_PER_YEAR;
+            const chance = 1 - Math.pow(1 - annualChance, 1 / 52);
             if (manager.eventRng() < chance) {
                 talent.status = 'retired';
                 talent.retiredWeek = manager.currentWeek;

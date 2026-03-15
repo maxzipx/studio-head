@@ -58,7 +58,7 @@ export default function DistributionScreen() {
     };
   }));
   const [showHelp, setShowHelp] = useState(false);
-      const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
+  const projects = manager.activeProjects.filter((project) => project.phase === 'distribution');
   const rivalCalendar = manager.rivals.flatMap((rival) =>
     rival.upcomingReleases.map((film) => ({
       rival: rival.name,
@@ -87,11 +87,9 @@ export default function DistributionScreen() {
           text: 'Release',
           style: 'destructive',
           onPress: () => {
-            const beforeReleased = manager.activeProjects.find((project) => project.id === projectId)?.phase === 'released';
-            advancePhase(projectId);
-            const afterReleased = manager.activeProjects.find((project) => project.id === projectId)?.phase === 'released';
-            if (!beforeReleased && !afterReleased) {
-              Alert.alert('Release Blocked', 'Release conditions changed. Re-check readiness and blockers before trying again.');
+            const result = advancePhase(projectId);
+            if (!result.success) {
+              Alert.alert('Release Blocked', result.message || 'Release conditions changed. Re-check readiness and blockers before trying again.');
             }
           },
         },
