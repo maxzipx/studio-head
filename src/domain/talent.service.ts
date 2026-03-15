@@ -10,7 +10,8 @@ import type {
     TalentTrustLevel,
 } from './types';
 import { getTalentNegotiationChanceModifier } from './modifier-service';
-import { clamp, AGENT_DIFFICULTY } from './studio-manager.constants';
+import { AGENT_DIFFICULTY } from './studio-manager.constants';
+import { clamp } from './utils';
 import { TALENT_NEGOTIATION_RULES, MEMORY_RULES, TALENT_LIFECYCLE } from './balance-constants';
 import { createId } from './id';
 import { reserveSeededTalentName } from './talent-names';

@@ -1,7 +1,8 @@
 import { computeArcOutcomeModifiers, computeStudioModifiers, getDepartmentModifiers } from './modifier-service';
 import type { StudioManager } from './studio-manager';
 import { getRivalBehaviorProfileForManager } from './studio-manager.rivals';
-import { MOVIE_GENRES, TIER_RANK, clamp, phaseBurnMultiplier } from './studio-manager.constants';
+import { MOVIE_GENRES, TIER_RANK, phaseBurnMultiplier } from './studio-manager.constants';
+import { clamp } from './utils';
 import type { MovieGenre, MovieProject, ReleaseReport, RivalStudio, Talent } from './types';
 
 function findProjectById(manager: Pick<StudioManager, 'activeProjects'>, projectId: string): MovieProject | null {

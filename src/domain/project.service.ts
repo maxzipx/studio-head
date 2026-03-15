@@ -1,6 +1,6 @@
 import { ACTION_BALANCE, FESTIVAL_RULES } from './balance-constants';
 import { getDepartmentModifiers, getTrackingConfidenceModifier } from './modifier-service';
-import { clamp } from './studio-manager.constants';
+import { clamp } from './utils';
 import { removeProjectFromFranchiseForManager } from './studio-manager.franchise.actions';
 import type { CrisisEvent, DecisionItem, DepartmentTrack, DistributionOffer, FoundingProfile, MovieProject } from './types';
 

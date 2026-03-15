@@ -2,10 +2,7 @@ import type { DistributionOffer, MovieProject } from './types';
 import { createId } from './id';
 import { getDistributionCounterLeverageModifier } from './modifier-service';
 import type { StudioManager } from './studio-manager';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+import { clamp } from './utils';
 
 export function setProjectReleaseWeekForManager(
   manager: StudioManager,

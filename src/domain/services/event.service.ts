@@ -22,11 +22,11 @@ import {
   tickScriptMarketExpiryForManager,
 } from '../studio-manager.events';
 import {
-  clamp,
   GENRE_SHOCK_LIBRARY,
   MOVIE_GENRES,
   type ArcOutcomeModifiers,
 } from '../studio-manager.constants';
+import { clamp } from '../utils';
 import { computeArcOutcomeModifiers } from '../modifier-service';
 import { getGenreCycleSnapshotForStudio, getGenreDemandMultiplierForStudio } from '../studio-selectors';
 import type {

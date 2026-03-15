@@ -48,7 +48,6 @@ import { EventService } from './services/event.service';
 import {
   ARC_LABELS,
   buildIpTemplate,
-  clamp,
   createInitialGenreCycles,
   initialBudgetForGenre,
   TIER_RANK,
@@ -56,6 +55,7 @@ import {
   type FoundingProfileModifiers,
   type SpecializationProfile,
 } from './studio-manager.constants';
+import { clamp } from './utils';
 import { getLegacyFoundingProfileEffects, getLegacySpecializationProfile } from './modifier-service';
 import {
   estimateWeeklyBurnForStudio,

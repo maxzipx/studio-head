@@ -2,10 +2,7 @@ import type { CrisisEvent, IndustryNewsItem, MovieGenre, MovieProject, RivalFilm
 import { createId } from './id';
 import type { StudioManager } from './studio-manager';
 import { RIVAL_CRISIS_RULES } from './balance-constants';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+import { clamp } from './utils';
 
 const MOVIE_GENRES: MovieGenre[] = ['action', 'drama', 'comedy', 'horror', 'thriller', 'sciFi', 'animation', 'documentary'];
 const CALENDAR_PRESSURE_LOCK_WEEKS = 6;

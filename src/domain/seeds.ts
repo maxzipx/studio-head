@@ -16,10 +16,11 @@ import {
   getTalentRoleProfile,
 } from './data/talent-gen-config';
 import { reserveSeededTalentName } from './talent-names';
+import { clamp, roundTo, roundMoney, seededUnit } from './utils';
 
 function createInitialRelationship(studioRelationship: number): Talent['relationshipMemory'] {
-  const trust = Math.round(Math.min(100, Math.max(0, 35 + studioRelationship * 45)));
-  const loyalty = Math.round(Math.min(100, Math.max(0, 30 + studioRelationship * 40)));
+  const trust = Math.round(clamp(35 + studioRelationship * 45, 0, 100));
+  const loyalty = Math.round(clamp(30 + studioRelationship * 40, 0, 100));
   return {
     trust,
     loyalty,
@@ -41,24 +42,6 @@ function createInitialRivalMemory(
     cooperationBias: 45,
     interactionHistory: [],
   };
-}
-
-function clampNumber(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value / 10_000) * 10_000;
-}
-
-function seededUnit(seed: number, salt: number): number {
-  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43_758.545_312_3;
-  return x - Math.floor(x);
 }
 
 function pickDistinctGenres(seedIndex: number, seedOffset: number): [MovieGenre, MovieGenre, MovieGenre, MovieGenre] {
@@ -92,7 +75,7 @@ function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): 
 
   return {
     [primary]: roundTo(
-      clampNumber(
+      clamp(
         roleProfile.primary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[0] + worldSalt) * TALENT_GEN_CONFIG.genreFit.primarySpread,
         TALENT_GEN_CONFIG.genreFit.clamp.primary[0],
         TALENT_GEN_CONFIG.genreFit.clamp.primary[1]
@@ -100,7 +83,7 @@ function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): 
       2
     ),
     [secondary]: roundTo(
-      clampNumber(
+      clamp(
         roleProfile.secondary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[1] + worldSalt) * TALENT_GEN_CONFIG.genreFit.secondarySpread,
         TALENT_GEN_CONFIG.genreFit.clamp.secondary[0],
         TALENT_GEN_CONFIG.genreFit.clamp.secondary[1]
@@ -108,7 +91,7 @@ function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): 
       2
     ),
     [tertiary]: roundTo(
-      clampNumber(
+      clamp(
         roleProfile.tertiary + seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[2] + worldSalt) * TALENT_GEN_CONFIG.genreFit.tertiarySpread,
         TALENT_GEN_CONFIG.genreFit.clamp.tertiary[0],
         TALENT_GEN_CONFIG.genreFit.clamp.tertiary[1]
@@ -116,7 +99,7 @@ function buildGenreFit(seedIndex: number, role: TalentRole, worldSeed: number): 
       2
     ),
     [wildcard]: roundTo(
-      clampNumber(
+      clamp(
         TALENT_GEN_CONFIG.genreFit.wildcardBase +
           seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.genreFit[3] + worldSalt) * TALENT_GEN_CONFIG.genreFit.wildcardSpread,
         TALENT_GEN_CONFIG.genreFit.clamp.wildcard[0],
@@ -140,7 +123,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
   const worldSalt = (worldSeed % 251) * TALENT_GEN_CONFIG.nameSeed.worldSaltScale;
   const roleProfile = getTalentRoleProfile(role);
   const starPower = roundTo(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.starPower.base +
         seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.starPower + worldSalt) * TALENT_GEN_CONFIG.starPower.spread +
         (role === 'director' ? TALENT_GEN_CONFIG.starPower.directorBonus : 0),
@@ -151,7 +134,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
   );
 
   const craftScore = roundTo(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.craftScore.base +
         seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.craftScore + worldSalt) * TALENT_GEN_CONFIG.craftScore.spread +
         (role === 'director' ? TALENT_GEN_CONFIG.craftScore.directorBonus : 0),
@@ -162,7 +145,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
   );
 
   const egoLevel = roundTo(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.egoLevel.base +
         seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.egoLevel + worldSalt) * TALENT_GEN_CONFIG.egoLevel.spread +
         (roleProfile === 'cast' ? TALENT_GEN_CONFIG.egoLevel.leadBonus : 0),
@@ -173,7 +156,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
   );
 
   const reputation = Math.round(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.reputation.base +
         seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.reputation + worldSalt) * TALENT_GEN_CONFIG.reputation.spread +
         (role === 'director' ? TALENT_GEN_CONFIG.reputation.directorBonus : 0),
@@ -182,7 +165,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
     )
   );
   const studioRelationship = roundTo(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.studioRelationship.base +
         seededUnit(seedIndex, TALENT_GEN_CONFIG.salts.studioRelationship + worldSalt) * TALENT_GEN_CONFIG.studioRelationship.spread,
       TALENT_GEN_CONFIG.studioRelationship.clamp[0],
@@ -207,7 +190,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
         );
 
   const backendPoints = roundTo(
-    clampNumber(
+    clamp(
       TALENT_GEN_CONFIG.backendPoints.base +
         starPower * TALENT_GEN_CONFIG.backendPoints.starScale +
         craftScore * TALENT_GEN_CONFIG.backendPoints.craftScale +
@@ -236,7 +219,7 @@ function buildTalentSeed(seedIndex: number, role: TalentRole, worldSeed: number,
       ? TALENT_GEN_CONFIG.age.starYouthBias
       : 0;
   const rawAge = TALENT_LIFECYCLE.SEED_MEAN_AGE + normalSample * TALENT_LIFECYCLE.SEED_AGE_STDDEV + craftAgeBias + starYouthBias;
-  const age = clampNumber(Math.round(rawAge), TALENT_LIFECYCLE.SEED_MIN_AGE, TALENT_LIFECYCLE.SEED_MAX_AGE);
+  const age = clamp(Math.round(rawAge), TALENT_LIFECYCLE.SEED_MIN_AGE, TALENT_LIFECYCLE.SEED_MAX_AGE);
   const birthWeek = -(age * 52);
 
   return {

@@ -1,9 +1,6 @@
 import type { MovieGenre } from './types';
 import { GENRE_BASELINE_OPENING, GENRE_INTERNATIONAL_FACTOR } from './genre-config';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+import { clamp } from './utils';
 
 export function projectedCriticalScore(input: {
   scriptQuality: number;

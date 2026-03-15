@@ -52,7 +52,7 @@ import {
   type NegotiationEvaluation,
   type NegotiationTerms,
 } from '../talent.service';
-import { clamp } from '../studio-manager.constants';
+import { clamp } from '../utils';
 
 export class TalentService {
   constructor(private readonly manager: StudioManager) {}

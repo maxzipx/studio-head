@@ -15,10 +15,10 @@ import {
 } from '../formulas';
 import type { StudioManager } from '../studio-manager';
 import {
-  clamp,
   MILESTONE_LABELS,
   releaseOutcomeFromRoi,
 } from '../studio-manager.constants';
+import { clamp } from '../utils';
 import {
   getAwardsCampaignModifier,
   getFestivalBuzzModifier,

@@ -14,10 +14,7 @@ import type {
   TalentRole,
 } from './types';
 import type { StudioManager } from './studio-manager';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+import { clamp } from './utils';
 
 function estimateRoleMarketComp(manager: StudioManager, role: TalentRole, genre: MovieProject['genre']): number {
   const pool = manager.talentPool.filter((talent) => talent.role === role);

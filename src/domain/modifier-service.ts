@@ -1,11 +1,11 @@
 import {
-  clamp,
   foundingProfileModifiers,
   specializationProfile,
   type ArcOutcomeModifiers,
   type FoundingProfileModifiers,
   type SpecializationProfile,
 } from './studio-manager.constants';
+import { clamp } from './utils';
 import type { DepartmentTrack, FoundingProfile, StoryArcState, StudioSpecialization } from './types';
 
 export interface StudioModifierContext {

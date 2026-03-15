@@ -18,10 +18,7 @@ import type {
   StoryArcState,
 } from './types';
 import type { StudioManager } from './studio-manager';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+import { clamp } from './utils';
 
 type ScriptMarketTier = 'bargain' | 'standard' | 'biddingWar';
 

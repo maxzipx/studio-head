@@ -12,10 +12,6 @@ import type {
   Talent,
 } from './types';
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
 export function phaseBurnMultiplier(phase: MovieProject['phase']): number {
   return PROJECT_BALANCE.PHASE_BURN_MULTIPLIER[phase];
 }
