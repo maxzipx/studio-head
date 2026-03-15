@@ -1,7 +1,6 @@
 import {
   ACTION_BALANCE,
   BANKRUPTCY_RULES,
-  MEMORY_RULES,
   SESSION_RULES,
   STUDIO_STARTING,
   STUDIO_TIER_REQUIREMENTS,
@@ -31,7 +30,7 @@ import {
   runOptionalActionForManager,
   runMarketingPushOnProjectForManager,
 } from './project.service';
-import { createProjectFromIp, createProjectFromScript } from './project-factory';
+import { createProjectFromScript } from './project-factory';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -41,6 +40,9 @@ import {
 } from './seeds';
 import { adjustCashForManager, evaluateBankruptcyForManager } from './finance.service';
 import { FranchiseService } from './services/franchise.service';
+import { IpService } from './services/ip.service';
+import { TutorialService } from './services/tutorial.service';
+import { OperationsService } from './services/operations.service';
 import { ProjectLifecycleService } from './services/project-lifecycle.service';
 import { RivalAiService } from './services/rival-ai.service';
 import { ReleaseService } from './services/release.service';
@@ -48,7 +50,6 @@ import { TalentService } from './services/talent.service';
 import { EventService } from './services/event.service';
 import {
   ARC_LABELS,
-  buildIpTemplate,
   createInitialGenreCycles,
   initialBudgetForGenre,
   TIER_RANK,
@@ -74,7 +75,6 @@ import {
 import { STUDIO_TIER_LABELS } from './types';
 import type {
   AwardsSeasonRecord,
-  CastRequirements,
   ChronicleEntry,
   CrisisEvent,
   DecisionCategory,
@@ -90,16 +90,13 @@ import type {
   GenreCycleState,
   InboxNotification,
   IndustryNewsItem,
-  IpKind,
   MilestoneRecord,
   MovieGenre,
   MovieProject,
   NegotiationAction,
   OwnedIp,
   PlayerNegotiation,
-  ProjectBudgetPlan,
   ReleaseReport,
-  RivalInteractionKind,
   RivalStudio,
   ScriptPitch,
   SequelCandidate,
@@ -115,8 +112,6 @@ import type {
   TutorialState,
   WeekSummary,
 } from './types';
-
-const ANIMATION_DIVISION_FOUNDING_COST = 8_000_000;
 
 export class StudioManager {
   readonly crisisRng: () => number;
@@ -205,6 +200,9 @@ export class StudioManager {
   readonly eventService = new EventService(this);
   readonly releaseService = new ReleaseService(this);
   readonly talentService = new TalentService(this);
+  readonly ipService = new IpService(this);
+  readonly tutorialService = new TutorialService(this);
+  readonly operationsService = new OperationsService(this);
 
   get studioHeat(): number {
     return Math.round(
@@ -254,43 +252,6 @@ export class StudioManager {
     return baseByTier[this.studioTier] + this.studioCapacityUpgrades;
   }
 
-  getMarketingTeamTierCap(): number {
-    const capByTier: Record<StudioTier, number> = {
-      indieStudio: 2,
-      establishedIndie: 3,
-      midTier: 4,
-      majorStudio: ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL,
-      globalPowerhouse: ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL,
-    };
-    return capByTier[this.studioTier];
-  }
-
-  getMarketingTeamUpgradeCost(): number | null {
-    const tierCap = this.getMarketingTeamTierCap();
-    if (this.marketingTeamLevel >= tierCap) return null;
-    if (this.marketingTeamLevel >= ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL) return null;
-    const nextLevel = this.marketingTeamLevel + 1;
-    return ACTION_BALANCE.MARKETING_TEAM_UPGRADE_BASE_COST * nextLevel;
-  }
-
-  getStudioCapacityUpgradeTierCap(): number {
-    const capByTier: Record<StudioTier, number> = {
-      indieStudio: 1,
-      establishedIndie: 2,
-      midTier: 3,
-      majorStudio: 4,
-      globalPowerhouse: 5,
-    };
-    return capByTier[this.studioTier];
-  }
-
-  getStudioCapacityUpgradeCost(): number | null {
-    const tierCap = this.getStudioCapacityUpgradeTierCap();
-    if (this.studioCapacityUpgrades >= tierCap) return null;
-    const next = this.studioCapacityUpgrades + 1;
-    return 1_200_000 + next * 900_000;
-  }
-
   get projectCapacityUsed(): number {
     return this.activeProjects.filter((project) => project.phase !== 'released').length;
   }
@@ -314,88 +275,6 @@ export class StudioManager {
 
   get foundingProfileEffects(): FoundingProfileModifiers {
     return getLegacyFoundingProfileEffects(this);
-  }
-
-  isTutorialEligible(): boolean {
-    return !this.needsFoundingSetup && !this.tutorialCompleted && !this.tutorialDismissed;
-  }
-
-  hasCreatedFirstProject(): boolean {
-    return this.activeProjects.length > 0 || this.releaseReports.length > 0;
-  }
-
-  beginTutorialIfEligible(): { success: boolean; message: string } {
-    if (!this.isTutorialEligible()) {
-      return { success: false, message: 'Tutorial is not eligible for this run.' };
-    }
-
-    if (this.tutorialState === 'none' || this.tutorialState === 'complete') {
-      this.tutorialState = 'hqIntro';
-    }
-
-    return { success: true, message: 'HQ tutorial active.' };
-  }
-
-  advanceTutorial(nextState?: TutorialState): { success: boolean; message: string } {
-    if (this.tutorialDismissed || this.tutorialCompleted || this.tutorialState === 'complete') {
-      return { success: false, message: 'Tutorial already complete.' };
-    }
-
-    if (!this.isTutorialEligible()) {
-      return { success: false, message: 'Tutorial is not available yet.' };
-    }
-
-    const sequence: TutorialState[] = ['hqIntro', 'strategy', 'firstProject', 'marketing', 'talent', 'risk', 'complete'];
-    const currentIndex = sequence.indexOf(this.tutorialState);
-    if (currentIndex === -1) {
-      this.tutorialState = 'hqIntro';
-      return { success: true, message: 'Tutorial restarted from HQ.' };
-    }
-
-    const targetState = nextState ?? sequence[currentIndex + 1] ?? 'complete';
-    if (!sequence.includes(targetState)) {
-      return { success: false, message: 'Invalid tutorial step.' };
-    }
-
-    const targetIndex = sequence.indexOf(targetState);
-    if (targetIndex > currentIndex + 1) {
-      return { success: false, message: 'Tutorial step is out of sequence.' };
-    }
-    if (targetIndex <= currentIndex) {
-      return { success: false, message: 'Tutorial step already reached.' };
-    }
-
-
-    if (targetState === 'complete') {
-      this.tutorialState = 'complete';
-      this.tutorialCompleted = true;
-      this.tutorialDismissed = false;
-      return { success: true, message: 'Tutorial complete. HQ fully unlocked.' };
-    }
-
-    this.tutorialState = targetState;
-    return { success: true, message: 'Tutorial step advanced.' };
-  }
-
-  dismissTutorial(): { success: boolean; message: string } {
-    if (!this.isTutorialEligible() || this.tutorialState === 'none' || this.tutorialState === 'complete') {
-      return { success: false, message: 'Tutorial is not currently active.' };
-    }
-    this.tutorialDismissed = true;
-    this.tutorialCompleted = false;
-    this.tutorialState = 'complete';
-    return { success: true, message: 'Tutorial dismissed.' };
-  }
-
-  restartTutorial(): { success: boolean; message: string } {
-    if (this.needsFoundingSetup) {
-      return { success: false, message: 'Complete founding setup before replaying the tutorial.' };
-    }
-
-    this.tutorialDismissed = false;
-    this.tutorialCompleted = false;
-    this.tutorialState = 'hqIntro';
-    return { success: true, message: 'Tutorial restarted.' };
   }
 
   private initializeMajorIpCommitment(ip: OwnedIp): { required: number; deadlineWeek: number } | null {
@@ -458,64 +337,6 @@ export class StudioManager {
     this.talentService.recordTalentInteraction(talent, input);
   }
 
-  private getRivalMemory(rival: RivalStudio): RivalStudio['memory'] {
-    if (!rival.memory) {
-      const baseHostility =
-        rival.personality === 'blockbusterFactory' ? 58 : rival.personality === 'scrappyUpstart' ? 55 : 50;
-      const baseRespect =
-        rival.personality === 'prestigeHunter' ? 60 : rival.personality === 'genreSpecialist' ? 56 : 52;
-      rival.memory = {
-        hostility: baseHostility,
-        respect: baseRespect,
-        retaliationBias: 50,
-        cooperationBias: 45,
-        interactionHistory: [],
-      };
-    }
-    if (!Array.isArray(rival.memory.interactionHistory)) {
-      rival.memory.interactionHistory = [];
-    }
-    return rival.memory;
-  }
-
-  getRivalStance(rival: RivalStudio): 'friendly' | 'warm' | 'neutral' | 'competitor' | 'rival' {
-    const memory = this.getRivalMemory(rival);
-    const score = memory.hostility - memory.respect;
-    if (score >= 26) return 'rival';
-    if (score >= 10) return 'competitor';
-    if (score <= -22) return 'friendly';
-    if (score <= -8) return 'warm';
-    return 'neutral';
-  }
-
-  recordRivalInteraction(
-    rival: RivalStudio,
-    input: {
-      kind: RivalInteractionKind;
-      hostilityDelta: number;
-      respectDelta: number;
-      note: string;
-      projectId?: string | null;
-    }
-  ): void {
-    const memory = this.getRivalMemory(rival);
-    memory.hostility = clamp(Math.round(memory.hostility + input.hostilityDelta), 0, 100);
-    memory.respect = clamp(Math.round(memory.respect + input.respectDelta), 0, 100);
-    memory.retaliationBias = clamp(Math.round(memory.retaliationBias + input.hostilityDelta * 0.6), 0, 100);
-    memory.cooperationBias = clamp(Math.round(memory.cooperationBias + input.respectDelta * 0.6), 0, 100);
-    memory.interactionHistory.push({
-      week: this.currentWeek,
-      kind: input.kind,
-      hostilityDelta: Math.round(input.hostilityDelta),
-      respectDelta: Math.round(input.respectDelta),
-      note: input.note,
-      projectId: input.projectId ?? null,
-    });
-    if (memory.interactionHistory.length > MEMORY_RULES.RIVAL_INTERACTION_HISTORY_MAX) {
-      memory.interactionHistory = memory.interactionHistory.slice(-MEMORY_RULES.RIVAL_INTERACTION_HISTORY_MAX);
-    }
-  }
-
   constructor(input?: {
     crisisRng?: () => number;
     eventRng?: () => number;
@@ -541,126 +362,13 @@ export class StudioManager {
       this.decisionQueue = [];
     }
     this.bindOpeningDecisionToLeadProject();
-    this.refreshIpMarketplace();
+    this.ipService.refreshIpMarketplace();
     this.eventService.refillScriptMarket([]);
     this.talentService.refreshTalentMarket();
   }
 
   get canEndWeek(): boolean {
     return this.pendingCrises.length === 0;
-  }
-
-  setStudioName(name: string): { success: boolean; message: string } {
-    const trimmed = name.trim();
-    if (trimmed.length < 2) {
-      return { success: false, message: 'Studio name must be at least 2 characters.' };
-    }
-    const sanitized = trimmed.slice(0, 32);
-    this.studioName = sanitized;
-    return { success: true, message: `Studio renamed to ${sanitized}.` };
-  }
-
-  setStudioSpecialization(next: StudioSpecialization): { success: boolean; message: string } {
-    if (this.pendingSpecialization === next) {
-      return { success: false, message: `${next} specialization is already selected for this turn.` };
-    }
-    this.pendingSpecialization = next;
-    if (this.pendingSpecialization === this.studioSpecialization) {
-      return {
-        success: true,
-        message: `Specialization change reverted. ${this.studioSpecialization} remains active with no charge this turn.`,
-      };
-    }
-    const switchCost = this.specializationCommittedWeek === null ? 0 : 1_000_000;
-    return {
-      success: true,
-      message:
-        switchCost > 0
-          ? `${next} specialization staged. ${Math.round(switchCost / 1_000_000)}M will be charged on End Turn if committed.`
-          : `${next} specialization staged. First specialization commitment is free on End Turn.`,
-    };
-  }
-
-  completeFoundingSetup(input: {
-    specialization: StudioSpecialization;
-    foundingProfile: FoundingProfile;
-  }): { success: boolean; message: string } {
-    if (!this.needsFoundingSetup) {
-      return { success: false, message: 'Studio charter is already set.' };
-    }
-
-    this.studioSpecialization = input.specialization;
-    this.pendingSpecialization = input.specialization;
-    this.specializationCommittedWeek = this.currentWeek;
-    this.foundingProfile = input.foundingProfile;
-    this.needsFoundingSetup = false;
-    this.foundingSetupCompletedWeek = this.currentWeek;
-    this.addChronicleEntry({
-      week: this.currentWeek,
-      type: 'studioFounding',
-      headline: `Studio charter set: ${input.specialization} specialization, ${input.foundingProfile} founding profile.`,
-      impact: 'positive',
-    });
-    this.beginTutorialIfEligible();
-    return { success: true, message: 'Studio charter set.' };
-  }
-
-  investDepartment(track: DepartmentTrack): { success: boolean; message: string } {
-    const level = this.departmentLevels[track];
-    if (level >= 4) return { success: false, message: `${track} department is already maxed.` };
-    const cost = 420_000 * (level + 1);
-    if (this.cash < cost) {
-      return { success: false, message: `Insufficient cash to invest in ${track} department (${Math.round(cost / 1000)}K).` };
-    }
-    this.adjustCash(-cost);
-    this.departmentLevels[track] = level + 1;
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `${track} department upgraded to level ${this.departmentLevels[track]}.`,
-    };
-  }
-
-  getActiveExclusivePartner(): string | null {
-    if (!this.exclusiveDistributionPartner || !this.exclusivePartnerUntilWeek) return null;
-    if (this.currentWeek > this.exclusivePartnerUntilWeek) {
-      this.exclusiveDistributionPartner = null;
-      this.exclusivePartnerUntilWeek = null;
-      return null;
-    }
-    return this.exclusiveDistributionPartner;
-  }
-
-  signExclusiveDistributionPartner(partner: string): { success: boolean; message: string } {
-    const allowedPartners = ['Aster Peak Pictures', 'Silverline Distribution', 'Constellation Media'];
-    if (!allowedPartners.includes(partner)) return { success: false, message: 'Unknown distribution partner.' };
-    const current = this.getActiveExclusivePartner();
-    if (current === partner) return { success: false, message: `${partner} partnership is already active.` };
-    const cost = 480_000;
-    if (this.cash < cost) return { success: false, message: 'Insufficient cash for exclusive partnership.' };
-    this.adjustCash(-cost);
-    if (current && current !== partner) {
-      this.adjustReputation(-1, 'distributor');
-    }
-    this.exclusiveDistributionPartner = partner;
-    this.exclusivePartnerUntilWeek = this.currentWeek + 26;
-    this.evaluateBankruptcy();
-    return {
-      success: true,
-      message: `Signed exclusive distribution alignment with ${partner} through week ${this.exclusivePartnerUntilWeek}.`,
-    };
-  }
-
-  poachExecutiveTeam(): { success: boolean; message: string } {
-    if (this.executiveNetworkLevel >= 3) return { success: false, message: 'Executive network is already maxed.' };
-    const next = this.executiveNetworkLevel + 1;
-    const cost = 900_000 * next;
-    if (this.cash < cost) return { success: false, message: `Insufficient cash for executive poach (${Math.round(cost / 1000)}K).` };
-    this.adjustCash(-cost);
-    this.executiveNetworkLevel = next;
-    this.adjustReputation(1, 'talent');
-    this.evaluateBankruptcy();
-    return { success: true, message: `Executive network upgraded to level ${next}.` };
   }
 
   advanceUntilDecision(maxWeeks: number = TURN_RULES.NEXT_DECISION_MAX_SKIP_WEEKS): {
@@ -756,167 +464,6 @@ export class StudioManager {
     return runTrackingLeverageForManager(this, projectId);
   }
 
-  upgradeMarketingTeam(): { success: boolean; message: string } {
-    const tierCap = this.getMarketingTeamTierCap();
-    if (this.marketingTeamLevel >= ACTION_BALANCE.MARKETING_TEAM_MAX_LEVEL) {
-      return { success: false, message: 'Marketing team is already maxed.' };
-    }
-    if (this.marketingTeamLevel >= tierCap) {
-      return {
-        success: false,
-        message: `Marketing upgrades are capped at level ${tierCap} for your current studio tier.`,
-      };
-    }
-    const nextLevel = this.marketingTeamLevel + 1;
-    const cost = this.getMarketingTeamUpgradeCost() ?? 0;
-    if (this.cash < cost) return { success: false, message: `Insufficient cash to upgrade marketing team (${Math.round(cost / 1000)}K).` };
-    this.adjustCash(-cost);
-    this.marketingTeamLevel = nextLevel;
-    this.evaluateBankruptcy();
-    return { success: true, message: `Marketing team upgraded to level ${nextLevel}.` };
-  }
-
-  upgradeStudioCapacity(): { success: boolean; message: string } {
-    const tierCap = this.getStudioCapacityUpgradeTierCap();
-    if (this.studioCapacityUpgrades >= tierCap) {
-      return {
-        success: false,
-        message: `Facility expansions are capped at +${tierCap} slots for your current studio tier.`,
-      };
-    }
-    const next = this.studioCapacityUpgrades + 1;
-    const cost = this.getStudioCapacityUpgradeCost() ?? 0;
-    if (this.cash < cost) {
-      return { success: false, message: `Insufficient cash for facility expansion (${Math.round(cost / 1000)}K needed).` };
-    }
-    this.adjustCash(-cost);
-    this.studioCapacityUpgrades = next;
-    this.evaluateBankruptcy();
-    return { success: true, message: `Studio capacity expanded. Active slot cap is now ${this.projectCapacityLimit}.` };
-  }
-
-  foundAnimationDivision(): { success: boolean; message: string } {
-    if (this.animationDivisionUnlocked) {
-      return { success: false, message: 'Animation Division is already founded.' };
-    }
-    if (this.cash < ANIMATION_DIVISION_FOUNDING_COST) {
-      return {
-        success: false,
-        message: 'Insufficient cash to found Animation Division (8M needed).',
-      };
-    }
-
-    this.adjustCash(-ANIMATION_DIVISION_FOUNDING_COST);
-    this.animationDivisionUnlocked = true;
-    this.evaluateBankruptcy();
-    return { success: true, message: 'Animation Division founded.' };
-  }
-
-  refreshIpMarketplace(forceMajor = false): void {
-    const pool: IpKind[] = forceMajor ? ['superhero'] : ['book', 'game', 'comic', 'book', 'game', 'comic', 'superhero'];
-    const kind = pool[Math.floor(this.eventRng() * pool.length)] ?? 'book';
-    const profile = buildIpTemplate(kind);
-    const [low, high] = profile.costRange;
-    const acquisitionCost = Math.round(low + this.eventRng() * (high - low));
-    const name = profile.namePool[Math.floor(this.eventRng() * profile.namePool.length)] ?? `Untitled ${kind} property`;
-    const expiresWeek = this.currentWeek + (profile.major ? 8 : 10);
-    const id = createId('ip');
-    this.ownedIps = this.ownedIps.filter((ip) => ip.expiresWeek >= this.currentWeek || ip.usedProjectId !== null);
-    if (this.ownedIps.some((ip) => ip.name === name && ip.usedProjectId === null)) return;
-    this.ownedIps.unshift({
-      id,
-      name,
-      kind,
-      genre: profile.genre,
-      acquisitionCost,
-      qualityBonus: profile.qualityBonus,
-      hypeBonus: profile.hypeBonus,
-      prestigeBonus: profile.prestigeBonus,
-      commercialBonus: profile.commercialBonus,
-      expiresWeek,
-      usedProjectId: null,
-      major: profile.major,
-    });
-    this.ownedIps = this.ownedIps.slice(0, 12);
-  }
-
-  acquireIpRights(ipId: string): { success: boolean; message: string } {
-    const ip = this.ownedIps.find((entry) => entry.id === ipId);
-    if (!ip) return { success: false, message: 'IP opportunity not found.' };
-    if (ip.usedProjectId) return { success: false, message: 'IP already adapted.' };
-    if (ip.expiresWeek < this.currentWeek) return { success: false, message: 'IP option has expired.' };
-    if (this.storyFlags[`owned_ip_${ip.id}`]) return { success: false, message: 'Rights are already under your control.' };
-    if (ip.major && this.reputation.distributor < 55) {
-      return { success: false, message: 'Major IP requires stronger distributor reputation (55+).' };
-    }
-    if (this.cash < ip.acquisitionCost) return { success: false, message: 'Insufficient cash to acquire IP rights.' };
-    this.adjustCash(-ip.acquisitionCost);
-    this.storyFlags[`owned_ip_${ip.id}`] = 1;
-    const majorContract = this.initializeMajorIpCommitment(ip);
-    this.evaluateBankruptcy();
-    if (majorContract) {
-      return {
-        success: true,
-        message: `${ip.name} rights secured. Contract requires ${majorContract.required} releases by week ${majorContract.deadlineWeek}.`,
-      };
-    }
-    return { success: true, message: `${ip.name} rights secured.` };
-  }
-
-  /** Generates a film title from an acquired IP — smarter than the old ": Adaptation" suffix. */
-  private generateIpTitle(ip: OwnedIp): string {
-    // For books and games the IP name is already a strong film title
-    if (ip.kind === 'book' || ip.kind === 'game') return ip.name;
-
-    // Comics and superhero IPs get a subtitle — deterministic hash on ip.id so it's stable
-    const SUPERHERO_SUBTITLES = [
-      'The Origin', 'First Strike', 'Dark Horizon', 'Rise of the Guard', 'The Legacy',
-      'Dawn of Heroes', 'The Reckoning', 'Revelation', 'Beyond the Veil', 'The First Chapter',
-    ];
-    const COMIC_SUBTITLES = [
-      'Origins', 'The Hidden Truth', 'Dark Rising', 'Awakening', 'The First Arc',
-      'New Blood', 'The Comeback', 'Into the Breach', 'Unmasked', 'The Long Shot',
-    ];
-    const pool = ip.kind === 'superhero' ? SUPERHERO_SUBTITLES : COMIC_SUBTITLES;
-    let h = 0;
-    for (let i = 0; i < ip.id.length; i++) h = (h * 31 + ip.id.charCodeAt(i)) | 0;
-    const subtitle = pool[Math.abs(h) % pool.length];
-    return `${ip.name}: ${subtitle}`;
-  }
-
-  developProjectFromIp(ipId: string): { success: boolean; message: string; projectId?: string } {
-    const ip = this.ownedIps.find((entry) => entry.id === ipId);
-    if (!ip) return { success: false, message: 'IP not found.' };
-    if (ip.expiresWeek < this.currentWeek) return { success: false, message: 'IP rights window has expired.' };
-    if (ip.usedProjectId) return { success: false, message: 'This IP is already in development.' };
-    if (!this.storyFlags[`owned_ip_${ip.id}`]) return { success: false, message: 'Acquire rights first.' };
-    this.initializeMajorIpCommitment(ip);
-    const majorLock = this.getBlockingMajorIpCommitment(ip.id);
-    if (majorLock) {
-      return {
-        success: false,
-        message: `Contract lock: launch the next ${majorLock.ip.name} installment before opening unrelated adaptations.`,
-      };
-    }
-    if (this.projectCapacityUsed >= this.projectCapacityLimit) {
-      return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
-    }
-    const castRequirements = this.rollCastRequirements();
-    const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
-    const project = createProjectFromIp(
-      ip,
-      this.generateIpTitle(ip),
-      this.buildProjectBudgetPlan(ip.genre, budget, castRequirements),
-      castRequirements,
-    );
-    this.activeProjects.push(project);
-    ip.usedProjectId = project.id;
-    if (this.tutorialState === 'firstProject') {
-      this.advanceTutorial();
-    }
-    return { success: true, message: `${project.title} entered development from ${ip.name}.`, projectId: project.id };
-  }
-
   getActiveMilestones(): MilestoneRecord[] {
     return getActiveMilestonesForStudio(this);
   }
@@ -935,22 +482,6 @@ export class StudioManager {
 
   meetsCastRequirements(project: MovieProject): boolean {
     return this.talentService.meetsCastRequirements(project);
-  }
-
-  private rollCastRequirements(): CastRequirements {
-    const totalRoll = this.eventRng();
-    const total = totalRoll < 0.45 ? 1 : totalRoll < 0.9 ? 2 : 3;
-    const actorCount = Math.floor(this.eventRng() * (total + 1));
-    const actressCount = total - actorCount;
-    return { actorCount, actressCount };
-  }
-
-  private buildProjectBudgetPlan(
-    genre: MovieGenre,
-    ceiling: number,
-    castRequirements: CastRequirements
-  ): ProjectBudgetPlan {
-    return this.talentService.buildProjectBudgetPlan(genre, ceiling, castRequirements);
   }
 
   getGenreCycleSnapshot(): {
@@ -1189,11 +720,11 @@ export class StudioManager {
     this.adjustCash(-pitch.askingPrice);
     this.scriptMarket = this.scriptMarket.filter((item) => item.id !== scriptId);
 
-    const castRequirements = this.rollCastRequirements();
+    const castRequirements = this.ipService.rollCastRequirements();
     const ceiling = initialBudgetForGenre(pitch.genre);
     const project = createProjectFromScript(
       pitch,
-      this.buildProjectBudgetPlan(pitch.genre, ceiling, castRequirements),
+      this.talentService.buildProjectBudgetPlan(pitch.genre, ceiling, castRequirements),
       castRequirements,
     );
     this.activeProjects.push(project);
@@ -1206,9 +737,9 @@ export class StudioManager {
       body: 'The script has been removed from market offers and added to your active slate.',
       projectId: project.id,
     });
-    if (this.currentWeek % 7 === 0) this.refreshIpMarketplace();
+    if (this.currentWeek % 7 === 0) this.ipService.refreshIpMarketplace();
     if (this.tutorialState === 'firstProject') {
-      this.advanceTutorial();
+      this.tutorialService.advanceTutorial();
     }
     return { success: true, message: `Script acquired: "${pitch.title}" added to your slate.`, projectId: project.id };
   }
@@ -1330,7 +861,7 @@ export class StudioManager {
         });
       }
     }
-    this.applyRivalDecisionMemory(decision, option);
+    this.rivalAiService.applyRivalDecisionMemory(decision, option);
     this.decisionQueue = this.decisionQueue.filter((item) => item.id !== decisionId);
   }
 
@@ -1371,7 +902,7 @@ export class StudioManager {
     this.eventService.tickScriptMarketExpiry(events);
     this.eventService.refillScriptMarket(events);
     if ((this.currentWeek + 1) % 6 === 0) {
-      this.refreshIpMarketplace(this.currentWeek % 26 === 0);
+      this.ipService.refreshIpMarketplace(this.currentWeek % 26 === 0);
       const latestIp = this.ownedIps[0];
       if (latestIp) {
         events.push(`IP market: ${latestIp.name} rights are now in play.`);
@@ -1387,7 +918,7 @@ export class StudioManager {
     this.rivalAiService.processRivalCalendarMoves(events);
     this.rivalAiService.processRivalSignatureMoves(events);
     this.rivalAiService.processRivalSignatureCrises(events);
-    this.applyRivalMemoryReversion();
+    this.rivalAiService.applyRivalMemoryReversion();
     this.releaseService.projectOutcomes();
 
     this.currentWeek += 1;
@@ -1513,69 +1044,13 @@ export class StudioManager {
     return estimateWeeklyBurnForStudio(this);
   }
 
-  private addChronicleEntry(entry: Omit<ChronicleEntry, 'id'>): void {
+  addChronicleEntry(entry: Omit<ChronicleEntry, 'id'>): void {
     this.studioChronicle.unshift({ id: createId('chron'), ...entry });
     this.studioChronicle = this.studioChronicle.slice(0, 100);
   }
 
   getArcPressureFromRivals(arcId: string): number {
     return getArcPressureFromRivalsForStudio(this, arcId);
-  }
-
-  private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
-    if (!decision.title.startsWith('Counterplay:')) return;
-    const rival = this.rivals.find((item) => decision.title.includes(item.name));
-    if (!rival) return;
-
-    const kind: RivalInteractionKind = decision.title.includes('Awards')
-      ? 'prestigePressure'
-      : decision.title.includes('Platform')
-        ? 'streamingPressure'
-        : decision.title.includes('Guerrilla')
-          ? 'guerrillaPressure'
-          : decision.title.includes('Tentpole')
-            ? 'releaseCollision'
-            : 'counterplayEscalation';
-
-    if (option.cashDelta < 0 || option.hypeDelta > 0) {
-      this.recordRivalInteraction(rival, {
-        kind,
-        hostilityDelta: 3,
-        respectDelta: 1,
-        note: `Escalated counterplay response: ${option.label}.`,
-        projectId: decision.projectId,
-      });
-      return;
-    }
-
-    if (option.label.toLowerCase().includes('accept')) {
-      this.recordRivalInteraction(rival, {
-        kind,
-        hostilityDelta: -2,
-        respectDelta: -1,
-        note: `Accepted rival pressure option: ${option.label}.`,
-        projectId: decision.projectId,
-      });
-      return;
-    }
-
-    this.recordRivalInteraction(rival, {
-      kind,
-      hostilityDelta: -1,
-      respectDelta: 0,
-      note: `Lower-intensity response selected: ${option.label}.`,
-      projectId: decision.projectId,
-    });
-  }
-
-  private applyRivalMemoryReversion(): void {
-    for (const rival of this.rivals) {
-      const memory = this.getRivalMemory(rival);
-      memory.hostility = clamp(memory.hostility + (50 - memory.hostility) * 0.035, 0, 100);
-      memory.respect = clamp(memory.respect + (50 - memory.respect) * 0.028, 0, 100);
-      memory.retaliationBias = clamp(memory.retaliationBias + (50 - memory.retaliationBias) * 0.03, 0, 100);
-      memory.cooperationBias = clamp(memory.cooperationBias + (45 - memory.cooperationBias) * 0.03, 0, 100);
-    }
   }
 
   getRivalBehaviorProfile(rival: RivalStudio): {

@@ -13,10 +13,10 @@ export function useHqDerivedState(manager: StudioManager, tick: number) {
     const visibleUpdates = manager.inboxNotifications.filter((item) => !!item && typeof item.id === 'string' && typeof item.title === 'string');
     const inboxCount = visibleCrises.length + visibleDecisions.length + visibleUpdates.length;
     const weeklyExpenses = manager.estimateWeeklyBurn();
-    const marketingUpgradeCost = manager.getMarketingTeamUpgradeCost();
-    const capacityUpgradeCost = manager.getStudioCapacityUpgradeCost();
-    const marketingTierCap = manager.getMarketingTeamTierCap();
-    const capacityTierCap = manager.getStudioCapacityUpgradeTierCap();
+    const marketingUpgradeCost = manager.operationsService.getMarketingTeamUpgradeCost();
+    const capacityUpgradeCost = manager.operationsService.getStudioCapacityUpgradeCost();
+    const marketingTierCap = manager.operationsService.getMarketingTeamTierCap();
+    const capacityTierCap = manager.operationsService.getStudioCapacityUpgradeTierCap();
     const optionalActionHype =
       ACTION_BALANCE.OPTIONAL_ACTION_HYPE_BOOST +
       Math.max(0, manager.marketingTeamLevel - 1) * ACTION_BALANCE.MARKETING_TEAM_HYPE_BONUS_PER_LEVEL;
@@ -32,7 +32,7 @@ export function useHqDerivedState(manager: StudioManager, tick: number) {
         : 1_000_000
       : 0;
     const executivePoachCost = manager.executiveNetworkLevel >= 3 ? null : 900_000 * (manager.executiveNetworkLevel + 1);
-    const activePartner = manager.getActiveExclusivePartner();
+    const activePartner = manager.operationsService.getActiveExclusivePartner();
     const partnerWeeksRemaining = manager.exclusivePartnerUntilWeek
       ? Math.max(0, manager.exclusivePartnerUntilWeek - manager.currentWeek)
       : 0;

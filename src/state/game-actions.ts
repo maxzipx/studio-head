@@ -69,73 +69,73 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     },
     renameStudio: (name: string) => {
       runWhenHydrated(() => {
-        const result = manager.setStudioName(name);
+        const result = manager.operationsService.setStudioName(name);
         saveAndTick(result.message);
       });
     },
     attachTalent: (projectId: string, talentId: string) => {
       runWhenHydrated(() => {
-        const result = manager.negotiateAndAttachTalent(projectId, talentId);
+        const result = manager.talentService.negotiateAndAttachTalent(projectId, talentId);
         saveAndTick(result.message);
       });
     },
     startNegotiation: (projectId: string, talentId: string) => {
       runWhenHydrated(() => {
-        const result = manager.startTalentNegotiation(projectId, talentId);
+        const result = manager.talentService.startTalentNegotiation(projectId, talentId);
         saveAndTick(result.message);
       });
     },
     startNegotiationRound: (projectId: string, talentId: string, action) => {
       runWhenHydrated(() => {
-        const result = manager.startTalentNegotiationRound(projectId, talentId, action);
+        const result = manager.talentService.startTalentNegotiationRound(projectId, talentId, action);
         saveAndTick(result.message);
       });
     },
     adjustNegotiation: (projectId: string, talentId: string, action) => {
       runWhenHydrated(() => {
-        const result = manager.adjustTalentNegotiation(projectId, talentId, action);
+        const result = manager.talentService.adjustTalentNegotiation(projectId, talentId, action);
         saveAndTick(result.message);
       });
     },
     dismissNegotiation: (projectId: string, talentId: string) => {
       runWhenHydrated(() => {
-        manager.dismissTalentNegotiation(projectId, talentId);
+        manager.talentService.dismissTalentNegotiation(projectId, talentId);
         saveAndTick('Negotiation dismissed.');
       });
     },
     advancePhase: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.advanceProjectPhase(projectId);
+        const result = manager.lifecycleService.advanceProjectPhase(projectId);
         saveAndTick(result.message);
       });
     },
     setReleaseWeek: (projectId: string, releaseWeek: number) => {
       runWhenHydrated(() => {
-        const result = manager.setProjectReleaseWeek(projectId, releaseWeek);
+        const result = manager.lifecycleService.setProjectReleaseWeek(projectId, releaseWeek);
         saveAndTick(result.message);
       });
     },
     confirmReleaseWeek: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.confirmProjectReleaseWeek(projectId);
+        const result = manager.lifecycleService.confirmProjectReleaseWeek(projectId);
         saveAndTick(result.message);
       });
     },
     acceptOffer: (projectId: string, offerId: string) => {
       runWhenHydrated(() => {
-        const result = manager.acceptDistributionOffer(projectId, offerId);
+        const result = manager.lifecycleService.acceptDistributionOffer(projectId, offerId);
         saveAndTick(result.message);
       });
     },
     counterOffer: (projectId: string, offerId: string) => {
       runWhenHydrated(() => {
-        const result = manager.counterDistributionOffer(projectId, offerId);
+        const result = manager.lifecycleService.counterDistributionOffer(projectId, offerId);
         saveAndTick(result.message);
       });
     },
     walkAwayOffer: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.walkAwayDistribution(projectId);
+        const result = manager.lifecycleService.walkAwayDistribution(projectId);
         saveAndTick(result.message);
       });
     },
@@ -189,25 +189,25 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     },
     setFranchiseStrategy: (projectId: string, strategy) => {
       runWhenHydrated(() => {
-        const result = manager.setFranchiseStrategy(projectId, strategy);
+        const result = manager.franchiseService.setFranchiseStrategy(projectId, strategy);
         saveAndTick(result.message);
       });
     },
     runFranchiseBrandReset: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.runFranchiseBrandReset(projectId);
+        const result = manager.franchiseService.runFranchiseBrandReset(projectId);
         saveAndTick(result.message);
       });
     },
     runFranchiseLegacyCastingCampaign: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.runFranchiseLegacyCastingCampaign(projectId);
+        const result = manager.franchiseService.runFranchiseLegacyCastingCampaign(projectId);
         saveAndTick(result.message);
       });
     },
     runFranchiseHiatusPlanning: (projectId: string) => {
       runWhenHydrated(() => {
-        const result = manager.runFranchiseHiatusPlanning(projectId);
+        const result = manager.franchiseService.runFranchiseHiatusPlanning(projectId);
         saveAndTick(result.message);
       });
     },
@@ -237,79 +237,79 @@ export function buildGameActions(input: BuildGameActionsInput): GameActions {
     },
     upgradeMarketingTeam: () => {
       runWhenHydrated(() => {
-        const result = manager.upgradeMarketingTeam();
+        const result = manager.operationsService.upgradeMarketingTeam();
         saveAndTick(result.message);
       });
     },
     upgradeStudioCapacity: () => {
       runWhenHydrated(() => {
-        const result = manager.upgradeStudioCapacity();
+        const result = manager.operationsService.upgradeStudioCapacity();
         saveAndTick(result.message);
       });
     },
     foundAnimationDivision: () => {
       runWhenHydrated(() => {
-        const result = manager.foundAnimationDivision();
+        const result = manager.operationsService.foundAnimationDivision();
         saveAndTick(result.message);
       });
     },
     acquireIpRights: (ipId: string) => {
       runWhenHydrated(() => {
-        const result = manager.acquireIpRights(ipId);
+        const result = manager.ipService.acquireIpRights(ipId);
         saveAndTick(result.message);
       });
     },
     developFromIp: (ipId: string) => {
       runWhenHydrated(() => {
-        const result = manager.developProjectFromIp(ipId);
+        const result = manager.ipService.developProjectFromIp(ipId);
         saveAndTick(result.message);
       });
     },
     setStudioSpecialization: (focus) => {
       runWhenHydrated(() => {
-        const result = manager.setStudioSpecialization(focus);
+        const result = manager.operationsService.setStudioSpecialization(focus);
         saveAndTick(result.message);
       });
     },
     completeFoundingSetup: (specialization, foundingProfile) => {
       runWhenHydrated(() => {
-        const result = manager.completeFoundingSetup({ specialization, foundingProfile });
+        const result = manager.operationsService.completeFoundingSetup({ specialization, foundingProfile });
         saveAndTick(result.message);
       });
     },
     advanceTutorial: () => {
       runWhenHydrated(() => {
-        const result = manager.advanceTutorial();
+        const result = manager.tutorialService.advanceTutorial();
         saveAndTick(result.message);
       }, { allowWhenBankrupt: true });
     },
     dismissTutorial: () => {
       runWhenHydrated(() => {
-        const result = manager.dismissTutorial();
+        const result = manager.tutorialService.dismissTutorial();
         saveAndTick(result.message);
       }, { allowWhenBankrupt: true });
     },
     restartTutorial: () => {
       runWhenHydrated(() => {
-        const result = manager.restartTutorial();
+        const result = manager.tutorialService.restartTutorial();
         saveAndTick(result.message);
       }, { allowWhenBankrupt: true });
     },
     investDepartment: (track) => {
       runWhenHydrated(() => {
-        const result = manager.investDepartment(track);
+        const result = manager.operationsService.investDepartment(track);
         saveAndTick(result.message);
       });
     },
     signExclusivePartner: (partner: string) => {
       runWhenHydrated(() => {
-        const result = manager.signExclusiveDistributionPartner(partner);
+        const result = manager.operationsService.signExclusiveDistributionPartner(partner);
         saveAndTick(result.message);
       });
     },
     poachExecutiveTeam: () => {
       runWhenHydrated(() => {
-        const result = manager.poachExecutiveTeam();
+        const result = manager.operationsService.poachExecutiveTeam();
         saveAndTick(result.message);
       });
     },

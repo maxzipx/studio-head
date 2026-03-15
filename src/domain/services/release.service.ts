@@ -474,7 +474,7 @@ export class ReleaseService {
 
     const prestigeRival = this.manager.rivals.find((rival) => rival.personality === 'prestigeHunter');
     if (prestigeRival) {
-      this.manager.recordRivalInteraction(prestigeRival, {
+      this.manager.rivalAiService.recordRivalInteraction(prestigeRival, {
         kind: 'prestigePressure',
         hostilityDelta: totalWins > 0 ? 2 : 1,
         respectDelta: totalWins > 0 ? 3 : 1,
@@ -554,7 +554,7 @@ export class ReleaseService {
         }
         const prestigeRival = this.manager.rivals.find((rival) => rival.personality === 'prestigeHunter');
         if (prestigeRival) {
-          this.manager.recordRivalInteraction(prestigeRival, {
+          this.manager.rivalAiService.recordRivalInteraction(prestigeRival, {
             kind: 'prestigePressure',
             hostilityDelta: buzzed ? 3 : 2,
             respectDelta: 2,

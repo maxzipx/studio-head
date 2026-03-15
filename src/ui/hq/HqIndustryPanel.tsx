@@ -98,7 +98,7 @@ export function HqIndustryPanel({
 
       <CollapsibleCard title="Rival Relations">
         {rivalRelations.map((rival) => {
-          const stance = manager.getRivalStance(rival);
+          const stance = manager.rivalAiService.getRivalStance(rival);
           return (
             <View key={rival.id} style={styles.leaderRow}>
               <Text style={styles.body}>{rival.name}</Text>

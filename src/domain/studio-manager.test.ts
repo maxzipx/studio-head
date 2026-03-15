@@ -47,7 +47,7 @@ describe('StudioManager', () => {
   it('completes founding setup by committing specialization and founding profile immediately', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    const result = manager.completeFoundingSetup({
+    const result = manager.operationsService.completeFoundingSetup({
       specialization: 'prestige',
       foundingProfile: 'culturalBrand',
     });
@@ -66,11 +66,11 @@ describe('StudioManager', () => {
   it('refuses to complete founding setup more than once', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    manager.completeFoundingSetup({
+    manager.operationsService.completeFoundingSetup({
       specialization: 'balanced',
       foundingProfile: 'starDriven',
     });
-    const second = manager.completeFoundingSetup({
+    const second = manager.operationsService.completeFoundingSetup({
       specialization: 'indie',
       foundingProfile: 'dataDriven',
     });
@@ -85,7 +85,7 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const cashBefore = manager.cash;
 
-    const result = manager.foundAnimationDivision();
+    const result = manager.operationsService.foundAnimationDivision();
 
     expect(result.success).toBe(true);
     expect(result.message).toBe('Animation Division founded.');
@@ -95,9 +95,9 @@ describe('StudioManager', () => {
 
   it('refuses to found the animation division twice', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
-    manager.foundAnimationDivision();
+    manager.operationsService.foundAnimationDivision();
 
-    const result = manager.foundAnimationDivision();
+    const result = manager.operationsService.foundAnimationDivision();
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('already founded');
@@ -107,7 +107,7 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     manager.cash = 7_999_999;
 
-    const result = manager.foundAnimationDivision();
+    const result = manager.operationsService.foundAnimationDivision();
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('8M needed');
@@ -138,9 +138,9 @@ describe('StudioManager', () => {
   it('keeps the tutorial ineligible until founding setup is complete', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    expect(manager.isTutorialEligible()).toBe(false);
+    expect(manager.tutorialService.isTutorialEligible()).toBe(false);
 
-    const advance = manager.advanceTutorial();
+    const advance = manager.tutorialService.advanceTutorial();
     expect(advance.success).toBe(false);
     expect(manager.tutorialState).toBe('hqIntro');
   });
@@ -148,9 +148,9 @@ describe('StudioManager', () => {
   it('activates the HQ tutorial when founding setup completes', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    manager.completeFoundingSetup({ specialization: 'indie', foundingProfile: 'dataDriven' });
+    manager.operationsService.completeFoundingSetup({ specialization: 'indie', foundingProfile: 'dataDriven' });
 
-    expect(manager.isTutorialEligible()).toBe(true);
+    expect(manager.tutorialService.isTutorialEligible()).toBe(true);
     expect(manager.tutorialState).toBe('hqIntro');
     expect(manager.tutorialCompleted).toBe(false);
     expect(manager.tutorialDismissed).toBe(false);
@@ -158,29 +158,29 @@ describe('StudioManager', () => {
 
   it('advances tutorial steps in sequence through firstProject without requiring a created film', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
-    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
+    manager.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
 
-    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
     expect(manager.tutorialState).toBe('strategy');
-    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
     expect(manager.tutorialState).toBe('firstProject');
 
-    const advanced = manager.advanceTutorial();
+    const advanced = manager.tutorialService.advanceTutorial();
     expect(advanced.success).toBe(true);
     expect(manager.tutorialState).toBe('marketing');
   });
 
   it('dismisses and restarts tutorial state consistently', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
-    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+    manager.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
 
-    const dismissed = manager.dismissTutorial();
+    const dismissed = manager.tutorialService.dismissTutorial();
     expect(dismissed.success).toBe(true);
     expect(manager.tutorialDismissed).toBe(true);
     expect(manager.tutorialCompleted).toBe(false);
     expect(manager.tutorialState).toBe('complete');
 
-    const restarted = manager.restartTutorial();
+    const restarted = manager.tutorialService.restartTutorial();
     expect(restarted.success).toBe(true);
     expect(manager.tutorialDismissed).toBe(false);
     expect(manager.tutorialCompleted).toBe(false);
@@ -190,7 +190,7 @@ describe('StudioManager', () => {
   it('refuses to dismiss tutorial when it is not active', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    const result = manager.dismissTutorial();
+    const result = manager.tutorialService.dismissTutorial();
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('not currently active');
@@ -200,7 +200,7 @@ describe('StudioManager', () => {
   it('rejects tutorial restart before founding setup is complete', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
 
-    const result = manager.restartTutorial();
+    const result = manager.tutorialService.restartTutorial();
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('founding setup');
@@ -208,9 +208,9 @@ describe('StudioManager', () => {
 
   it('advances the tutorial after acquiring the first script project', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, startWithSeedProjects: false, includeOpeningDecisions: false });
-    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
-    manager.advanceTutorial();
-    manager.advanceTutorial();
+    manager.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+    manager.tutorialService.advanceTutorial();
+    manager.tutorialService.advanceTutorial();
     expect(manager.tutorialState).toBe('firstProject');
 
     const script = manager.scriptMarket[0];
@@ -222,18 +222,18 @@ describe('StudioManager', () => {
 
   it('advances the tutorial after opening a first project from owned IP', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, startWithSeedProjects: false, includeOpeningDecisions: false });
-    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
-    manager.advanceTutorial();
-    manager.advanceTutorial();
+    manager.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
+    manager.tutorialService.advanceTutorial();
+    manager.tutorialService.advanceTutorial();
     manager.cash = 100_000_000;
-    manager.refreshIpMarketplace();
+    manager.ipService.refreshIpMarketplace();
     const ip = manager.ownedIps.find((entry) => !entry.major) ?? manager.ownedIps[0];
     expect(ip).toBeTruthy();
 
-    const rights = manager.acquireIpRights(ip!.id);
+    const rights = manager.ipService.acquireIpRights(ip!.id);
     expect(rights.success).toBe(true);
 
-    const developed = manager.developProjectFromIp(ip!.id);
+    const developed = manager.ipService.developProjectFromIp(ip!.id);
 
     expect(developed.success).toBe(true);
     expect(manager.tutorialState).toBe('marketing');
@@ -241,14 +241,14 @@ describe('StudioManager', () => {
 
   it('marks the tutorial complete after the final step', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
-    manager.completeFoundingSetup({ specialization: 'prestige', foundingProfile: 'culturalBrand' });
+    manager.operationsService.completeFoundingSetup({ specialization: 'prestige', foundingProfile: 'culturalBrand' });
 
-    expect(manager.advanceTutorial().success).toBe(true);
-    expect(manager.advanceTutorial().success).toBe(true);
-    expect(manager.advanceTutorial().success).toBe(true);
-    expect(manager.advanceTutorial().success).toBe(true);
-    expect(manager.advanceTutorial().success).toBe(true);
-    expect(manager.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
+    expect(manager.tutorialService.advanceTutorial().success).toBe(true);
 
     expect(manager.tutorialState).toBe('complete');
     expect(manager.tutorialCompleted).toBe(true);
@@ -258,8 +258,8 @@ describe('StudioManager', () => {
   it('gives star-driven studios a modest talent negotiation edge', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, negotiationRng: () => 0.5, talentSeed: 41 });
-    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
-    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
+    base.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'starDriven' });
 
     const baseProject = base.activeProjects.find((project) => project.phase === 'development');
     const boostedProject = boosted.activeProjects.find((project) => project.phase === 'development');
@@ -279,8 +279,8 @@ describe('StudioManager', () => {
   it('gives data-driven studios stronger tracking confidence', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, rivalRng: () => 1, talentSeed: 17 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5, rivalRng: () => 1, talentSeed: 17 });
-    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
-    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+    base.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
 
     const baseProject = base.activeProjects[0];
     const boostedProject = boosted.activeProjects[0];
@@ -775,8 +775,8 @@ describe('StudioManager', () => {
   it('gives franchise-vision studios a momentum edge when spinning up sequels', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, talentSeed: 88 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, talentSeed: 88 });
-    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
-    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
+    base.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'franchiseVision' });
 
     const baseProject = base.activeProjects[0];
     const boostedProject = boosted.activeProjects[0];
@@ -1422,7 +1422,7 @@ describe('StudioManager', () => {
     const base = manager.getProjectedForProject(project.id);
     expect(base).toBeTruthy();
 
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     const preCommit = manager.getProjectedForProject(project.id);
     expect(preCommit).toBeTruthy();
     expect((preCommit?.openingHigh ?? 0)).toBeCloseTo(base?.openingHigh ?? 0, 4);
@@ -1432,7 +1432,7 @@ describe('StudioManager', () => {
     expect((blockbuster?.openingHigh ?? 0)).toBeGreaterThan(base?.openingHigh ?? 0);
 
     const cashBeforeSecondPivot = manager.cash;
-    manager.setStudioSpecialization('prestige');
+    manager.operationsService.setStudioSpecialization('prestige');
     manager.endTurn();
     const prestige = manager.getProjectedForProject(project.id);
     expect(prestige).toBeTruthy();
@@ -1447,13 +1447,13 @@ describe('StudioManager', () => {
     manager.cash = 3_000_000;
 
     const cashBeforeFirst = manager.cash;
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('blockbuster');
     expect(cashBeforeFirst - manager.cash).toBe(0);
 
     const cashBeforeSecond = manager.cash;
-    manager.setStudioSpecialization('prestige');
+    manager.operationsService.setStudioSpecialization('prestige');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('prestige');
     expect(cashBeforeSecond - manager.cash).toBe(1_000_000);
@@ -1464,13 +1464,13 @@ describe('StudioManager', () => {
     manager.activeProjects = [];
     manager.decisionQueue = [];
     manager.cash = 4_000_000;
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('blockbuster');
 
     const before = manager.cash;
-    manager.setStudioSpecialization('prestige');
-    manager.setStudioSpecialization('indie');
+    manager.operationsService.setStudioSpecialization('prestige');
+    manager.operationsService.setStudioSpecialization('indie');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('indie');
     expect(before - manager.cash).toBe(1_000_000);
@@ -1481,13 +1481,13 @@ describe('StudioManager', () => {
     manager.activeProjects = [];
     manager.decisionQueue = [];
     manager.cash = 4_000_000;
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('blockbuster');
 
     const before = manager.cash;
-    manager.setStudioSpecialization('prestige');
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('prestige');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('blockbuster');
     expect(before - manager.cash).toBe(0);
@@ -1498,12 +1498,12 @@ describe('StudioManager', () => {
     manager.activeProjects = [];
     manager.decisionQueue = [];
     manager.cash = 2_000_000;
-    manager.setStudioSpecialization('blockbuster');
+    manager.operationsService.setStudioSpecialization('blockbuster');
     manager.endTurn();
     expect(manager.studioSpecialization).toBe('blockbuster');
 
     manager.cash = 500_000;
-    manager.setStudioSpecialization('prestige');
+    manager.operationsService.setStudioSpecialization('prestige');
     const summary = manager.endTurn();
 
     expect(manager.studioSpecialization).toBe('blockbuster');
@@ -1519,8 +1519,8 @@ describe('StudioManager', () => {
     manager.cash = 10_000_000;
     project!.scriptQuality = 6.4;
 
-    manager.investDepartment('development');
-    manager.investDepartment('development');
+    manager.operationsService.investDepartment('development');
+    manager.operationsService.investDepartment('development');
     const before = project!.scriptQuality;
     const result = manager.runScriptDevelopmentSprint(project!.id);
     expect(result.success).toBe(true);
@@ -1781,7 +1781,7 @@ describe('StudioManager', () => {
     expect(director).toBeTruthy();
     expect(lead).toBeTruthy();
 
-    manager.signExclusiveDistributionPartner('Aster Peak Pictures');
+    manager.operationsService.signExclusiveDistributionPartner('Aster Peak Pictures');
     manager.negotiateAndAttachTalent(project!.id, director!.id);
     manager.negotiateAndAttachTalent(project!.id, lead!.id);
     manager.runGreenlightReview(project!.id, true);
@@ -2348,7 +2348,7 @@ describe('StudioManager', () => {
     const profileBefore = (manager as unknown as { getRivalBehaviorProfile: (rival: unknown) => { conflictPush: number; talentPoachChance: number } })
       .getRivalBehaviorProfile(rival);
 
-    manager.recordRivalInteraction(rival, {
+    manager.rivalAiService.recordRivalInteraction(rival, {
       kind: 'releaseCollision',
       hostilityDelta: 18,
       respectDelta: -8,
@@ -2367,7 +2367,7 @@ describe('StudioManager', () => {
     const rival = manager.rivals[0];
 
     for (let i = 0; i < 17; i += 1) {
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'counterplayEscalation',
         hostilityDelta: 1,
         respectDelta: -1,
@@ -2409,8 +2409,8 @@ describe('StudioManager', () => {
   it('gives cultural-brand studios a higher awards campaign score', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 9 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 1, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 9 });
-    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
-    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+    base.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
 
     const baseProject = base.activeProjects[0];
     const boostedProject = boosted.activeProjects[0];
@@ -2907,8 +2907,8 @@ describe('StudioManager', () => {
   it('gives cultural-brand studios a small festival edge on marginal submissions', () => {
     const base = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.425, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 23 });
     const boosted = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.425, rivalRng: () => 1, negotiationRng: () => 1, talentSeed: 23 });
-    base.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
-    boosted.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
+    base.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'none' });
+    boosted.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'culturalBrand' });
 
     const baseProject = base.activeProjects[0];
     const boostedProject = boosted.activeProjects[0];
@@ -3133,11 +3133,11 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
     manager.reputation.distributor = 80;
     manager.cash = 100_000_000;
-    manager.refreshIpMarketplace(true);
+    manager.ipService.refreshIpMarketplace(true);
     const major = manager.ownedIps.find((ip) => ip.major);
     expect(major).toBeTruthy();
 
-    const result = manager.acquireIpRights(major!.id);
+    const result = manager.ipService.acquireIpRights(major!.id);
     expect(result.success).toBe(true);
     expect(result.message).toContain('Contract requires');
 
@@ -3152,10 +3152,10 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
     manager.reputation.distributor = 80;
     manager.cash = 100_000_000;
-    manager.refreshIpMarketplace(true);
+    manager.ipService.refreshIpMarketplace(true);
     const major = manager.ownedIps.find((ip) => ip.major);
     expect(major).toBeTruthy();
-    manager.acquireIpRights(major!.id);
+    manager.ipService.acquireIpRights(major!.id);
 
     const script = manager.scriptMarket[0];
     const result = manager.acquireScript(script.id);
@@ -3167,11 +3167,11 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95, eventRng: () => 0.5 });
     manager.reputation.distributor = 80;
     manager.cash = 100_000_000;
-    manager.refreshIpMarketplace(true);
+    manager.ipService.refreshIpMarketplace(true);
     const major = manager.ownedIps.find((ip) => ip.major);
     expect(major).toBeTruthy();
-    manager.acquireIpRights(major!.id);
-    const adaptation = manager.developProjectFromIp(major!.id);
+    manager.ipService.acquireIpRights(major!.id);
+    const adaptation = manager.ipService.developProjectFromIp(major!.id);
     expect(adaptation.success).toBe(true);
     const base = manager.activeProjects.find((project) => project.id === adaptation.projectId);
     expect(base).toBeTruthy();
@@ -3195,10 +3195,10 @@ describe('StudioManager', () => {
     manager.decisionQueue = [];
     manager.reputation.distributor = 80;
     manager.cash = 100_000_000;
-    manager.refreshIpMarketplace(true);
+    manager.ipService.refreshIpMarketplace(true);
     const major = manager.ownedIps.find((ip) => ip.major);
     expect(major).toBeTruthy();
-    manager.acquireIpRights(major!.id);
+    manager.ipService.acquireIpRights(major!.id);
     const commitment = manager.getMajorIpCommitments().find((entry) => entry.ipId === major!.id);
     expect(commitment).toBeTruthy();
     const cashBefore = manager.cash;

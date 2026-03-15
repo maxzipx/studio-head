@@ -253,7 +253,7 @@ export function processRivalTalentAcquisitionsForManager(manager: StudioManager,
           note: `${rival.name} poached ${picked.name} during talks for ${projectTitle}.`,
           projectId: negotiation.projectId,
         });
-        manager.recordRivalInteraction(rival, {
+        manager.rivalAiService.recordRivalInteraction(rival, {
           kind: 'talentPoach',
           hostilityDelta: 4,
           respectDelta: 1,
@@ -303,7 +303,7 @@ export function processRivalTalentAcquisitionsForManager(manager: StudioManager,
         note: `${rival.name} poached ${picked.name}.`,
         projectId: null,
       });
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'talentPoach',
         hostilityDelta: 3,
         respectDelta: 0,
@@ -359,7 +359,7 @@ export function processRivalCalendarMovesForManager(manager: StudioManager, even
     }
 
     if (canApplyPressure && target?.releaseWeek && target.releaseWeek === film.releaseWeek) {
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'releaseCollision',
         hostilityDelta: 5,
         respectDelta: 1,
@@ -436,7 +436,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
           queueRivalCounterplayDecisionForManager(manager, 'rival_tentpole_threat', rival.name, target.id);
         }
         events.push(`${rival.name} dropped a four-quadrant tentpole into your weekend corridor.`);
-        manager.recordRivalInteraction(rival, {
+        manager.rivalAiService.recordRivalInteraction(rival, {
           kind: 'counterplayEscalation',
           hostilityDelta: 4,
           respectDelta: 1,
@@ -455,7 +455,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
         queueRivalCounterplayDecisionForManager(manager, 'awards_headwind', rival.name);
       }
       events.push(`${rival.name} dominated guild chatter this week. Awards headwind intensified.`);
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'prestigePressure',
         hostilityDelta: 3,
         respectDelta: 2,
@@ -497,7 +497,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
           queueRivalCounterplayDecisionForManager(manager, 'platform_ad_blitz', rival.name, project.id);
         }
         events.push(`${rival.name} launched a platform-funded media blitz against ${project.title}.`);
-        manager.recordRivalInteraction(rival, {
+        manager.rivalAiService.recordRivalInteraction(rival, {
           kind: 'streamingPressure',
           hostilityDelta: 2,
           respectDelta: 1,
@@ -520,7 +520,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
           queueRivalCounterplayDecisionForManager(manager, 'guerrilla_pressure', rival.name, targetProject.id);
         }
         events.push(`${rival.name} ran a guerrilla social blitz that clipped hype on ${targetProject.title}.`);
-        manager.recordRivalInteraction(rival, {
+        manager.rivalAiService.recordRivalInteraction(rival, {
           kind: 'guerrillaPressure',
           hostilityDelta: 2,
           respectDelta: 0,
@@ -745,7 +745,7 @@ export function checkRivalReleaseResponsesForManager(manager: StudioManager, rel
       }
       markCalendarPressure(manager, rival, nextDistributionProject.id);
       events.push(`${rival.name} moved its next tentpole into week ${nextDistributionProject.releaseWeek} to pressure your upcoming release.`);
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'calendarUndercut',
         hostilityDelta: 3,
         respectDelta: 1,
@@ -767,7 +767,7 @@ export function checkRivalReleaseResponsesForManager(manager: StudioManager, rel
         rival.lockedTalentIds.push(director.id);
       }
       events.push(`${rival.name} responded by poaching director ${director.name} into a prestige package.`);
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'talentPoach',
         hostilityDelta: 3,
         respectDelta: 1,
@@ -825,7 +825,7 @@ export function checkRivalReleaseResponsesForManager(manager: StudioManager, rel
       targetProject.hypeScore = clamp(targetProject.hypeScore - 3, 0, 100);
       manager.adjustReputation(-1, 'audience');
       events.push(`${rival.name} launched a counter-campaign against ${targetProject.title}. Hype -3.`);
-      manager.recordRivalInteraction(rival, {
+      manager.rivalAiService.recordRivalInteraction(rival, {
         kind: 'guerrillaPressure',
         hostilityDelta: 2,
         respectDelta: 0,

@@ -227,7 +227,7 @@ export function generateDistributionOffersForManager(manager: StudioManager, pro
   const hypeFactor = 1 + project.hypeScore / 200;
   const mgMultiplier = 1 + modifiers.distributionLeverage;
   const shareLift = modifiers.distributionLeverage * 0.22;
-  const exclusivePartner = manager.getActiveExclusivePartner?.() ?? null;
+  const exclusivePartner = manager.operationsService.getActiveExclusivePartner() ?? null;
   const exclusiveBoost = 1.16;
   const offPartnerPenalty = 0.94;
   const offers: DistributionOffer[] = [

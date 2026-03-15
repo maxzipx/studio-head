@@ -62,7 +62,7 @@ function buildStepContentForState(manager: StudioManager, tutorialState: string)
   const foundingProfileLabel =
     FOUNDING_PROFILE_OPTIONS.find((option) => option.key === manager.foundingProfile)?.label ?? 'Independent';
   const leadProject = manager.activeProjects[0] ?? null;
-  const firstProjectReady = manager.hasCreatedFirstProject();
+  const firstProjectReady = manager.tutorialService.hasCreatedFirstProject();
   const aggressiveEarlyCash = manager.currentWeek <= 12 && manager.cash < STUDIO_STARTING.CASH * 0.7;
 
   switch (tutorialState) {

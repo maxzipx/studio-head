@@ -210,7 +210,7 @@ describe('persistence restore', () => {
 
   it('restores missing tutorial fields from legacy saves as already completed', () => {
     const manager = new StudioManager();
-    manager.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
+    manager.operationsService.completeFoundingSetup({ specialization: 'balanced', foundingProfile: 'dataDriven' });
     const snapshot = JSON.parse(JSON.stringify(serializeStudioManager(manager))) as ReturnType<typeof serializeStudioManager>;
     delete snapshot.tutorialState;
     delete snapshot.tutorialCompleted;
