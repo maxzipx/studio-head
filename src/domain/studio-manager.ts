@@ -31,6 +31,7 @@ import {
   runOptionalActionForManager,
   runMarketingPushOnProjectForManager,
 } from './project.service';
+import { createProjectFromIp, createProjectFromScript } from './project-factory';
 import { getEventDeck } from './event-deck';
 import {
   createOpeningDecisions,
@@ -900,66 +901,14 @@ export class StudioManager {
     if (this.projectCapacityUsed >= this.projectCapacityLimit) {
       return { success: false, message: `Studio capacity reached (${this.projectCapacityUsed}/${this.projectCapacityLimit}). Expand facilities first.` };
     }
-    const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
     const castRequirements = this.rollCastRequirements();
-    const project: MovieProject = {
-      id: createId('project'),
-      title: this.generateIpTitle(ip),
-      genre: ip.genre,
-      phase: 'development',
-      budget: {
-        ceiling: budget,
-        aboveTheLine: budget * 0.3,
-        belowTheLine: budget * 0.5,
-        postProduction: budget * 0.15,
-        contingency: budget * 0.1,
-        overrunRisk: 0.27,
-        actualSpend: Math.round(ip.acquisitionCost * 0.4),
-      },
-      budgetPlan: this.buildProjectBudgetPlan(ip.genre, budget, castRequirements),
+    const budget = initialBudgetForGenre(ip.genre) * (ip.major ? 1.3 : 1.05);
+    const project = createProjectFromIp(
+      ip,
+      this.generateIpTitle(ip),
+      this.buildProjectBudgetPlan(ip.genre, budget, castRequirements),
       castRequirements,
-      scriptQuality: clamp(6.1 + ip.qualityBonus, 0, 9.2),
-      conceptStrength: clamp(6.4 + ip.commercialBonus * 0.12, 0, 9.5),
-      editorialScore: 5,
-      postPolishPasses: 0,
-      directorId: null,
-      castIds: [],
-      productionStatus: 'onTrack',
-      scheduledWeeksRemaining: 6,
-      hypeScore: clamp(8 + ip.hypeBonus, 0, 100),
-      marketingBudget: 0,
-      releaseWindow: null,
-      releaseWeek: null,
-      releaseWeekLocked: false,
-      distributionPartner: null,
-      studioRevenueShare: 0.52,
-      projectedROI: 1,
-      openingWeekendGross: null,
-      weeklyGrossHistory: [],
-      releaseWeeksRemaining: 0,
-      releaseResolved: false,
-      finalBoxOffice: null,
-      criticalScore: null,
-      audienceScore: null,
-      awardsNominations: 0,
-      awardsWins: 0,
-      festivalStatus: 'none',
-      festivalTarget: null,
-      festivalSubmissionWeek: null,
-      festivalResolutionWeek: null,
-      festivalBuzz: 0,
-      prestige: clamp(40 + ip.prestigeBonus, 0, 100),
-      commercialAppeal: clamp(45 + ip.commercialBonus, 0, 100),
-      originality: clamp(38 + ip.qualityBonus * 5, 0, 100),
-      controversy: 10,
-      franchiseId: null,
-      franchiseEpisode: null,
-      sequelToProjectId: null,
-      franchiseCarryoverHype: 0,
-      franchiseStrategy: 'none',
-      greenlightApproved: false,
-      adaptedFromIpId: ip.id,
-    };
+    );
     this.activeProjects.push(project);
     ip.usedProjectId = project.id;
     if (this.tutorialState === 'firstProject') {
@@ -1240,91 +1189,13 @@ export class StudioManager {
     this.adjustCash(-pitch.askingPrice);
     this.scriptMarket = this.scriptMarket.filter((item) => item.id !== scriptId);
 
-    const ceiling = initialBudgetForGenre(pitch.genre);
     const castRequirements = this.rollCastRequirements();
-    const project: MovieProject = {
-      id: createId('project'),
-      title: pitch.title,
-      genre: pitch.genre,
-      phase: 'development',
-      budget: {
-        ceiling,
-        aboveTheLine: ceiling * 0.3,
-        belowTheLine: ceiling * 0.5,
-        postProduction: ceiling * 0.15,
-        contingency: ceiling * 0.1,
-        overrunRisk: 0.28,
-        actualSpend: pitch.askingPrice,
-      },
-      budgetPlan: this.buildProjectBudgetPlan(pitch.genre, ceiling, castRequirements),
+    const ceiling = initialBudgetForGenre(pitch.genre);
+    const project = createProjectFromScript(
+      pitch,
+      this.buildProjectBudgetPlan(pitch.genre, ceiling, castRequirements),
       castRequirements,
-      scriptQuality: pitch.scriptQuality,
-      conceptStrength: pitch.conceptStrength,
-      editorialScore: 5,
-      postPolishPasses: 0,
-      directorId: null,
-      castIds: [],
-      productionStatus: 'onTrack',
-      scheduledWeeksRemaining: 6,
-      hypeScore: 8,
-      marketingBudget: 0,
-      releaseWindow: null,
-      releaseWeek: null,
-      releaseWeekLocked: false,
-      distributionPartner: null,
-      studioRevenueShare: 0.52,
-      projectedROI: 1,
-      openingWeekendGross: null,
-      weeklyGrossHistory: [],
-      releaseWeeksRemaining: 0,
-      releaseResolved: false,
-      finalBoxOffice: null,
-      criticalScore: null,
-      audienceScore: null,
-      awardsNominations: 0,
-      awardsWins: 0,
-      festivalStatus: 'none',
-      festivalTarget: null,
-      festivalSubmissionWeek: null,
-      festivalResolutionWeek: null,
-      festivalBuzz: 0,
-      prestige: clamp(
-        Math.round(pitch.scriptQuality * 7 + (pitch.genre === 'drama' || pitch.genre === 'documentary' ? 18 : 0)),
-        0, 100
-      ),
-      commercialAppeal: clamp(
-        Math.round(
-          (pitch.genre === 'action' ? 68 : pitch.genre === 'sciFi' ? 62 : pitch.genre === 'animation' ? 60
-            : pitch.genre === 'drama' ? 32 : pitch.genre === 'documentary' ? 18 : 48) +
-          pitch.conceptStrength * 3
-        ), 0, 100
-      ),
-      originality: clamp(Math.round(pitch.conceptStrength * 8 + 10), 0, 100),
-      controversy: pitch.genre === 'horror' ? 35 : pitch.genre === 'thriller' ? 28 : pitch.genre === 'action' ? 22 : 15,
-      franchiseId: null,
-      franchiseEpisode: null,
-      sequelToProjectId: null,
-      franchiseCarryoverHype: 0,
-      franchiseStrategy: 'none',
-      greenlightApproved: false,
-      greenlightWeek: null,
-      greenlightFeePaid: 0,
-      greenlightLockedCeiling: null,
-      sentBackForRewriteCount: 0,
-      testScreeningCompleted: false,
-      testScreeningWeek: null,
-      testScreeningCriticalLow: null,
-      testScreeningCriticalHigh: null,
-      testScreeningAudienceSentiment: null,
-      reshootCount: 0,
-      trackingProjectionOpening: null,
-      trackingConfidence: null,
-      trackingLeverageAmount: 0,
-      trackingSettled: false,
-      merchandiseWeeksRemaining: 0,
-      merchandiseWeeklyRevenue: 0,
-      adaptedFromIpId: null,
-    };
+    );
     this.activeProjects.push(project);
     this.newlyAcquiredProjectId = project.id;
     this.inboxNotifications.unshift({
