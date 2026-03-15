@@ -482,13 +482,13 @@ describe('StudioManager', () => {
     }
 
     const events: string[] = [];
-    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+    manager.eventService.rollForCrises(events);
 
     expect(manager.pendingCrises.length).toBe(1);
     expect(manager.generatedCrisisThisTurn).toBe(true);
     expect(manager.lastGeneratedCrisisWeek).toBe(manager.currentWeek);
 
-    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+    manager.eventService.rollForCrises(events);
     expect(manager.pendingCrises.length).toBe(1);
   });
 
@@ -503,7 +503,7 @@ describe('StudioManager', () => {
     manager.lastGeneratedCrisisWeek = manager.currentWeek - 1;
 
     const events: string[] = [];
-    (manager as unknown as { rollForCrises: (events: string[]) => void }).rollForCrises(events);
+    manager.eventService.rollForCrises(events);
 
     expect(manager.pendingCrises.length).toBe(0);
     expect(manager.generatedCrisisThisTurn).toBe(false);
@@ -677,7 +677,7 @@ describe('StudioManager', () => {
     let actressNeededCount = 0;
     for (let i = 0; i < 60; i += 1) {
       if (manager.scriptMarket.length === 0) {
-        (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+        manager.eventService.refillScriptMarket([]);
       }
       const script = manager.scriptMarket[0];
       const result = manager.acquireScript(script.id);
@@ -1725,8 +1725,8 @@ describe('StudioManager', () => {
 
     boostedManager.storyArcs['exhibitor-war'] = { stage: 3, status: 'resolved', lastUpdatedWeek: boostedManager.currentWeek };
 
-    (baseManager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(projectA.id);
-    (boostedManager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(projectB.id);
+    baseManager.lifecycleService.generateDistributionOffers(projectA.id);
+    boostedManager.lifecycleService.generateDistributionOffers(projectB.id);
 
     const offerA = baseManager.getOffersForProject(projectA.id)[0];
     const offerB = boostedManager.getOffersForProject(projectB.id)[0];
@@ -1881,7 +1881,7 @@ describe('StudioManager', () => {
       manager.genreCycles[genre].shockUntilWeek = null;
     }
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+    manager.eventService.refillScriptMarket([]);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     expect(manager.scriptMarket.every((script) => script.genre !== 'animation')).toBe(true);
@@ -1900,7 +1900,7 @@ describe('StudioManager', () => {
       manager.genreCycles[genre].shockUntilWeek = null;
     }
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+    manager.eventService.refillScriptMarket([]);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     expect(manager.scriptMarket.some((script) => script.genre === 'animation')).toBe(true);
@@ -1911,7 +1911,7 @@ describe('StudioManager', () => {
     manager.scriptMarket = [];
     const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+    manager.eventService.refillScriptMarket([]);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     for (const script of manager.scriptMarket) {
@@ -1932,7 +1932,7 @@ describe('StudioManager', () => {
     manager.scriptMarket = [];
     const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+    manager.eventService.refillScriptMarket([]);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     for (const script of manager.scriptMarket) {
@@ -1953,7 +1953,7 @@ describe('StudioManager', () => {
     manager.scriptMarket = [];
     const baseByTitle = new Map(createSeedScriptMarket().map((script) => [script.title, script]));
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket([]);
+    manager.eventService.refillScriptMarket([]);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     for (const script of manager.scriptMarket) {
@@ -2036,7 +2036,7 @@ describe('StudioManager', () => {
       }
     }
 
-    manager.refreshTalentMarket();
+    manager.talentService.refreshTalentMarket();
 
     const visibleActresses = manager.talentPool.filter(
       (talent) =>
@@ -2055,7 +2055,7 @@ describe('StudioManager', () => {
       }
     }
 
-    manager.refreshTalentMarket();
+    manager.talentService.refreshTalentMarket();
 
     const visibleActors = manager.talentPool.filter(
       (talent) =>
@@ -2093,7 +2093,7 @@ describe('StudioManager', () => {
       actor.marketWindowExpiresWeek = manager.currentWeek + 4;
     }
 
-    manager.refreshTalentMarket();
+    manager.talentService.refreshTalentMarket();
 
     const totalVisibleLeads = manager.talentPool.filter(
       (talent) =>
@@ -2196,7 +2196,7 @@ describe('StudioManager', () => {
     manager.genreCycles.drama.demand = 0.72;
     const events: string[] = [];
 
-    (manager as unknown as { refillScriptMarket: (events: string[]) => void }).refillScriptMarket(events);
+    manager.eventService.refillScriptMarket(events);
 
     expect(manager.scriptMarket.length).toBeGreaterThan(0);
     const thrillerCount = manager.scriptMarket.filter((script) => script.genre === 'thriller').length;
@@ -2208,7 +2208,7 @@ describe('StudioManager', () => {
     const project = manager.activeProjects[0];
     project.phase = 'distribution';
 
-    (manager as unknown as { generateDistributionOffers: (projectId: string) => void }).generateDistributionOffers(project.id);
+    manager.lifecycleService.generateDistributionOffers(project.id);
     const offer = manager.getOffersForProject(project.id)[0];
     expect(offer).toBeTruthy();
 
@@ -2456,7 +2456,7 @@ describe('StudioManager', () => {
     ];
 
     const events: string[] = [];
-    (manager as unknown as { processRivalTalentAcquisitions: (events: string[]) => void }).processRivalTalentAcquisitions(events);
+    manager.rivalAiService.processRivalTalentAcquisitions(events);
 
     const lockedId = manager.rivals[0].lockedTalentIds[0];
     expect(lockedId).toBeTruthy();
@@ -2486,7 +2486,7 @@ describe('StudioManager', () => {
     project.releaseWeekLocked = true;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
 
     expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(project.releaseWeek);
@@ -2514,8 +2514,8 @@ describe('StudioManager', () => {
     project.releaseWeekLocked = true;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
-    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
 
     const pressuredWeeks = manager.rivals[0].upcomingReleases.filter(
       (film) => Math.abs(film.releaseWeek - project.releaseWeek!) <= 2
@@ -2549,7 +2549,7 @@ describe('StudioManager', () => {
     project.releaseWeekLocked = true;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalCalendarMoves: (items: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
 
     expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).not.toBe(project.releaseWeek);
@@ -2577,7 +2577,7 @@ describe('StudioManager', () => {
     releasedProject.releaseResolved = true;
 
     const events: string[] = [];
-    (manager as unknown as { checkRivalReleaseResponses: (project: unknown, events: string[]) => void }).checkRivalReleaseResponses(
+    manager.rivalAiService.checkRivalReleaseResponses(
       releasedProject,
       events
     );
@@ -2610,7 +2610,7 @@ describe('StudioManager', () => {
     nextProject.releaseWeekLocked = true;
 
     const events: string[] = [];
-    (manager as unknown as { checkRivalReleaseResponses: (project: unknown, items: string[]) => void }).checkRivalReleaseResponses(
+    manager.rivalAiService.checkRivalReleaseResponses(
       releasedProject,
       events
     );
@@ -2682,7 +2682,7 @@ describe('StudioManager', () => {
     target!.marketWindowExpiresWeek = null;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalTalentAcquisitions: (events: string[]) => void }).processRivalTalentAcquisitions(events);
+    manager.rivalAiService.processRivalTalentAcquisitions(events);
 
     expect(target!.availability).toBe('unavailable');
     expect(manager.rivals.some((rival) => rival.lockedTalentIds.includes(target!.id))).toBe(true);
@@ -2792,11 +2792,11 @@ describe('StudioManager', () => {
     target.releaseWeekLocked = false;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
     expect(manager.pendingCrises.some((item) => item.kind === 'releaseConflict')).toBe(false);
 
     target.releaseWeekLocked = true;
-    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
     expect(manager.pendingCrises.some((item) => item.kind === 'releaseConflict')).toBe(true);
   });
 
@@ -2973,7 +2973,7 @@ describe('StudioManager', () => {
     const manager = new StudioManager({ crisisRng: () => 0.95 });
     const estimated = manager.estimateWeeklyBurn();
 
-    const applied = (manager as unknown as { applyWeeklyBurn: () => number }).applyWeeklyBurn();
+    const applied = manager.releaseService.applyWeeklyBurn();
     expect(estimated).toBeCloseTo(applied, 5);
   });
 
@@ -3000,7 +3000,8 @@ describe('StudioManager', () => {
     target.releaseWeekLocked = true;
     const events: string[] = [];
 
-    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureCrises(events);
 
     expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
     expect(manager.rivals[0].upcomingReleases[0].releaseWeek).toBe(target.releaseWeek);
@@ -3030,7 +3031,7 @@ describe('StudioManager', () => {
     manager.genreCycles.animation.demand = 0.74;
     const events: string[] = [];
 
-    (manager as unknown as { processRivalCalendarMoves: (events: string[]) => void }).processRivalCalendarMoves(events);
+    manager.rivalAiService.processRivalCalendarMoves(events);
 
     expect(manager.rivals[0].upcomingReleases.length).toBeGreaterThan(0);
     expect(manager.rivals[0].upcomingReleases[0].genre).toBe('sciFi');
@@ -3058,19 +3059,21 @@ describe('StudioManager', () => {
     target.releaseWeekLocked = true;
 
     const events: string[] = [];
-    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureCrises(events);
 
     expect(manager.storyFlags.rival_tentpole_threat).toBeGreaterThan(0);
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
 
     const expiryEvents: string[] = [];
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
 
     expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(false);
 
-    (manager as unknown as { processRivalSignatureMoves: (events: string[]) => void }).processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureMoves(events);
+    manager.rivalAiService.processRivalSignatureCrises(events);
     expect(manager.decisionQueue.some((item) => item.title.includes('Counterplay'))).toBe(true);
   });
 
@@ -3098,8 +3101,8 @@ describe('StudioManager', () => {
     });
 
     const expiryEvents: string[] = [];
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
     expect(manager.storyFlags.rival_tentpole_threat).toBe(1);
 
     manager.decisionQueue.push({
@@ -3121,8 +3124,8 @@ describe('StudioManager', () => {
         },
       ],
     });
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
-    (manager as unknown as { tickDecisionExpiry: (events: string[]) => void }).tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
+    manager.eventService.tickDecisionExpiry(expiryEvents);
     expect(manager.storyFlags.rival_tentpole_threat).toBeUndefined();
   });
 

@@ -563,17 +563,13 @@ function sanitizeScriptMarket(manager: StudioManager, context: SanitizeContext):
     }))
     .slice(0, scriptMarketTargetOffers);
   if (manager.scriptMarket.length === 0) {
-    const managerWithRefill = manager as unknown as { refillScriptMarket?: (events: string[]) => void };
-    if (typeof managerWithRefill.refillScriptMarket === 'function') {
-      managerWithRefill.refillScriptMarket([]);
-    }
+    manager.eventService.refillScriptMarket([]);
   }
-  const managerWithMarketRefresh = manager as unknown as { refreshTalentMarket?: () => void };
   const visibleTalent = manager.talentPool.filter(
     (talent) => talent.availability === 'available' && talent.marketWindowExpiresWeek !== null
   ).length;
-  if (visibleTalent === 0 && typeof managerWithMarketRefresh.refreshTalentMarket === 'function') {
-    managerWithMarketRefresh.refreshTalentMarket();
+  if (visibleTalent === 0) {
+    manager.talentService.refreshTalentMarket();
   }
 }
 

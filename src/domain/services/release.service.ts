@@ -223,7 +223,7 @@ export class ReleaseService {
           projectTitle: project.title,
           impact: roiValue >= 2.0 ? 'positive' : roiValue < 1.0 ? 'negative' : 'neutral',
         });
-        this.manager.checkRivalReleaseResponses(project, events);
+        this.manager.rivalAiService.checkRivalReleaseResponses(project, events);
       }
     }
   }
@@ -398,10 +398,10 @@ export class ReleaseService {
 
     const awardsArc = this.manager.storyArcs['awards-circuit'];
     const baseCampaignBoost =
-      (this.manager.hasStoryFlag('awards_campaign') ? 8 : 0) +
+      (this.manager.eventService.hasStoryFlag('awards_campaign') ? 8 : 0) +
       getReleaseSpecializationModifiers(this.manager).awardsBoost +
       getAwardsCampaignModifier(this.manager);
-    const baselineFestivalBoost = this.manager.hasStoryFlag('festival_selected') ? 4 : 0;
+    const baselineFestivalBoost = this.manager.eventService.hasStoryFlag('festival_selected') ? 4 : 0;
     const arcBoost =
       awardsArc?.status === 'resolved' ? 6 : awardsArc?.status === 'failed' ? -5 : (awardsArc?.stage ?? 0) * 1.5;
 

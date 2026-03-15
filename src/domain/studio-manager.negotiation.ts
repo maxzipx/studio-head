@@ -66,11 +66,11 @@ function applyNegotiationAction(
 export function getNegotiationChanceForManager(manager: any, talentId: string, projectId?: string): number | null {
   const talent = manager.talentPool.find((item: any) => item.id === talentId);
   if (!talent) return null;
-  const negotiation = manager.findNegotiation(talentId, projectId);
+  const negotiation = manager.talentService.findNegotiation(talentId, projectId);
   const readiness = manager.canOpenTalentNegotiation?.(talent);
   if (!negotiation && readiness && readiness.ok === false) return 0;
-  if (!negotiation) return manager.talentDealChance(talent, 0.7);
-  return manager.evaluateNegotiation(negotiation, talent).chance;
+  if (!negotiation) return manager.talentService.talentDealChance(talent, 0.7);
+  return manager.talentService.evaluateNegotiation(negotiation, talent).chance;
 }
 
 export function getQuickCloseChanceForManager(manager: any, talentId: string): number | null {
@@ -78,8 +78,8 @@ export function getQuickCloseChanceForManager(manager: any, talentId: string): n
   if (!talent) return null;
   const readiness = manager.canOpenTalentNegotiation?.(talent);
   if (readiness && readiness.ok === false) return 0;
-  const quickTerms = manager.buildQuickCloseTerms(talent);
-  return manager.evaluateNegotiation(
+  const quickTerms = manager.talentService.buildQuickCloseTerms(talent);
+  return manager.talentService.evaluateNegotiation(
     {
       talentId,
       projectId: '',
@@ -98,21 +98,21 @@ export function getQuickCloseChanceForManager(manager: any, talentId: string): n
 export function getNegotiationSnapshotForManager(manager: any, projectId: string, talentId: string): NegotiationSnapshot | null {
   const talent = manager.talentPool.find((item: any) => item.id === talentId);
   if (!talent) return null;
-  const negotiation = manager.findNegotiation(talentId, projectId);
+  const negotiation = manager.talentService.findNegotiation(talentId, projectId);
   if (!negotiation) return null;
 
-  const normalized = manager.normalizeNegotiation(negotiation, talent);
-  const evaluation = manager.evaluateNegotiation(normalized, talent);
+  const normalized = manager.talentService.normalizeNegotiation(negotiation, talent);
+  const evaluation = manager.talentService.evaluateNegotiation(normalized, talent);
   const signal =
-    normalized.lastResponse ?? manager.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
-  const currentTerms = manager.readNegotiationTerms(normalized, talent);
-  const currentMemoCost = manager.computeDealMemoCost(talent, currentTerms);
+    normalized.lastResponse ?? manager.talentService.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
+  const currentTerms = manager.talentService.readNegotiationTerms(normalized, talent);
+  const currentMemoCost = manager.talentService.computeDealMemoCost(talent, currentTerms);
 
   const nextSalaryTerms = {
     ...currentTerms,
     salaryMultiplier: clamp(currentTerms.salaryMultiplier + 0.06, 1, 1.5),
   };
-  const nextSalaryMemoCost = manager.computeDealMemoCost(talent, nextSalaryTerms);
+  const nextSalaryMemoCost = manager.talentService.computeDealMemoCost(talent, nextSalaryTerms);
 
   const nextPerksTerms = {
     ...currentTerms,
@@ -121,7 +121,7 @@ export function getNegotiationSnapshotForManager(manager: any, projectId: string
       Math.max(talent.salary.perksCost * 0.4, Math.round(currentTerms.perksBudget + 60_000))
     ),
   };
-  const nextPerksMemoCost = manager.computeDealMemoCost(talent, nextPerksTerms);
+  const nextPerksMemoCost = manager.talentService.computeDealMemoCost(talent, nextPerksTerms);
 
   const nextBackendPoints = clamp(currentTerms.backendPoints + 0.5, 0, 10);
   const backendPointsDelta = Math.max(0, nextBackendPoints - currentTerms.backendPoints);
@@ -135,7 +135,7 @@ export function getNegotiationSnapshotForManager(manager: any, projectId: string
     holdLineCount: normalized.holdLineCount ?? 0,
     chance: evaluation.chance,
     signal,
-    pressurePoint: manager.negotiationPressurePoint(evaluation),
+    pressurePoint: manager.talentService.negotiationPressurePoint(evaluation),
     roundsRemaining: Math.max(0, 4 - (normalized.rounds ?? 0)),
     demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
     demandBackendPoints: evaluation.demand.backendPoints,
@@ -179,17 +179,17 @@ export function previewTalentNegotiationRoundForManager(
     offerSalaryMultiplier: 1,
     offerBackendPoints: talent.salary.backendPoints,
     offerPerksBudget: talent.salary.perksCost,
-    lastComputedChance: manager.talentDealChance(talent, 0.7),
+    lastComputedChance: manager.talentService.talentDealChance(talent, 0.7),
     lastResponse: 'Initial offer package sent.',
   };
-  const normalized = manager.normalizeNegotiation(opening, talent);
+  const normalized = manager.talentService.normalizeNegotiation(opening, talent);
   const applied = applyNegotiationAction(normalized, talent, action);
-  const evaluation = manager.evaluateNegotiation(applied, talent);
-  const signal = manager.composeNegotiationPreview(talent.name, evaluation, applied.holdLineCount ?? 0);
-  const currentTerms = manager.readNegotiationTerms(normalized, talent);
-  const currentMemoCost = manager.computeDealMemoCost(talent, currentTerms);
-  const appliedTerms = manager.readNegotiationTerms(applied, talent);
-  const appliedMemoCost = manager.computeDealMemoCost(talent, appliedTerms);
+  const evaluation = manager.talentService.evaluateNegotiation(applied, talent);
+  const signal = manager.talentService.composeNegotiationPreview(talent.name, evaluation, applied.holdLineCount ?? 0);
+  const currentTerms = manager.talentService.readNegotiationTerms(normalized, talent);
+  const currentMemoCost = manager.talentService.computeDealMemoCost(talent, currentTerms);
+  const appliedTerms = manager.talentService.readNegotiationTerms(applied, talent);
+  const appliedMemoCost = manager.talentService.computeDealMemoCost(talent, appliedTerms);
   const nextBackendPoints = clamp((normalized.offerBackendPoints ?? talent.salary.backendPoints) + 0.5, 0, 10);
   const backendPointsDelta = Math.max(0, nextBackendPoints - (normalized.offerBackendPoints ?? talent.salary.backendPoints));
   const backendShareDeltaPct = backendPointsDelta * 0.4;
@@ -205,7 +205,7 @@ export function previewTalentNegotiationRoundForManager(
       holdLineCount: applied.holdLineCount ?? 0,
       chance: evaluation.chance,
       signal,
-      pressurePoint: manager.negotiationPressurePoint(evaluation),
+      pressurePoint: manager.talentService.negotiationPressurePoint(evaluation),
       roundsRemaining: Math.max(0, 4 - (applied.rounds ?? 0)),
       demandSalaryMultiplier: evaluation.demand.salaryMultiplier,
       demandBackendPoints: evaluation.demand.backendPoints,
@@ -227,7 +227,7 @@ export function adjustTalentNegotiationForManager(
   if (!talent) return { success: false, message: 'Talent not found.' };
   const project = manager.activeProjects.find((item: any) => item.id === projectId);
   if (!project) return { success: false, message: 'Project not found.' };
-  const negotiation = manager.findNegotiation(talentId, projectId);
+  const negotiation = manager.talentService.findNegotiation(talentId, projectId);
   if (!negotiation) return { success: false, message: 'No open negotiation for this project and talent.' };
   if (talent.availability !== 'inNegotiation') {
     const canRepair =
@@ -242,7 +242,7 @@ export function adjustTalentNegotiationForManager(
   }
   if (project.phase !== 'development') return { success: false, message: 'Negotiation can only be adjusted during development.' };
 
-  const normalized = manager.normalizeNegotiation(negotiation, talent);
+  const normalized = manager.talentService.normalizeNegotiation(negotiation, talent);
   const rounds = normalized.rounds ?? 0;
   if (rounds >= 4) {
     return { success: false, message: `Negotiation with ${talent.name} is out of rounds. Resolve it at End Turn.` };
@@ -288,9 +288,9 @@ export function adjustTalentNegotiationForManager(
   normalized.offerPerksBudget = advanced.offerPerksBudget;
   normalized.holdLineCount = advanced.holdLineCount;
   normalized.rounds = advanced.rounds;
-  const evaluation = manager.evaluateNegotiation(normalized, talent);
+  const evaluation = manager.talentService.evaluateNegotiation(normalized, talent);
   normalized.lastComputedChance = evaluation.chance;
-  normalized.lastResponse = manager.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
+  normalized.lastResponse = manager.talentService.composeNegotiationPreview(talent.name, evaluation, normalized.holdLineCount ?? 0);
 
   manager.playerNegotiations = manager.playerNegotiations.map((item: any) =>
     item.talentId === negotiation.talentId && item.projectId === negotiation.projectId
@@ -357,7 +357,7 @@ export function startTalentNegotiationForManager(
     offerSalaryMultiplier: 1,
     offerBackendPoints: talent.salary.backendPoints,
     offerPerksBudget: talent.salary.perksCost,
-    lastComputedChance: manager.talentDealChance(talent, 0.7),
+    lastComputedChance: manager.talentService.talentDealChance(talent, 0.7),
     lastResponse: 'Initial offer package sent.',
   };
   manager.playerNegotiations.push(negotiation);
@@ -368,7 +368,7 @@ export function startTalentNegotiationForManager(
     note: `Opened negotiations for ${project.title}.`,
     projectId,
   });
-  const chance = manager.evaluateNegotiation(negotiation, talent).chance;
+  const chance = manager.talentService.evaluateNegotiation(negotiation, talent).chance;
   return {
     success: true,
     message: `Opened negotiation with ${talent.name}. Package starts at salary 1.00x, backend ${talent.salary.backendPoints.toFixed(
@@ -404,8 +404,8 @@ export function negotiateAndAttachTalentForManager(
     };
   }
 
-  const quickTerms = manager.buildQuickCloseTerms(talent);
-  const chance = manager.evaluateNegotiation(
+  const quickTerms = manager.talentService.buildQuickCloseTerms(talent);
+  const chance = manager.talentService.evaluateNegotiation(
     {
       talentId,
       projectId,
@@ -419,15 +419,15 @@ export function negotiateAndAttachTalentForManager(
     talent,
     0.72
   ).chance;
-  const retainer = manager.computeDealMemoCost(talent, quickTerms);
-  const attemptFee = manager.computeQuickCloseAttemptFee(talent, quickTerms);
+  const retainer = manager.talentService.computeDealMemoCost(talent, quickTerms);
+  const attemptFee = manager.talentService.computeQuickCloseAttemptFee(talent, quickTerms);
   if (manager.cash < retainer + attemptFee) {
     return { success: false, message: 'Insufficient funds for quick-close attempt and deal memo retainer.' };
   }
 
   manager.adjustCash(-attemptFee);
   if (manager.negotiationRng() > chance) {
-    manager.setNegotiationCooldown(talent, 1);
+    manager.talentService.setNegotiationCooldown(talent, 1);
     manager.recordTalentInteraction(talent, {
       kind: 'quickCloseFailed',
       trustDelta: -3,
@@ -442,7 +442,7 @@ export function negotiateAndAttachTalentForManager(
       )}K burned. Re-open next week.`,
     };
   }
-  if (!manager.finalizeTalentAttachment(project, talent, quickTerms)) {
+  if (!manager.talentService.finalizeTalentAttachment(project, talent, quickTerms)) {
     return { success: false, message: `Deal memo failed for ${talent.name}; cash is below retainer.` };
   }
   manager.recordTalentInteraction(talent, {
@@ -498,13 +498,13 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       continue;
     }
 
-    const normalized = manager.normalizeNegotiation(negotiation, talent);
-    const evaluation = manager.evaluateNegotiation(normalized, talent);
+    const normalized = manager.talentService.normalizeNegotiation(negotiation, talent);
+    const evaluation = manager.talentService.evaluateNegotiation(normalized, talent);
     normalized.lastComputedChance = evaluation.chance;
     if (manager.negotiationRng() <= evaluation.chance) {
-      const finalizedTerms = manager.readNegotiationTerms(normalized, talent);
-      if (manager.finalizeTalentAttachment(project, talent, finalizedTerms)) {
-        events.push(manager.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0));
+      const finalizedTerms = manager.talentService.readNegotiationTerms(normalized, talent);
+      if (manager.talentService.finalizeTalentAttachment(project, talent, finalizedTerms)) {
+        events.push(manager.talentService.composeNegotiationSignal(talent.name, evaluation, true, normalized.holdLineCount ?? 0));
         manager.queueInboxNotification?.({
           kind: 'negotiationSuccess',
           projectId: project.id,
@@ -514,7 +514,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
             `Backend ${finalizedTerms.backendPoints.toFixed(1)} pts | Perks $${Math.round(finalizedTerms.perksBudget).toLocaleString()}.`,
         });
       } else {
-        manager.setNegotiationCooldown(talent, 1);
+        manager.talentService.setNegotiationCooldown(talent, 1);
         events.push(`${talent.name} accepted in principle, but retainer cash came up short and the deal stalled.`);
       }
     } else {
@@ -522,7 +522,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
       const holdLine = normalized.holdLineCount ?? 0;
       const exhausted = rounds >= 4 || holdLine >= 2;
       if (exhausted) {
-        manager.setNegotiationCooldown(talent, 1);
+        manager.talentService.setNegotiationCooldown(talent, 1);
         manager.recordTalentInteraction(talent, {
           kind: 'negotiationDeclined',
           trustDelta: -3,
@@ -530,7 +530,7 @@ export function processPlayerNegotiationsForManager(manager: any, events: string
           note: `Declined final terms for ${project.title}.`,
           projectId: project.id,
         });
-        events.push(manager.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
+        events.push(manager.talentService.composeNegotiationSignal(talent.name, evaluation, false, normalized.holdLineCount ?? 0));
       } else {
         normalized.lastComputedChance = evaluation.chance;
         talent.availability = 'inNegotiation';

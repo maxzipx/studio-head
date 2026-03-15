@@ -125,7 +125,7 @@ export function advanceProjectPhaseForManager(manager: StudioManager, projectId:
     project.projectedROI = projection.roi;
     manager.adjustCash(project.openingWeekendGross * project.studioRevenueShare);
     manager.pendingReleaseReveals.push(project.id);
-    manager.releaseTalent(project.id, 'released');
+    manager.talentService.releaseTalent(project.id, 'released');
     return { success: true, message: `${project.title} released. Opening weekend posted.` };
   }
 

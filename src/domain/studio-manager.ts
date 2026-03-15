@@ -199,12 +199,12 @@ export class StudioManager {
   marketLeadActorIdx = 0;
   marketLeadActressIdx = 0;
   private processingTurn = false;
-  private readonly lifecycleService = new ProjectLifecycleService(this);
-  private readonly franchiseService = new FranchiseService(this);
-  private readonly rivalAiService = new RivalAiService(this);
-  private readonly eventService = new EventService(this);
-  private readonly releaseService = new ReleaseService(this);
-  private readonly talentService = new TalentService(this);
+  readonly lifecycleService = new ProjectLifecycleService(this);
+  readonly franchiseService = new FranchiseService(this);
+  readonly rivalAiService = new RivalAiService(this);
+  readonly eventService = new EventService(this);
+  readonly releaseService = new ReleaseService(this);
+  readonly talentService = new TalentService(this);
 
   get studioHeat(): number {
     return Math.round(
@@ -543,7 +543,7 @@ export class StudioManager {
     this.bindOpeningDecisionToLeadProject();
     this.refreshIpMarketplace();
     this.eventService.refillScriptMarket([]);
-    this.refreshTalentMarket();
+    this.talentService.refreshTalentMarket();
   }
 
   get canEndWeek(): boolean {
@@ -1292,7 +1292,7 @@ export class StudioManager {
     const option = decision.options.find((item) => item.id === optionId);
     if (!option) return;
 
-    const project = decision.projectId ? this.getDecisionTargetProject(decision) : null;
+    const project = decision.projectId ? this.eventService.getDecisionTargetProject(decision) : null;
     if (project) {
       project.scriptQuality = clamp(project.scriptQuality + option.scriptQualityDelta, 0, 10);
       project.hypeScore = clamp(project.hypeScore + option.hypeDelta, 0, 100);
@@ -1317,9 +1317,9 @@ export class StudioManager {
     if (option.distributorRepDelta) this.adjustReputation(option.distributorRepDelta, 'distributor');
     if (option.audienceDelta) this.adjustReputation(option.audienceDelta, 'audience');
     this.evaluateBankruptcy();
-    this.applyStoryFlagMutations(option.setFlag, option.clearFlag);
+    this.eventService.applyStoryFlagMutations(option.setFlag, option.clearFlag);
     if (decision.arcId) {
-      this.applyArcMutation(decision.arcId, option);
+      this.eventService.applyArcMutation(decision.arcId, option);
       if (option.resolveArc || option.failArc) {
         this.addChronicleEntry({
           week: this.currentWeek,
@@ -1518,60 +1518,9 @@ export class StudioManager {
     this.studioChronicle = this.studioChronicle.slice(0, 100);
   }
 
-  // Delegation stubs accessed by tests and ForManager functions via cast
-  applyWeeklyBurn(): number { return this.releaseService.applyWeeklyBurn(); }
-  refillScriptMarket(events: string[]): void { this.eventService.refillScriptMarket(events); }
-  tickDecisionExpiry(events: string[]): void { this.eventService.tickDecisionExpiry(events); }
-  rollForCrises(events: string[]): void { this.eventService.rollForCrises(events); }
-  processRivalTalentAcquisitions(events: string[]): void { this.rivalAiService.processRivalTalentAcquisitions(events); }
-  processRivalCalendarMoves(events: string[]): void { this.rivalAiService.processRivalCalendarMoves(events); }
-  processRivalSignatureMoves(events: string[]): void {
-    this.rivalAiService.processRivalSignatureMoves(events);
-    this.rivalAiService.processRivalSignatureCrises(events);
-  }
-
-  injectCrisis(crisis: CrisisEvent): void {
-    this.eventService.injectCrisis(crisis);
-  }
-
-
   getArcPressureFromRivals(arcId: string): number {
     return getArcPressureFromRivalsForStudio(this, arcId);
   }
-
-  hasStoryFlag(flag: string): boolean {
-    return this.eventService.hasStoryFlag(flag);
-  }
-
-  matchesArcRequirement(input: {
-    id: string;
-    minStage?: number;
-    maxStage?: number;
-    status?: 'active' | 'resolved' | 'failed';
-  }): boolean {
-    return this.eventService.matchesArcRequirement(input);
-  }
-
-  ensureArcState(arcId: string): StoryArcState {
-    return this.eventService.ensureArcState(arcId);
-  }
-
-  applyArcMutation(arcId: string, option: DecisionItem['options'][number]): void {
-    this.eventService.applyArcMutation(arcId, option);
-  }
-
-  applyStoryFlagMutations(setFlag?: string, clearFlag?: string): void {
-    this.eventService.applyStoryFlagMutations(setFlag, clearFlag);
-  }
-
-  getDecisionTargetProject(decision: DecisionItem): MovieProject | null {
-    return this.eventService.getDecisionTargetProject(decision);
-  }
-
-  buildOperationalCrisis(project: MovieProject): CrisisEvent {
-    return this.eventService.buildOperationalCrisis(project);
-  }
-
 
   private applyRivalDecisionMemory(decision: DecisionItem, option: DecisionItem['options'][number]): void {
     if (!decision.title.startsWith('Counterplay:')) return;
@@ -1629,35 +1578,6 @@ export class StudioManager {
     }
   }
 
-  checkRivalReleaseResponses(project: MovieProject, events: string[]): void {
-    this.rivalAiService.checkRivalReleaseResponses(project, events);
-  }
-
-  calendarPressureMultiplier(week: number, genre: MovieGenre): number {
-    return this.releaseService.calendarPressureMultiplier(week, genre);
-  }
-
-  refreshTalentMarket(): void {
-    this.talentService.refreshTalentMarket();
-  }
-
-  // Delegation stubs used by ForManager functions that access these via the manager parameter
-  findNegotiation(talentId: string, projectId?: string) { return this.talentService.findNegotiation(talentId, projectId); }
-  defaultNegotiationTerms(talent: Talent) { return this.talentService.defaultNegotiationTerms(talent); }
-  buildQuickCloseTerms(talent: Talent) { return this.talentService.buildQuickCloseTerms(talent); }
-  readNegotiationTerms(negotiation: PlayerNegotiation, talent: Talent) { return this.talentService.readNegotiationTerms(negotiation, talent); }
-  normalizeNegotiation(negotiation: PlayerNegotiation, talent: Talent) { return this.talentService.normalizeNegotiation(negotiation, talent); }
-  demandedNegotiationTerms(talent: Talent) { return this.talentService.demandedNegotiationTerms(talent); }
-  computeDealMemoCost(talent: Talent, terms: Parameters<TalentService['computeDealMemoCost']>[1]) { return this.talentService.computeDealMemoCost(talent, terms); }
-  computeQuickCloseAttemptFee(talent: Talent, terms: Parameters<TalentService['computeQuickCloseAttemptFee']>[1]) { return this.talentService.computeQuickCloseAttemptFee(talent, terms); }
-  setNegotiationCooldown(talent: Talent, weeks: number) { this.talentService.setNegotiationCooldown(talent, weeks); }
-  talentDealChance(talent: Talent, base: number) { return this.talentService.talentDealChance(talent, base); }
-  evaluateNegotiation(negotiation: PlayerNegotiation, talent: Talent, baseChance = 0.7) { return this.talentService.evaluateNegotiation(negotiation, talent, baseChance); }
-  negotiationPressurePoint(evaluation: Parameters<TalentService['negotiationPressurePoint']>[0]) { return this.talentService.negotiationPressurePoint(evaluation); }
-  composeNegotiationPreview(talentName: string, evaluation: Parameters<TalentService['composeNegotiationPreview']>[1], holdLineCount: number) { return this.talentService.composeNegotiationPreview(talentName, evaluation, holdLineCount); }
-  composeNegotiationSignal(talentName: string, evaluation: Parameters<TalentService['composeNegotiationSignal']>[1], accepted: boolean, holdLineCount: number) { return this.talentService.composeNegotiationSignal(talentName, evaluation, accepted, holdLineCount); }
-  finalizeTalentAttachment(project: MovieProject, talent: Talent, terms?: Parameters<TalentService['finalizeTalentAttachment']>[2]) { return this.talentService.finalizeTalentAttachment(project, talent, terms); }
-
   getRivalBehaviorProfile(rival: RivalStudio): {
     arcPressure: Record<string, number>;
     talentPoachChance: number;
@@ -1672,10 +1592,6 @@ export class StudioManager {
 
   getArcOutcomeModifiers(): ArcOutcomeModifiers {
     return getArcOutcomeModifiersForStudio(this);
-  }
-
-  generateDistributionOffers(projectId: string): void {
-    this.lifecycleService.generateDistributionOffers(projectId);
   }
 
   releaseTalent(projectId: string, context: 'released' | 'abandoned' = 'released'): void {

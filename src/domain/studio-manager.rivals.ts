@@ -430,7 +430,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
           finalGross: null,
           criticalScore: null,
         });
-        const hadFlag = manager.hasStoryFlag('rival_tentpole_threat');
+        const hadFlag = manager.eventService.hasStoryFlag('rival_tentpole_threat');
         manager.storyFlags.rival_tentpole_threat = (manager.storyFlags.rival_tentpole_threat ?? 0) + 1;
         if (!hadFlag) {
           queueRivalCounterplayDecisionForManager(manager, 'rival_tentpole_threat', rival.name, target.id);
@@ -449,7 +449,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
 
     if (rival.personality === 'prestigeHunter') {
       manager.adjustReputation(-1.5, 'critics');
-      const hadFlag = manager.hasStoryFlag('awards_headwind');
+      const hadFlag = manager.eventService.hasStoryFlag('awards_headwind');
       manager.storyFlags.awards_headwind = (manager.storyFlags.awards_headwind ?? 0) + 1;
       if (!hadFlag) {
         queueRivalCounterplayDecisionForManager(manager, 'awards_headwind', rival.name);
@@ -475,7 +475,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
         if (!rival.lockedTalentIds.includes(targetTalent.id)) {
           rival.lockedTalentIds.push(targetTalent.id);
         }
-        const hadFlag = manager.hasStoryFlag('rival_talent_lock');
+        const hadFlag = manager.eventService.hasStoryFlag('rival_talent_lock');
         manager.storyFlags.rival_talent_lock = (manager.storyFlags.rival_talent_lock ?? 0) + 1;
         if (!hadFlag) {
           queueRivalCounterplayDecisionForManager(manager, 'rival_talent_lock', rival.name);
@@ -491,7 +491,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
         .sort((a, b) => (a.releaseWeek ?? 10_000) - (b.releaseWeek ?? 10_000))[0];
       if (project) {
         project.hypeScore = clamp(project.hypeScore - 1, 0, 100);
-        const hadFlag = manager.hasStoryFlag('platform_ad_blitz');
+        const hadFlag = manager.eventService.hasStoryFlag('platform_ad_blitz');
         manager.storyFlags.platform_ad_blitz = (manager.storyFlags.platform_ad_blitz ?? 0) + 1;
         if (!hadFlag) {
           queueRivalCounterplayDecisionForManager(manager, 'platform_ad_blitz', rival.name, project.id);
@@ -514,7 +514,7 @@ export function processRivalSignatureMovesForManager(manager: StudioManager, eve
       );
       if (targetProject) {
         targetProject.hypeScore = clamp(targetProject.hypeScore - 2, 0, 100);
-        const hadFlag = manager.hasStoryFlag('guerrilla_pressure');
+        const hadFlag = manager.eventService.hasStoryFlag('guerrilla_pressure');
         manager.storyFlags.guerrilla_pressure = (manager.storyFlags.guerrilla_pressure ?? 0) + 1;
         if (!hadFlag) {
           queueRivalCounterplayDecisionForManager(manager, 'guerrilla_pressure', rival.name, targetProject.id);
@@ -696,7 +696,7 @@ export function processRivalSignatureCrisesForManager(manager: StudioManager, ev
     const crisis = buildRivalSignatureCrisis(manager, rival, profile);
     if (!crisis) continue;
 
-    manager.injectCrisis(crisis);
+    manager.eventService.injectCrisis(crisis);
     manager.storyFlags[cooldownFlag] = manager.currentWeek;
     injectedThisTurn++;
     events.push(`${rival.name} escalated: ${crisis.title}.`);
