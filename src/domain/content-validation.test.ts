@@ -13,6 +13,7 @@ const STUB_CONTEXT: BuildDecisionContext = {
   currentWeek: 10,
   studioTier: 'midTier',
   franchises: [],
+  studioName: 'Test Studio',
 };
 
 function buildDecisionForValidation(event: EventTemplate) {
